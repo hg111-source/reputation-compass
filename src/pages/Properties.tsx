@@ -369,7 +369,7 @@ export default function Properties() {
                     onSort={handleSort}
                     className="font-semibold"
                   >
-                    Avg Score
+                    Average Score
                   </SortableTableHead>
                   <SortableTableHead
                     sortKey="totalReviews"
