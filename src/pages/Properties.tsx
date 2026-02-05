@@ -25,7 +25,11 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Plus, Building2, RefreshCw, Download, Star, Award, Hotel, Plane } from 'lucide-react';
+import { Plus, Building2, RefreshCw, Download } from 'lucide-react';
+import googleLogo from '@/assets/logos/google.png';
+import tripadvisorLogo from '@/assets/logos/tripadvisor.svg';
+import bookingLogo from '@/assets/logos/booking.png';
+import expediaLogo from '@/assets/logos/expedia.ico';
 import { useToast } from '@/hooks/use-toast';
 import { Property, ReviewSource } from '@/lib/types';
 import { PropertyRow } from '@/components/properties/PropertyRow';
@@ -280,28 +284,28 @@ export default function Properties() {
                   <TableHead className="font-semibold">Location</TableHead>
                   <TableHead className="text-center font-semibold">Avg Score</TableHead>
                   <TableHead className="text-center font-semibold">Total Reviews</TableHead>
-                  <TableHead className="text-center font-semibold text-amber-600">
-                    <div className="flex flex-col items-center gap-0.5">
-                      <Star className="h-4 w-4" />
-                      <span>Google</span>
+                  <TableHead className="text-center font-semibold">
+                    <div className="flex flex-col items-center gap-1">
+                      <img src={googleLogo} alt="Google" className="h-4 w-4" />
+                      <span className="text-amber-600">Google</span>
                     </div>
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-orange-600">
-                    <div className="flex flex-col items-center gap-0.5">
-                      <Award className="h-4 w-4" />
-                      <span>TripAdvisor</span>
+                  <TableHead className="text-center font-semibold">
+                    <div className="flex flex-col items-center gap-1">
+                      <img src={tripadvisorLogo} alt="TripAdvisor" className="h-4 w-auto max-w-[60px]" />
+                      <span className="text-orange-600">TripAdvisor</span>
                     </div>
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-blue-600">
-                    <div className="flex flex-col items-center gap-0.5">
-                      <Hotel className="h-4 w-4" />
-                      <span>Booking</span>
+                  <TableHead className="text-center font-semibold">
+                    <div className="flex flex-col items-center gap-1">
+                      <img src={bookingLogo} alt="Booking" className="h-4 w-auto" />
+                      <span className="text-blue-600">Booking</span>
                     </div>
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-purple-600">
-                    <div className="flex flex-col items-center gap-0.5">
-                      <Plane className="h-4 w-4" />
-                      <span>Expedia</span>
+                  <TableHead className="text-center font-semibold">
+                    <div className="flex flex-col items-center gap-1">
+                      <img src={expediaLogo} alt="Expedia" className="h-4 w-4" />
+                      <span className="text-purple-600">Expedia</span>
                     </div>
                   </TableHead>
                   <TableHead className="w-40"></TableHead>
