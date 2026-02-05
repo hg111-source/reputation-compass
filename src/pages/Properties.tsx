@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Plus, Building2, RefreshCw, Download } from 'lucide-react';
+import { Plus, Building2, RefreshCw, Download, Star, Award, Hotel, Plane } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Property, ReviewSource } from '@/lib/types';
 import { PropertyRow } from '@/components/properties/PropertyRow';
@@ -280,10 +280,30 @@ export default function Properties() {
                   <TableHead className="font-semibold">Location</TableHead>
                   <TableHead className="text-center font-semibold">Avg Score</TableHead>
                   <TableHead className="text-center font-semibold">Total Reviews</TableHead>
-                  <TableHead className="text-center font-semibold text-amber-600">Google</TableHead>
-                  <TableHead className="text-center font-semibold text-orange-600">TripAdvisor</TableHead>
-                  <TableHead className="text-center font-semibold text-blue-600">Booking</TableHead>
-                  <TableHead className="text-center font-semibold text-purple-600">Expedia</TableHead>
+                  <TableHead className="text-center font-semibold text-amber-600">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Star className="h-4 w-4" />
+                      <span>Google</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center font-semibold text-orange-600">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Award className="h-4 w-4" />
+                      <span>TripAdvisor</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center font-semibold text-blue-600">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Hotel className="h-4 w-4" />
+                      <span>Booking</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center font-semibold text-purple-600">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Plane className="h-4 w-4" />
+                      <span>Expedia</span>
+                    </div>
+                  </TableHead>
                   <TableHead className="w-40"></TableHead>
                 </TableRow>
               </TableHeader>
