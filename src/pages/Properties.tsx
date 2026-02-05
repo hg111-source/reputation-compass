@@ -75,6 +75,8 @@ export default function Properties() {
     propertyStates,
     startAllPlatformsRefresh,
     retryPlatform,
+    retryAllFailed,
+    getFailedCount,
     setDialogOpen: setAllPlatformsDialogOpen,
   } = useAllPlatformsRefresh();
   
@@ -572,7 +574,10 @@ export default function Properties() {
           propertyStates={propertyStates}
           currentPlatform={currentPlatform}
           onRetry={retryPlatform}
+          onRetryAllFailed={retryAllFailed}
+          failedCount={getFailedCount()}
           isComplete={isAllPlatformsComplete}
+          isRunning={isAllPlatformsRunning}
         />
 
         {/* Resolve URLs dialog */}
