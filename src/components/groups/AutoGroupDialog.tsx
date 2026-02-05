@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { MapPin, Map, TrendingUp, Loader2, Check, FolderPlus, CheckSquare, XSquare, Settings2 } from 'lucide-react';
+import { Map, TrendingUp, Loader2, Check, FolderPlus, CheckSquare, XSquare, Settings2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -38,13 +38,6 @@ interface ScoreThresholds {
 }
 
 const GROUP_OPTIONS: GroupOption[] = [
-  {
-    id: 'city',
-    title: 'Group by City',
-    description: 'Create groups like "Boston Properties", "New York Properties"',
-    icon: MapPin,
-    color: 'text-blue-500',
-  },
   {
     id: 'state',
     title: 'Group by State',
