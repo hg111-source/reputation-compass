@@ -27,9 +27,15 @@ interface PropertyHistoryDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface SourceData {
+  score: number | null;
+  count: number;
+  status: 'found' | 'not_listed';
+}
+
 interface SnapshotRow {
   date: string;
-  scores: Record<ReviewSource, { score: number; count: number } | null>;
+  scores: Record<ReviewSource, SourceData | null>;
   weightedAvg: number | null;
 }
 
@@ -81,7 +87,7 @@ export function PropertyHistoryDialog({ property, open, onOpenChange }: Property
 
     return sortedKeys.map(timestamp => {
       const snapshotsAtTime = grouped[timestamp];
-      const scores: Record<ReviewSource, { score: number; count: number } | null> = {
+      const scores: Record<ReviewSource, SourceData | null> = {
         google: null,
         tripadvisor: null,
         booking: null,
@@ -91,14 +97,19 @@ export function PropertyHistoryDialog({ property, open, onOpenChange }: Property
       const allScores: { normalized: number; count: number }[] = [];
 
       for (const snapshot of snapshotsAtTime) {
+        const status = (snapshot.status as 'found' | 'not_listed') || 'found';
         scores[snapshot.source as ReviewSource] = {
           score: snapshot.normalized_score_0_10,
           count: snapshot.review_count,
+          status,
         };
-        allScores.push({
-          normalized: snapshot.normalized_score_0_10,
-          count: snapshot.review_count,
-        });
+        // Only include in weighted average if found with valid score
+        if (status === 'found' && snapshot.normalized_score_0_10 !== null) {
+          allScores.push({
+            normalized: snapshot.normalized_score_0_10,
+            count: snapshot.review_count,
+          });
+        }
       }
 
       const weightedAvg = calculateWeightedScore(allScores);
@@ -178,22 +189,29 @@ export function PropertyHistoryDialog({ property, open, onOpenChange }: Property
                       const prevRow = groupedRows[index + 1];
                       const prevData = prevRow?.scores[source];
                       const trend = getTrendIndicator(data?.score ?? null, prevData?.score ?? null);
+                      const isNotListed = data?.status === 'not_listed';
                       return (
                         <TableCell key={source} className="text-center">
                           {data ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <div>
-                                <span className={cn('font-semibold', getScoreColor(data.score))}>
-                                  {formatScore(data.score)}
-                                </span>
-                                <div className="text-xs text-muted-foreground">
-                                  {data.count.toLocaleString()}
+                            isNotListed ? (
+                              <span className="text-xs text-muted-foreground italic">Not Listed</span>
+                            ) : data.score !== null ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <div>
+                                  <span className={cn('font-semibold', getScoreColor(data.score))}>
+                                    {formatScore(data.score)}
+                                  </span>
+                                  <div className="text-xs text-muted-foreground">
+                                    {data.count.toLocaleString()}
+                                  </div>
                                 </div>
+                                {trend && (
+                                  <trend.icon className={cn('h-3 w-3', trend.color)} aria-label={trend.label} />
+                                )}
                               </div>
-                              {trend && (
-                                <trend.icon className={cn('h-3 w-3', trend.color)} aria-label={trend.label} />
-                              )}
-                            </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
