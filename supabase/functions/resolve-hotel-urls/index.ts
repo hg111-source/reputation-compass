@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,12 +8,6 @@ const corsHeaders = {
 interface SearchResult {
   platform: 'booking' | 'tripadvisor' | 'expedia';
   url: string | null;
-}
-
-interface PropertyUrls {
-  booking_url: string | null;
-  tripadvisor_url: string | null;
-  expedia_url: string | null;
 }
 
 const PLATFORM_SITES: Record<string, string> = {
@@ -31,7 +24,7 @@ async function searchGoogleForUrl(
   platform: string
 ): Promise<string | null> {
   const site = PLATFORM_SITES[platform];
-  const query = `${hotelName} ${city} site:${site}`;
+  const query = `${hotelName} ${city} ${site}`;
   
   const url = new URL('https://www.googleapis.com/customsearch/v1');
   url.searchParams.set('key', apiKey);
@@ -82,15 +75,11 @@ serve(async (req) => {
       throw new Error('GOOGLE_CSE_ID is not configured');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { hotelName, city, platforms = ['booking', 'tripadvisor', 'expedia'] } = await req.json();
 
-    const { propertyId, hotelName, city, platforms = ['booking', 'tripadvisor', 'expedia'] } = await req.json();
-
-    if (!propertyId || !hotelName || !city) {
+    if (!hotelName || !city) {
       return new Response(
-        JSON.stringify({ error: 'propertyId, hotelName, and city are required' }),
+        JSON.stringify({ error: 'hotelName and city are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -98,7 +87,7 @@ serve(async (req) => {
     console.log(`Resolving URLs for: ${hotelName}, ${city}`);
     console.log(`Platforms to search: ${platforms.join(', ')}`);
 
-    const results: PropertyUrls = {
+    const results: Record<string, string | null> = {
       booking_url: null,
       tripadvisor_url: null,
       expedia_url: null,
@@ -107,41 +96,24 @@ serve(async (req) => {
     const foundPlatforms: string[] = [];
     const notFoundPlatforms: string[] = [];
 
-    // Search for each platform with a small delay between requests
+    // Search for each platform with a 1-second delay between requests
     for (const platform of platforms) {
       const url = await searchGoogleForUrl(apiKey, cseId, hotelName, city, platform);
       
       if (url) {
-        results[`${platform}_url` as keyof PropertyUrls] = url;
+        results[`${platform}_url`] = url;
         foundPlatforms.push(platform);
       } else {
         notFoundPlatforms.push(platform);
       }
 
-      // Small delay between Google API calls to avoid rate limiting
+      // 1-second delay between Google API calls to avoid rate limiting
       if (platforms.indexOf(platform) < platforms.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
-    // Update the property with found URLs
-    const updateData: Partial<PropertyUrls> = {};
-    for (const platform of platforms) {
-      const key = `${platform}_url` as keyof PropertyUrls;
-      updateData[key] = results[key];
-    }
-
-    const { error: updateError } = await supabase
-      .from('properties')
-      .update(updateData)
-      .eq('id', propertyId);
-
-    if (updateError) {
-      console.error('Failed to update property URLs:', updateError);
-      throw new Error(`Failed to update property: ${updateError.message}`);
-    }
-
-    console.log(`Updated property ${propertyId} with URLs:`, updateData);
+    console.log(`Results:`, results);
 
     return new Response(
       JSON.stringify({
