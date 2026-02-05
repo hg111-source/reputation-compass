@@ -10,8 +10,8 @@ const APIFY_BASE_URL = 'https://api.apify.com/v2';
 
 const APIFY_ACTORS: Record<string, string> = {
   tripadvisor: 'dbEyMBriog95Fv8CW', // maxcopell/tripadvisor
-  booking: 'oeiQgfg5fsmIJB7Cn', // voyager/booking-scraper
-  expedia: 'MWjxJcCrXurYvM6RM', // expedia scraper
+  booking: 'oeiQgfg5fsmIJB7Cn', // voyager/booking-scraper  
+  expedia: 'wBnAOMgAtH92vVJri', // tri_angle/expedia-hotels-com-reviews-scraper
 };
 
 type ReviewSource = 'google' | 'tripadvisor' | 'booking' | 'expedia';
@@ -105,19 +105,35 @@ async function fetchApifyRating(
     throw new Error(`Unknown source: ${source}`);
   }
 
-  // Start the actor run with the direct URL
-  const runBody: Record<string, unknown> = {
-    startUrls: [{ url: platformUrl }],
-    maxItems: 1,
-  };
+  // Build input based on source - each actor has different input format
+  let runBody: Record<string, unknown>;
 
-  if (source === 'booking') {
-    runBody.simple = true;
+  if (source === 'tripadvisor') {
+    // maxcopell/tripadvisor uses startUrls array
+    runBody = {
+      startUrls: [{ url: platformUrl }],
+      maxItems: 1,
+    };
+  } else if (source === 'booking') {
+    // voyager/booking-scraper uses startUrls with hotel detail URLs
+    runBody = {
+      startUrls: [platformUrl],
+      maxItems: 1,
+      simple: true,
+    };
+  } else if (source === 'expedia') {
+    // tri_angle/expedia-hotels-com-reviews-scraper uses startUrls
+    runBody = {
+      startUrls: [platformUrl],
+    };
+  } else {
+    throw new Error(`Unsupported source: ${source}`);
   }
 
   const apifyUrl = `${APIFY_BASE_URL}/acts/${actorId}/runs?token=${apiToken}`;
   console.log(`Apify URL: ${apifyUrl.replace(apiToken, 'TOKEN_HIDDEN')}`);
   console.log(`Apify body:`, JSON.stringify(runBody));
+  console.log(`Platform URL: ${platformUrl}`);
 
   const runResponse = await fetch(
     apifyUrl,
@@ -136,6 +152,8 @@ async function fetchApifyRating(
   const runData = await runResponse.json();
   const runId = runData.data.id;
 
+  console.log(`Apify run started: ${runId}`);
+
   // Wait for run to complete
   const datasetId = await waitForApifyRun(runId, apiToken);
 
@@ -150,35 +168,49 @@ async function fetchApifyRating(
 
   const results = await resultsResponse.json();
   
+  console.log(`Apify results count: ${results?.length || 0}`);
+  if (results?.length > 0) {
+    console.log(`First result keys:`, Object.keys(results[0]));
+  }
+  
   if (!results || results.length === 0) {
     throw new Error('No results from Apify');
   }
 
   const result = results[0];
   
-  // Extract rating based on source
+  // Extract rating based on source - each actor returns different structure
   let rating: number | null = null;
   let reviewCount = 0;
   let scale = 5;
+  let name = '';
 
   if (source === 'tripadvisor') {
     rating = result.rating ?? null;
     reviewCount = result.reviewsCount || result.numberOfReviews || result.reviewCount || 0;
+    name = result.name || '';
     scale = 5;
   } else if (source === 'booking') {
-    rating = result.reviewScore || result.score || result.rating || null;
-    reviewCount = result.reviewCount || result.numberOfReviews || result.reviews || 0;
+    // voyager/booking-scraper returns: score, reviewCount, name
+    rating = result.score ?? result.reviewScore ?? result.rating ?? null;
+    reviewCount = result.reviewCount ?? result.numberOfReviews ?? result.reviews ?? 0;
+    name = result.name ?? result.hotelName ?? '';
     scale = 10;
   } else if (source === 'expedia') {
-    rating = result.rating || result.guestRating || null;
-    reviewCount = result.reviewCount || result.totalReviews || 0;
+    // tri_angle/expedia-hotels-com-reviews-scraper returns review data
+    // We need to calculate average from reviews or get hotel info
+    rating = result.rating ?? result.score ?? result.guestRating ?? null;
+    reviewCount = result.reviewCount ?? result.totalReviews ?? results.length ?? 0;
+    name = result.hotelName ?? result.name ?? '';
     scale = 10;
   }
+
+  console.log(`Extracted: rating=${rating}, reviewCount=${reviewCount}, name=${name}`);
 
   return {
     rating,
     reviewCount,
-    name: result.name || '',
+    name,
     scale,
     runId,
   };
