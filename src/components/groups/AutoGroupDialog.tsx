@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MapPin, Map, TrendingUp, Loader2, Check, FolderPlus } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { MapPin, Map, TrendingUp, Loader2, Check, FolderPlus, CheckSquare, XSquare, Settings2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -8,6 +8,9 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Property, ReviewSource } from '@/lib/types';
 import { useAutoGroup, AutoGroupStrategy } from '@/hooks/useAutoGroup';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +29,12 @@ interface GroupOption {
   description: string;
   icon: React.ElementType;
   color: string;
+}
+
+interface ScoreThresholds {
+  elite: number;
+  strong: number;
+  attention: number;
 }
 
 const GROUP_OPTIONS: GroupOption[] = [
@@ -52,26 +61,79 @@ const GROUP_OPTIONS: GroupOption[] = [
   },
 ];
 
+const DEFAULT_THRESHOLDS: ScoreThresholds = {
+  elite: 9.0,
+  strong: 8.0,
+  attention: 0,
+};
+
 export function AutoGroupDialog({ open, onOpenChange, properties, scores }: AutoGroupDialogProps) {
-  const { generateGroups, createAutoGroups } = useAutoGroup();
+  const { generateGroups, generateGroupsWithThresholds, createAutoGroups } = useAutoGroup();
   const { toast } = useToast();
   const [selectedStrategy, setSelectedStrategy] = useState<AutoGroupStrategy | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [preview, setPreview] = useState<{ name: string; count: number }[] | null>(null);
+  const [showThresholds, setShowThresholds] = useState(false);
+  const [thresholds, setThresholds] = useState<ScoreThresholds>(DEFAULT_THRESHOLDS);
+  const [preview, setPreview] = useState<{ name: string; count: number; propertyIds: string[] }[] | null>(null);
+  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
 
   const handleSelectStrategy = (strategy: AutoGroupStrategy) => {
     setSelectedStrategy(strategy);
-    const groups = generateGroups(properties, scores, strategy);
-    setPreview(groups.map(g => ({ name: g.name, count: g.propertyIds.length })));
+    const groups = strategy === 'score' 
+      ? generateGroupsWithThresholds(properties, scores, thresholds)
+      : generateGroups(properties, scores, strategy);
+    const previewData = groups.map(g => ({ name: g.name, count: g.propertyIds.length, propertyIds: g.propertyIds }));
+    setPreview(previewData);
+    // Select all groups by default
+    setSelectedGroups(new Set(previewData.map(g => g.name)));
   };
 
+  const handleUpdateThresholds = (newThresholds: ScoreThresholds) => {
+    setThresholds(newThresholds);
+    if (selectedStrategy === 'score') {
+      const groups = generateGroupsWithThresholds(properties, scores, newThresholds);
+      const previewData = groups.map(g => ({ name: g.name, count: g.propertyIds.length, propertyIds: g.propertyIds }));
+      setPreview(previewData);
+      setSelectedGroups(new Set(previewData.map(g => g.name)));
+    }
+  };
+
+  const handleToggleGroup = (groupName: string) => {
+    const newSelected = new Set(selectedGroups);
+    if (newSelected.has(groupName)) {
+      newSelected.delete(groupName);
+    } else {
+      newSelected.add(groupName);
+    }
+    setSelectedGroups(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (preview) {
+      setSelectedGroups(new Set(preview.map(g => g.name)));
+    }
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedGroups(new Set());
+  };
+
+  const selectedPreview = useMemo(() => {
+    return preview?.filter(g => selectedGroups.has(g.name)) || [];
+  }, [preview, selectedGroups]);
+
   const handleCreate = async () => {
-    if (!selectedStrategy) return;
+    if (!selectedStrategy || selectedPreview.length === 0) return;
     
     setIsCreating(true);
     try {
-      const groups = generateGroups(properties, scores, selectedStrategy);
-      const created = await createAutoGroups.mutateAsync(groups);
+      // Only create selected groups
+      const groupsToCreate = selectedPreview.map(g => ({
+        name: g.name,
+        propertyIds: g.propertyIds,
+      }));
+      
+      const created = await createAutoGroups.mutateAsync(groupsToCreate);
       
       toast({
         title: 'Groups created',
@@ -79,8 +141,7 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
       });
       
       onOpenChange(false);
-      setSelectedStrategy(null);
-      setPreview(null);
+      resetState();
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -91,10 +152,17 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
     setIsCreating(false);
   };
 
-  const handleClose = () => {
-    onOpenChange(false);
+  const resetState = () => {
     setSelectedStrategy(null);
     setPreview(null);
+    setSelectedGroups(new Set());
+    setShowThresholds(false);
+    setThresholds(DEFAULT_THRESHOLDS);
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+    resetState();
   };
 
   return (
@@ -145,17 +213,121 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
           })}
         </div>
 
+        {/* Score Threshold Customization */}
+        {selectedStrategy === 'score' && (
+          <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <button
+              onClick={() => setShowThresholds(!showThresholds)}
+              className="flex w-full items-center justify-between text-sm font-medium"
+            >
+              <span className="flex items-center gap-2">
+                <Settings2 className="h-4 w-4" />
+                Customize Score Thresholds
+              </span>
+              <span className="text-muted-foreground">
+                {showThresholds ? '−' : '+'}
+              </span>
+            </button>
+            
+            {showThresholds && (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="elite-threshold" className="text-xs">
+                      Top Performers (≥)
+                    </Label>
+                    <Input
+                      id="elite-threshold"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="10"
+                      value={thresholds.elite}
+                      onChange={(e) => handleUpdateThresholds({
+                        ...thresholds,
+                        elite: parseFloat(e.target.value) || 0,
+                      })}
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="strong-threshold" className="text-xs">
+                      Strong (≥)
+                    </Label>
+                    <Input
+                      id="strong-threshold"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="10"
+                      value={thresholds.strong}
+                      onChange={(e) => handleUpdateThresholds({
+                        ...thresholds,
+                        strong: parseFloat(e.target.value) || 0,
+                      })}
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Properties below {thresholds.strong} will be in "Needs Attention"
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Preview with Checkboxes */}
         {preview && preview.length > 0 && (
           <div className="rounded-lg border border-border bg-muted/30 p-4">
-            <p className="mb-3 text-sm font-medium">Preview ({preview.length} groups):</p>
-            <div className="max-h-40 space-y-2 overflow-y-auto">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-medium">
+                Select groups to create ({selectedGroups.size} of {preview.length})
+              </p>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleSelectAll}
+                  className="h-7 px-2 text-xs"
+                >
+                  <CheckSquare className="mr-1 h-3 w-3" />
+                  All
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleDeselectAll}
+                  className="h-7 px-2 text-xs"
+                >
+                  <XSquare className="mr-1 h-3 w-3" />
+                  None
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-48 space-y-2 overflow-y-auto">
               {preview.map((group, idx) => (
-                <div key={idx} className="flex items-center justify-between text-sm">
-                  <span>{group.name}</span>
-                  <span className="text-muted-foreground">
-                    {group.count} {group.count === 1 ? 'property' : 'properties'}
-                  </span>
-                </div>
+                <label
+                  key={idx}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors',
+                    selectedGroups.has(group.name)
+                      ? 'border-accent/50 bg-accent/5'
+                      : 'border-transparent hover:bg-muted/50'
+                  )}
+                >
+                  <Checkbox
+                    checked={selectedGroups.has(group.name)}
+                    onCheckedChange={() => handleToggleGroup(group.name)}
+                    className="data-[state=checked]:bg-accent data-[state=checked]:border-accent"
+                  />
+                  <div className="flex flex-1 items-center justify-between">
+                    <span className="text-sm font-medium">{group.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {group.count} {group.count === 1 ? 'property' : 'properties'}
+                    </span>
+                  </div>
+                </label>
               ))}
             </div>
           </div>
@@ -174,7 +346,7 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
           <Button
             variant="secondary"
             onClick={handleCreate}
-            disabled={!selectedStrategy || isCreating || (preview && preview.length === 0)}
+            disabled={!selectedStrategy || isCreating || selectedPreview.length === 0}
             className="flex-1"
           >
             {isCreating ? (
@@ -183,7 +355,7 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
                 Creating...
               </>
             ) : (
-              <>Create {preview?.length || 0} Groups</>
+              <>Create {selectedPreview.length} Groups</>
             )}
           </Button>
         </div>

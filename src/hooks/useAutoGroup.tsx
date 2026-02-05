@@ -77,6 +77,14 @@ export function useAutoGroup() {
   };
 
   const groupByScore = (properties: Property[], scores: ScoreData): GroupDefinition[] => {
+    return groupByScoreWithThresholds(properties, scores, { elite: 9.0, strong: 8.0, attention: 0 });
+  };
+
+  const groupByScoreWithThresholds = (
+    properties: Property[], 
+    scores: ScoreData,
+    thresholds: { elite: number; strong: number; attention: number }
+  ): GroupDefinition[] => {
     const topPerformers: string[] = [];
     const strong: string[] = [];
     const needsAttention: string[] = [];
@@ -86,9 +94,9 @@ export function useAutoGroup() {
       
       if (avgScore === null) {
         needsAttention.push(property.id);
-      } else if (avgScore >= 9.0) {
+      } else if (avgScore >= thresholds.elite) {
         topPerformers.push(property.id);
-      } else if (avgScore >= 8.0) {
+      } else if (avgScore >= thresholds.strong) {
         strong.push(property.id);
       } else {
         needsAttention.push(property.id);
@@ -98,16 +106,24 @@ export function useAutoGroup() {
     const groups: GroupDefinition[] = [];
     
     if (topPerformers.length > 0) {
-      groups.push({ name: 'Top Performers (9.0+)', propertyIds: topPerformers });
+      groups.push({ name: `Top Performers (${thresholds.elite}+)`, propertyIds: topPerformers });
     }
     if (strong.length > 0) {
-      groups.push({ name: 'Strong (8.0-8.9)', propertyIds: strong });
+      groups.push({ name: `Strong (${thresholds.strong}-${(thresholds.elite - 0.1).toFixed(1)})`, propertyIds: strong });
     }
     if (needsAttention.length > 0) {
-      groups.push({ name: 'Needs Attention (below 8.0)', propertyIds: needsAttention });
+      groups.push({ name: `Needs Attention (below ${thresholds.strong})`, propertyIds: needsAttention });
     }
 
     return groups;
+  };
+
+  const generateGroupsWithThresholds = (
+    properties: Property[],
+    scores: ScoreData,
+    thresholds: { elite: number; strong: number; attention: number }
+  ): GroupDefinition[] => {
+    return groupByScoreWithThresholds(properties, scores, thresholds);
   };
 
   const createAutoGroups = useMutation({
@@ -154,6 +170,7 @@ export function useAutoGroup() {
 
   return {
     generateGroups,
+    generateGroupsWithThresholds,
     createAutoGroups,
   };
 }
