@@ -160,7 +160,7 @@ export function PropertyRow({
           <Tooltip>
             <TooltipTrigger asChild>
               <span className={cn('cursor-help text-base font-semibold', weightedAvg !== null ? getScoreColor(weightedAvg) : 'text-muted-foreground')}>
-                {weightedAvg !== null ? weightedAvg.toFixed(1) : '—'}
+                {weightedAvg !== null ? weightedAvg.toFixed(2) : '—'}
               </span>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
