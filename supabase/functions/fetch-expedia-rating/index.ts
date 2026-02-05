@@ -189,34 +189,44 @@ serve(async (req) => {
     console.log(`RapidAPI response: ${JSON.stringify(data).substring(0, 1000)}`);
     
     // Step 3: Parse the response from reviews/scores endpoint
+    // API returns an array - use first element if it's an array
+    const reviewData = Array.isArray(data) ? data[0] : data;
+    
     let rating: number | null = null;
     let reviewCount = 0;
 
-    // The reviews/scores endpoint returns overallScoreWithDescriptionA11y at root
-    // Format: "8,8/10 Excellent" (European comma) or "8.8/10 Excellent"
-    if (data.overallScoreWithDescriptionA11y?.value) {
-      rating = parseRating(data.overallScoreWithDescriptionA11y.value);
-      console.log(`Found overallScoreWithDescriptionA11y: ${data.overallScoreWithDescriptionA11y.value} -> ${rating}`);
-    }
-    
-    // Fallback paths
-    if (rating === null && data.overallScore) {
-      rating = parseRating(data.overallScore);
-      console.log(`Found overallScore: ${data.overallScore} -> ${rating}`);
-    }
-    
-    if (rating === null && data.score !== undefined) {
-      rating = parseFloat(data.score);
-      console.log(`Found score: ${data.score} -> ${rating}`);
-    }
+    // Handle empty array or null response
+    if (!reviewData) {
+      console.log('No review data in response (empty array or null)');
+    } else {
+      // The reviews/scores endpoint returns overallScoreWithDescriptionA11y
+      // Format: "8,8/10 Excellent" (European comma) or "8.8/10 Excellent"
+      if (reviewData.overallScoreWithDescriptionA11y?.value) {
+        rating = parseRating(reviewData.overallScoreWithDescriptionA11y.value);
+        console.log(`Found overallScoreWithDescriptionA11y: ${reviewData.overallScoreWithDescriptionA11y.value} -> ${rating}`);
+      }
+      
+      // Fallback paths
+      if (rating === null && reviewData.overallScore) {
+        rating = parseRating(reviewData.overallScore);
+        console.log(`Found overallScore: ${reviewData.overallScore} -> ${rating}`);
+      }
+      
+      if (rating === null && reviewData.score !== undefined) {
+        rating = parseFloat(reviewData.score);
+        console.log(`Found score: ${reviewData.score} -> ${rating}`);
+      }
 
-    // Find review count - "901 reviews" format
-    if (data.propertyReviewCountDetails?.shortDescription) {
-      reviewCount = parseReviewCount(data.propertyReviewCountDetails.shortDescription);
-    } else if (data.totalCount !== undefined) {
-      reviewCount = parseInt(data.totalCount);
-    } else if (data.reviewCount !== undefined) {
-      reviewCount = parseInt(data.reviewCount);
+      // Find review count - "901 reviews" or "fullDescription: 901 reviews" format
+      if (reviewData.propertyReviewCountDetails?.fullDescription) {
+        reviewCount = parseReviewCount(reviewData.propertyReviewCountDetails.fullDescription);
+      } else if (reviewData.propertyReviewCountDetails?.shortDescription) {
+        reviewCount = parseReviewCount(reviewData.propertyReviewCountDetails.shortDescription);
+      } else if (reviewData.totalCount !== undefined) {
+        reviewCount = parseInt(reviewData.totalCount);
+      } else if (reviewData.reviewCount !== undefined) {
+        reviewCount = parseInt(reviewData.reviewCount);
+      }
     }
 
     console.log(`Parsed result: rating=${rating}, reviewCount=${reviewCount}`);
