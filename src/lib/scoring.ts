@@ -58,13 +58,12 @@
    });
  }
  
- export function getScoreColor(score: number | null): string {
-   if (score === null) return 'text-muted-foreground';
-   if (score >= 9) return 'text-emerald-600';
-   if (score >= 8) return 'text-green-600';
-   if (score >= 7) return 'text-amber-500';
-   return 'text-red-500';
- }
+export function getScoreColor(score: number | null): string {
+  if (score === null) return 'text-muted-foreground';
+  if (score >= 8) return 'text-green-600';
+  if (score >= 6) return 'text-amber-500';
+  return 'text-red-500';
+}
  
  export function formatScore(score: number | null | undefined): string {
    if (score === null || score === undefined) return '—';

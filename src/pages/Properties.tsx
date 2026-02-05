@@ -225,8 +225,9 @@ export default function Properties() {
                           <div className="flex items-center justify-center gap-1">
                             <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                             <span className={cn('font-semibold', scoreColor)}>
-                              {(googleScore.score / 2).toFixed(1)}
+                              {googleScore.score.toFixed(1)}
                             </span>
+                            <span className="text-muted-foreground text-xs">/ 10</span>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
