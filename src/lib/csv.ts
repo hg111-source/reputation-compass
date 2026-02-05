@@ -1,63 +1,130 @@
- import Papa from 'papaparse';
- import * as XLSX from 'xlsx';
- import { Property, PropertyWithScores, ReviewSource } from './types';
- import { REVIEW_SOURCES, SOURCE_LABELS, formatScore } from './scoring';
- 
- interface CSVProperty {
-   'Hotel Name': string;
-   City: string;
-   State: string;
- }
- 
- export function parseCSVFile(file: File): Promise<Array<{ name: string; city: string; state: string }>> {
-   return new Promise((resolve, reject) => {
-     Papa.parse<CSVProperty>(file, {
-       header: true,
-       skipEmptyLines: true,
-       complete: (results) => {
-         const properties = results.data
-           .filter(row => row['Hotel Name'] && row.City && row.State)
-           .map(row => ({
-             name: row['Hotel Name'].trim(),
-             city: row.City.trim(),
-             state: row.State.trim(),
-           }));
-         resolve(properties);
-       },
-       error: (error) => {
-         reject(error);
-       },
-     });
-   });
- }
- 
- export async function parseExcelFile(file: File): Promise<Array<{ name: string; city: string; state: string }>> {
-   return new Promise((resolve, reject) => {
-     const reader = new FileReader();
-     reader.onload = (e) => {
-       try {
-         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-         const workbook = XLSX.read(data, { type: 'array' });
-         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-         const jsonData = XLSX.utils.sheet_to_json<CSVProperty>(firstSheet);
-         
-         const properties = jsonData
-           .filter(row => row['Hotel Name'] && row.City && row.State)
-           .map(row => ({
-             name: String(row['Hotel Name']).trim(),
-             city: String(row.City).trim(),
-             state: String(row.State).trim(),
-           }));
-         resolve(properties);
-       } catch (error) {
-         reject(error);
-       }
-     };
-     reader.onerror = () => reject(new Error('Failed to read file'));
-     reader.readAsArrayBuffer(file);
-   });
- }
- 
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
+import { Property, ReviewSource } from './types';
+import { REVIEW_SOURCES, SOURCE_LABELS, formatScore } from './scoring';
+
+interface CSVProperty {
+  'Hotel Name': string;
+  City: string;
+  State: string;
+  'Google Place ID'?: string;
+  'TripAdvisor URL'?: string;
+  'Booking URL'?: string;
+  'Expedia URL'?: string;
+}
+
+export interface ParsedProperty {
+  name: string;
+  city: string;
+  state: string;
+  sourceIds?: {
+    google?: string;
+    tripadvisor?: string;
+    booking?: string;
+    expedia?: string;
+  };
+}
+
+export function parseCSVFile(file: File): Promise<ParsedProperty[]> {
+  return new Promise((resolve, reject) => {
+    Papa.parse<CSVProperty>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const properties = results.data
+          .filter(row => row['Hotel Name'] && row.City && row.State)
+          .map(row => {
+            const prop: ParsedProperty = {
+              name: row['Hotel Name'].trim(),
+              city: row.City.trim(),
+              state: row.State.trim(),
+            };
+            
+            // Extract source IDs/URLs if present in CSV
+            const sourceIds: ParsedProperty['sourceIds'] = {};
+            if (row['Google Place ID']?.trim()) {
+              sourceIds.google = row['Google Place ID'].trim();
+            }
+            if (row['TripAdvisor URL']?.trim()) {
+              sourceIds.tripadvisor = row['TripAdvisor URL'].trim();
+            }
+            if (row['Booking URL']?.trim()) {
+              sourceIds.booking = row['Booking URL'].trim();
+            }
+            if (row['Expedia URL']?.trim()) {
+              sourceIds.expedia = row['Expedia URL'].trim();
+            }
+            
+            if (Object.keys(sourceIds).length > 0) {
+              prop.sourceIds = sourceIds;
+            }
+            
+            return prop;
+          });
+        resolve(properties);
+      },
+      error: (error) => {
+        reject(error);
+      },
+    });
+  });
+}
+
+export async function parseExcelFile(file: File): Promise<ParsedProperty[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json<CSVProperty>(firstSheet);
+        
+        const properties = jsonData
+          .filter(row => row['Hotel Name'] && row.City && row.State)
+          .map(row => {
+            const prop: ParsedProperty = {
+              name: String(row['Hotel Name']).trim(),
+              city: String(row.City).trim(),
+              state: String(row.State).trim(),
+            };
+            
+            // Extract source IDs/URLs if present
+            const sourceIds: ParsedProperty['sourceIds'] = {};
+            const googleId = row['Google Place ID'];
+            const tripUrl = row['TripAdvisor URL'];
+            const bookUrl = row['Booking URL'];
+            const expUrl = row['Expedia URL'];
+            
+            if (googleId && String(googleId).trim()) {
+              sourceIds.google = String(googleId).trim();
+            }
+            if (tripUrl && String(tripUrl).trim()) {
+              sourceIds.tripadvisor = String(tripUrl).trim();
+            }
+            if (bookUrl && String(bookUrl).trim()) {
+              sourceIds.booking = String(bookUrl).trim();
+            }
+            if (expUrl && String(expUrl).trim()) {
+              sourceIds.expedia = String(expUrl).trim();
+            }
+            
+            if (Object.keys(sourceIds).length > 0) {
+              prop.sourceIds = sourceIds;
+            }
+            
+            return prop;
+          });
+        resolve(properties);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 export function exportGroupToCSV(
   groupName: string,
   properties: Property[],

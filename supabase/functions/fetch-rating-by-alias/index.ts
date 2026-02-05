@@ -291,7 +291,10 @@ serve(async (req) => {
       );
     }
 
-    // Fetch rating using the stable identifier
+    // Fetch rating using the stable identifier (source_id_or_url)
+    // Fallback to legacy columns for backward compatibility
+    const sourceIdOrUrl = alias.source_id_or_url || alias.platform_url || alias.platform_id;
+    
     let response: FetchResponse;
 
     try {
@@ -299,11 +302,13 @@ serve(async (req) => {
         if (!googleApiKey) {
           throw new Error('GOOGLE_PLACES_API_KEY not configured');
         }
-        if (!alias.platform_id) {
+        // For Google, source_id_or_url should be the place_id
+        const placeId = alias.platform_id || alias.source_id_or_url;
+        if (!placeId) {
           throw new Error('No Google place_id in alias');
         }
 
-        const result = await fetchGoogleRating(alias.platform_id, googleApiKey);
+        const result = await fetchGoogleRating(placeId, googleApiKey);
         
         // Store snapshot
         if (result.rating !== null) {
@@ -334,15 +339,16 @@ serve(async (req) => {
           }
         };
       } else {
-        // OTA sources use Apify
+        // OTA sources use Apify - prefer source_id_or_url, fallback to platform_url
         if (!apifyToken) {
           throw new Error('APIFY_API_TOKEN not configured');
         }
-        if (!alias.platform_url) {
+        const platformUrl = alias.source_id_or_url || alias.platform_url;
+        if (!platformUrl) {
           throw new Error(`No platform URL in alias for ${source}`);
         }
 
-        const result = await fetchApifyRating(source, alias.platform_url, apifyToken);
+        const result = await fetchApifyRating(source, platformUrl, apifyToken);
         
         // Store snapshot
         if (result.rating !== null) {

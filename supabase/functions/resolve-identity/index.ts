@@ -349,10 +349,12 @@ serve(async (req) => {
         resolution_status: resolution.status,
         platform_id: resolution.platformId || null,
         platform_url: resolution.platformUrl || null,
-        platform_name: resolution.platformName || null,
+        source_id_or_url: resolution.platformUrl || resolution.platformId || null,
+        source_name_raw: resolution.platformName || null,
         confidence_score: resolution.confidence || null,
         candidate_options: resolution.candidates || [],
         last_resolved_at: new Date().toISOString(),
+        last_verified_at: resolution.status === 'resolved' ? new Date().toISOString() : null,
         last_error: resolution.error || null,
       };
 

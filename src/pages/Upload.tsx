@@ -184,6 +184,8 @@ export default function Upload() {
               </CardTitle>
               <CardDescription>
                 Required columns: <strong>Hotel Name</strong>, <strong>City</strong>, <strong>State</strong>
+                <br />
+                <span className="text-xs">Optional: Google Place ID, TripAdvisor URL, Booking URL, Expedia URL</span>
               </CardDescription>
             </CardHeader>
             <CardContent>
