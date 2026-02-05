@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { normalizeHotelName, hotelNamesMatch, generateSearchQueries } from "../_shared/hotelNameUtils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -54,39 +55,6 @@ async function waitForRun(runId: string, token: string, maxWaitMs = 120000): Pro
   throw new Error('Apify run timeout - try again later');
 }
 
-// Generate search query variations
-function generateSearchVariations(hotelName: string, city: string, state: string): string[] {
-  const variations: string[] = [];
-  
-  // 1. Full format: Hotel Name, City, State
-  variations.push(`${hotelName}, ${city}, ${state}`);
-  
-  // 2. Standard: Hotel Name + City
-  variations.push(`${hotelName} ${city}`);
-  
-  // 3. Full location without comma
-  variations.push(`${hotelName} ${city} ${state}`);
-  
-  // 4. Hotel name only
-  variations.push(hotelName);
-  
-  // 5. Remove common prefixes/suffixes
-  let simplifiedName = hotelName
-    .replace(/^The\s+/i, '')
-    .replace(/\s+Hotel$/i, '')
-    .replace(/\s+Inn$/i, '')
-    .replace(/\s+Suites?$/i, '')
-    .replace(/\s+Resort$/i, '')
-    .trim();
-  
-  if (simplifiedName !== hotelName) {
-    variations.push(`${simplifiedName}, ${city}, ${state}`);
-    variations.push(`${simplifiedName} ${city}`);
-  }
-  
-  return [...new Set(variations)]; // Remove duplicates
-}
-
 async function trySearch(searchQuery: string, apiToken: string): Promise<ExpediaResult[] | null> {
   console.log(`Expedia trying search: "${searchQuery}"`);
   
@@ -98,7 +66,7 @@ async function trySearch(searchQuery: string, apiToken: string): Promise<Expedia
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: searchQuery,
-          maxItems: 3, // Get a few results to find best match
+          maxItems: 5, // Get a few results to find best match
         }),
       }
     );
@@ -132,24 +100,22 @@ async function trySearch(searchQuery: string, apiToken: string): Promise<Expedia
   }
 }
 
-// Find best matching hotel from results
+// Find best matching hotel from results using normalized name matching
 function findBestMatch(results: ExpediaResult[], hotelName: string): ExpediaResult | null {
   if (!results || results.length === 0) return null;
   
-  const normalizedSearch = hotelName.toLowerCase().replace(/[^a-z0-9]/g, '');
-  
-  // Try exact match first
+  // Use the shared hotel name matching function
   for (const result of results) {
     const resultName = result.name || result.hotelName;
-    if (resultName) {
-      const normalizedResult = resultName.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (normalizedResult.includes(normalizedSearch) || normalizedSearch.includes(normalizedResult)) {
-        return result;
-      }
+    if (resultName && hotelNamesMatch(hotelName, resultName, 0.7)) {
+      console.log(`Matched: "${resultName}" with "${hotelName}"`);
+      return result;
     }
   }
   
   // Return first result if no good match
+  const firstName = results[0].name || results[0].hotelName;
+  console.log(`No exact match, using first result: ${firstName}`);
   return results[0];
 }
 
@@ -232,8 +198,8 @@ serve(async (req) => {
       // Parse city and state from input (format: "City, State")
       const [cityName, stateName = ''] = city.split(',').map((s: string) => s.trim());
       
-      // Generate search variations
-      const searchVariations = generateSearchVariations(hotelName, cityName, stateName);
+      // Generate search variations using shared utility
+      const searchVariations = generateSearchQueries(hotelName, cityName, stateName);
       
       // Try each search variation
       for (const searchQuery of searchVariations) {

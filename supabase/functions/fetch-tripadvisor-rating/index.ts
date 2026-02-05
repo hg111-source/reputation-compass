@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { normalizeHotelName, generateSearchQueries } from "../_shared/hotelNameUtils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -141,53 +142,65 @@ serve(async (req) => {
 
     // Fall back to search if no URL or URL fetch failed
     if (!hotel) {
-      const searchQuery = `${hotelName} ${city}`;
-      console.log(`TripAdvisor search: ${searchQuery}, includeReviews: ${includeReviews}`);
+      // Use normalized name for better search results
+      const normalizedName = normalizeHotelName(hotelName);
+      const [cityName, stateName = ''] = city.split(',').map((s: string) => s.trim());
+      const searchQueries = generateSearchQueries(hotelName, cityName, stateName);
+      
+      console.log(`TripAdvisor search queries: ${searchQueries.join(' | ')}, includeReviews: ${includeReviews}`);
 
-      // Start the Apify actor run with correct input format
-      const runResponse = await fetch(
-        `${APIFY_BASE_URL}/acts/${TRIPADVISOR_ACTOR_ID}/runs?token=${apiToken}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: searchQuery,
-            maxItems: 1,
-            language: 'en',
-            includeReviews: includeReviews,
-            maxReviews: includeReviews ? maxReviews : 0,
-          }),
+      // Try each search query until we get results
+      for (const searchQuery of searchQueries) {
+        console.log(`Trying TripAdvisor query: "${searchQuery}"`);
+        
+        // Start the Apify actor run with correct input format
+        const runResponse = await fetch(
+          `${APIFY_BASE_URL}/acts/${TRIPADVISOR_ACTOR_ID}/runs?token=${apiToken}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: searchQuery,
+              maxItems: 1,
+              language: 'en',
+              includeReviews: includeReviews,
+              maxReviews: includeReviews ? maxReviews : 0,
+            }),
+          }
+        );
+
+        if (!runResponse.ok) {
+          const errorText = await runResponse.text();
+          console.error('Apify run start error:', errorText);
+          continue; // Try next query
         }
-      );
 
-      if (!runResponse.ok) {
-        const errorText = await runResponse.text();
-        console.error('Apify run start error:', errorText);
-        throw new Error(`Failed to start Apify run: ${runResponse.status}`);
+        const runData: ApifyRunResponse = await runResponse.json();
+        const runId = runData.data.id;
+        
+        console.log(`Apify TripAdvisor run started: ${runId}`);
+
+        try {
+          const datasetId = await waitForRun(runId, apiToken);
+          
+          const resultsResponse = await fetch(
+            `${APIFY_BASE_URL}/datasets/${datasetId}/items?token=${apiToken}`
+          );
+          
+          if (resultsResponse.ok) {
+            const results: TripAdvisorResult[] = await resultsResponse.json();
+            
+            if (results && results.length > 0) {
+              hotel = results[0];
+              console.log(`Found result with query: "${searchQuery}"`);
+              break;
+            }
+          }
+        } catch (error) {
+          console.log(`Query "${searchQuery}" failed, trying next...`);
+          continue;
+        }
       }
-
-      const runData: ApifyRunResponse = await runResponse.json();
-      const runId = runData.data.id;
-      
-      console.log(`Apify TripAdvisor run started: ${runId}`);
-
-      // Wait for the run to complete (polls every 5 seconds, timeout 120 seconds)
-      const datasetId = await waitForRun(runId, apiToken);
-      
-      // Get the results
-      const resultsResponse = await fetch(
-        `${APIFY_BASE_URL}/datasets/${datasetId}/items?token=${apiToken}`
-      );
-      
-      if (!resultsResponse.ok) {
-        throw new Error('Failed to fetch Apify results');
-      }
-
-      const results: TripAdvisorResult[] = await resultsResponse.json();
-      
-      console.log(`TripAdvisor results:`, JSON.stringify(results[0] || {}, null, 2));
-      
-      hotel = results && results.length > 0 ? results[0] : null;
     }
     
     if (!hotel) {
@@ -199,6 +212,8 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`TripAdvisor results:`, JSON.stringify(hotel, null, 2));
 
     // TripAdvisor uses 0-5 scale
     const rating = hotel.rating ?? null;

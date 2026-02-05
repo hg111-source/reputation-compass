@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { normalizeHotelName, hotelNamesMatch } from "../_shared/hotelNameUtils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,11 +36,14 @@ serve(async (req) => {
       );
     }
 
+    // Normalize hotel name for better matching
+    const normalizedName = normalizeHotelName(hotelName);
+    
     // Use the new Places API (Text Search)
     const searchUrl = 'https://places.googleapis.com/v1/places:searchText';
-    const query = `${hotelName} hotel ${city}`;
+    const query = `${normalizedName} hotel ${city}`;
 
-    console.log(`Searching for: ${hotelName} in ${city}`);
+    console.log(`Searching for: ${hotelName} (normalized: ${normalizedName}) in ${city}`);
 
     const searchResponse = await fetch(searchUrl, {
       method: 'POST',
@@ -51,7 +55,7 @@ serve(async (req) => {
       body: JSON.stringify({
         textQuery: query,
         includedType: 'lodging',
-        maxResultCount: 1,
+        maxResultCount: 5, // Get multiple results to find best match
       }),
     });
 
@@ -73,17 +77,33 @@ serve(async (req) => {
       );
     }
 
-    const place: PlaceResult = searchData.places[0];
+    // Find best matching place using normalized name comparison
+    let bestPlace: PlaceResult | null = null;
+    
+    for (const place of searchData.places as PlaceResult[]) {
+      const placeName = place.displayName?.text || '';
+      if (hotelNamesMatch(hotelName, placeName, 0.7)) {
+        bestPlace = place;
+        console.log(`Matched: "${placeName}" with "${hotelName}"`);
+        break;
+      }
+    }
+    
+    // Fall back to first result if no good match
+    if (!bestPlace) {
+      bestPlace = searchData.places[0];
+      console.log(`No exact match, using first result: ${bestPlace.displayName?.text}`);
+    }
 
     return new Response(
       JSON.stringify({
         found: true,
-        placeId: place.id,
-        name: place.displayName?.text,
-        address: place.formattedAddress,
-        rating: place.rating ?? null,
-        reviewCount: place.userRatingCount ?? 0,
-        websiteUrl: place.websiteUri ?? null,
+        placeId: bestPlace.id,
+        name: bestPlace.displayName?.text,
+        address: bestPlace.formattedAddress,
+        rating: bestPlace.rating ?? null,
+        reviewCount: bestPlace.userRatingCount ?? 0,
+        websiteUrl: bestPlace.websiteUri ?? null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
