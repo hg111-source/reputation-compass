@@ -74,6 +74,10 @@ serve(async (req) => {
     if (!cseId) {
       throw new Error('GOOGLE_CSE_ID is not configured');
     }
+    
+    // Debug: log key prefix to verify correct key is loaded
+    console.log(`API Key prefix: ${apiKey.substring(0, 8)}...`);
+    console.log(`CSE ID prefix: ${cseId.substring(0, 8)}...`);
 
     const { hotelName, city, platforms = ['booking', 'tripadvisor', 'expedia'] } = await req.json();
 
