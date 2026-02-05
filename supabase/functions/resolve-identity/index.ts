@@ -154,6 +154,12 @@ async function resolveGoogle(
 }
 
 // ============ SERPAPI URL RESOLUTION (for OTAs) ============
+// Extract Hotels.com hotel_id from URL
+function extractHotelsComId(url: string): string | undefined {
+  const match = url.match(/\/ho(\d+)/);
+  return match ? match[1] : undefined;
+}
+
 async function resolveSerpApi(
   hotelName: string,
   city: string,
@@ -168,7 +174,7 @@ async function resolveSerpApi(
   const PLATFORM_FILTERS: Record<string, string> = {
     booking: 'site:booking.com/hotel',
     tripadvisor: 'site:tripadvisor.com inurl:Hotel_Review',
-    expedia: 'site:expedia.com inurl:Hotel',
+    expedia: 'site:hotels.com', // Use Hotels.com - same reviews as Expedia (Expedia Group)
   };
 
   const siteFilter = PLATFORM_FILTERS[source];
@@ -218,18 +224,25 @@ async function resolveSerpApi(
       
       for (const result of data.organic_results.slice(0, 5)) {
         const matchResult = analyzeHotelMatch(hotelName, result.title);
+        
+        // Extract Hotels.com hotel_id for expedia source
+        const hotelId = source === 'expedia' ? extractHotelsComId(result.link) : undefined;
+        
         candidates.push({
           name: result.title,
           url: result.link,
+          platformId: hotelId, // Store hotel_id for Hotels.com
           confidence: matchResult.isMatch ? 0.85 : 0.3,
           reason: matchResult.reason,
         });
 
         if (matchResult.isMatch) {
+          console.log(`  ${source}: Match found - ${result.link}${hotelId ? ` (hotel_id: ${hotelId})` : ''}`);
           return {
             source,
             status: 'resolved',
             platformUrl: result.link,
+            platformId: hotelId, // Include hotel_id in resolution
             platformName: result.title,
             confidence: 0.85,
             debug: { attempts, queries, duration_ms: Date.now() - startTime },

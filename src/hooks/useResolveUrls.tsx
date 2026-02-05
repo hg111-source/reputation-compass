@@ -45,6 +45,7 @@ export function useResolveUrls() {
 
       // Update the property with the found URLs (client-side)
       const urls = data.urls || {};
+      const hotelIds = data.hotelIds || {};
       const updateData: Record<string, string | null> = {};
       
       if (urls.booking_url !== undefined) updateData.booking_url = urls.booking_url;
@@ -59,6 +60,27 @@ export function useResolveUrls() {
 
         if (updateError) {
           console.error('Failed to update property URLs:', updateError);
+        }
+      }
+
+      // Store Hotels.com hotel_id in hotel_aliases for expedia source
+      if (urls.expedia_url && hotelIds.expedia_hotel_id) {
+        const { error: aliasError } = await supabase
+          .from('hotel_aliases')
+          .upsert({
+            property_id: property.id,
+            source: 'expedia' as const,
+            platform_url: urls.expedia_url,
+            platform_id: hotelIds.expedia_hotel_id,
+            source_id_or_url: urls.expedia_url,
+            resolution_status: 'resolved',
+            last_resolved_at: new Date().toISOString(),
+          }, { onConflict: 'property_id,source' });
+
+        if (aliasError) {
+          console.error('Failed to update hotel alias:', aliasError);
+        } else {
+          console.log(`Stored Hotels.com hotel_id ${hotelIds.expedia_hotel_id} for ${property.name}`);
         }
       }
 
