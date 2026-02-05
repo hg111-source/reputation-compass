@@ -173,21 +173,27 @@ export function generateSearchQueries(hotelName: string, city: string, state?: s
   const normalized = normalizeHotelName(hotelName);
   const queries: string[] = [];
   
+  // Check if normalized name already contains accommodation keywords
+  const hasAccommodationWord = /\b(hotel|inn|resort|suites?|lodge|motel)\b/i.test(normalized);
+  const suffix = hasAccommodationWord ? '' : ' hotel';
+  
   // Primary: normalized name + city
-  queries.push(`${normalized} hotel ${city}`);
+  queries.push(`${normalized}${suffix} ${city}`);
   
   // With state if provided
   if (state) {
-    queries.push(`${normalized} hotel ${city} ${state}`);
+    queries.push(`${normalized}${suffix} ${city} ${state}`);
   }
   
   // Original name (in case brand matters)
   queries.push(`${hotelName} ${city}`);
   
   // Simplified: first two words + city
-  const words = normalized.split(' ');
+  const words = normalized.split(' ').filter(w => w.length > 1);
   if (words.length > 2) {
-    queries.push(`${words.slice(0, 2).join(' ')} hotel ${city}`);
+    const simplified = words.slice(0, 2).join(' ');
+    const simplifiedSuffix = /\b(hotel|inn|resort|suites?|lodge|motel)\b/i.test(simplified) ? '' : ' hotel';
+    queries.push(`${simplified}${simplifiedSuffix} ${city}`);
   }
   
   return queries;
