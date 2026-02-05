@@ -1,7 +1,8 @@
-import { MapPin, Trash2, RefreshCw, ExternalLink, History, Sparkles, AlertCircle } from 'lucide-react';
+import { MapPin, Trash2, RefreshCw, ExternalLink, History, Sparkles, AlertCircle, FolderOpen } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Property, ReviewSource } from '@/lib/types';
 import { 
@@ -21,6 +22,7 @@ interface PlatformScore {
 interface PropertyRowProps {
   property: Property;
   scores: Record<ReviewSource, PlatformScore> | undefined;
+  groups: string[];
   onDelete: (id: string, name: string) => void;
   onRefreshPlatform: (property: Property, platform: Platform) => void;
   onRefreshAllPlatforms: (property: Property) => void;
@@ -33,6 +35,7 @@ interface PropertyRowProps {
 export function PropertyRow({
   property,
   scores,
+  groups,
   onDelete,
   onRefreshPlatform,
   onRefreshAllPlatforms,
@@ -152,6 +155,36 @@ export function PropertyRow({
           <MapPin className="h-3.5 w-3.5" />
           {property.city}, {property.state}
         </div>
+      </TableCell>
+
+      {/* Groups */}
+      <TableCell>
+        {groups.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {groups.slice(0, 2).map((group) => (
+              <Badge key={group} variant="secondary" className="text-xs">
+                {group}
+              </Badge>
+            ))}
+            {groups.length > 2 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="text-xs cursor-help">
+                      +{groups.length - 2}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="font-medium">All groups:</p>
+                    <p className="text-xs text-muted-foreground">{groups.join(', ')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground text-xs">—</span>
+        )}
       </TableCell>
 
       {/* Average Score - PRIMARY with tooltip */}

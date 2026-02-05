@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { useUnifiedRefresh, Platform } from '@/hooks/useUnifiedRefresh';
+import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,7 +44,7 @@ import { SortableTableHead, SortDirection } from '@/components/properties/Sortab
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { HotelAutocomplete } from '@/components/properties/HotelAutocomplete';
 
-type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
+type SortKey = 'name' | 'location' | 'group' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 type ViewMode = 'table' | 'card';
 
 export default function Properties() {
@@ -66,6 +68,36 @@ export default function Properties() {
   
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
+  
+  // Fetch property-to-group mappings
+  const { data: propertyGroups = {} } = useQuery({
+    queryKey: ['property-groups-mapping', user?.id],
+    queryFn: async () => {
+      if (!user) return {};
+      const { data, error } = await supabase
+        .from('group_properties')
+        .select(`
+          property_id,
+          groups:group_id (id, name)
+        `);
+      if (error) throw error;
+      
+      // Build a map of property_id -> array of group names
+      const mapping: Record<string, string[]> = {};
+      data?.forEach((gp: any) => {
+        const propId = gp.property_id;
+        const groupName = gp.groups?.name;
+        if (groupName) {
+          if (!mapping[propId]) mapping[propId] = [];
+          if (!mapping[propId].includes(groupName)) {
+            mapping[propId].push(groupName);
+          }
+        }
+      });
+      return mapping;
+    },
+    enabled: !!user,
+  });
   
   // Unified refresh hook - handles URL resolution + fetching in one flow
   const {
@@ -113,6 +145,10 @@ export default function Properties() {
           aVal = `${a.city}, ${a.state}`.toLowerCase();
           bVal = `${b.city}, ${b.state}`.toLowerCase();
           break;
+        case 'group':
+          aVal = (propertyGroups[a.id] || []).sort().join(', ').toLowerCase();
+          bVal = (propertyGroups[b.id] || []).sort().join(', ').toLowerCase();
+          break;
         case 'avgScore':
           const aMetrics = calculatePropertyMetrics(scores[a.id]);
           const bMetrics = calculatePropertyMetrics(scores[b.id]);
@@ -139,7 +175,7 @@ export default function Properties() {
       }
       return sortDirection === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
     });
-  }, [properties, scores, sortKey, sortDirection]);
+  }, [properties, scores, propertyGroups, sortKey, sortDirection]);
 
   if (loading) {
     return (
@@ -405,6 +441,15 @@ export default function Properties() {
                     Location
                   </SortableTableHead>
                   <SortableTableHead
+                    sortKey="group"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="font-semibold text-left"
+                  >
+                    Groups
+                  </SortableTableHead>
+                  <SortableTableHead
                     sortKey="avgScore"
                     currentSort={sortKey}
                     currentDirection={sortDirection}
@@ -511,6 +556,7 @@ export default function Properties() {
                     key={property.id}
                     property={property}
                     scores={scores[property.id]}
+                    groups={propertyGroups[property.id] || []}
                     onDelete={handleDelete}
                     onRefreshPlatform={(p, platform) => handleRefreshSingleCell(p, platform as Platform)}
                     onRefreshAllPlatforms={handleRefreshSingleRow}
