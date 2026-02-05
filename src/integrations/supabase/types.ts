@@ -102,29 +102,41 @@ export type Database = {
       }
       properties: {
         Row: {
+          booking_url: string | null
           city: string
           created_at: string
+          expedia_url: string | null
+          google_place_id: string | null
           id: string
           name: string
           state: string
+          tripadvisor_url: string | null
           user_id: string
           website_url: string | null
         }
         Insert: {
+          booking_url?: string | null
           city: string
           created_at?: string
+          expedia_url?: string | null
+          google_place_id?: string | null
           id?: string
           name: string
           state: string
+          tripadvisor_url?: string | null
           user_id: string
           website_url?: string | null
         }
         Update: {
+          booking_url?: string | null
           city?: string
           created_at?: string
+          expedia_url?: string | null
+          google_place_id?: string | null
           id?: string
           name?: string
           state?: string
+          tripadvisor_url?: string | null
           user_id?: string
           website_url?: string | null
         }
