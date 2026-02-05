@@ -32,19 +32,19 @@ interface SnapshotRow {
 export function PropertyHistoryDialog({ property, open, onOpenChange }: PropertyHistoryDialogProps) {
   const { data: snapshots = [], isLoading } = usePropertySnapshots(property?.id ?? null);
 
-  // Group snapshots by collected_at timestamp (rounded to minute) and calculate weighted averages
+  // Group snapshots by date (same calendar day) and calculate weighted averages
   const groupedRows: SnapshotRow[] = (() => {
     if (snapshots.length === 0) return [];
 
-    // Round timestamp to the nearest minute for grouping
-    const roundToMinute = (timestamp: string) => {
+    // Round timestamp to start of day for grouping
+    const roundToDay = (timestamp: string) => {
       const date = new Date(timestamp);
-      date.setSeconds(0, 0);
+      date.setHours(0, 0, 0, 0);
       return date.toISOString();
     };
 
     const grouped = snapshots.reduce((acc, snapshot) => {
-      const key = roundToMinute(snapshot.collected_at);
+      const key = roundToDay(snapshot.collected_at);
       if (!acc[key]) acc[key] = [];
       acc[key].push(snapshot);
       return acc;
@@ -130,7 +130,7 @@ export function PropertyHistoryDialog({ property, open, onOpenChange }: Property
                             Latest
                           </span>
                         )}
-                        {format(new Date(row.date), 'MMM d, yyyy h:mm a')}
+                        {format(new Date(row.date), 'MMM d, yyyy')}
                       </div>
                     </TableCell>
                     {REVIEW_SOURCES.map(source => {
