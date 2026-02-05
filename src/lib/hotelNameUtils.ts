@@ -47,68 +47,96 @@ export function normalizeHotelName(name: string): string {
 }
 
 /**
- * Check if two hotel names match after normalization.
- * Uses a similarity threshold to handle minor differences.
+ * Extract significant words from a normalized hotel name.
+ * Filters out common filler words.
+ */
+function getSignificantWords(normalizedName: string): string[] {
+  const fillerWords = new Set([
+    'hotel', 'hotels', 'inn', 'inns', 'suites', 'suite', 'resort', 'resorts',
+    'and', 'the', 'a', 'an', 'at', 'in', 'on', 'by', 'of', 'to',
+    'spa', 'lodge', 'motel', 'house', 'place', 'center', 'centre'
+  ]);
+  
+  return normalizedName
+    .split(' ')
+    .filter(word => word.length > 1 && !fillerWords.has(word));
+}
+
+/**
+ * Count matching words between two hotel names.
+ * Returns the number of significant words that match.
+ */
+function countMatchingWords(name1: string, name2: string): number {
+  const words1 = new Set(getSignificantWords(normalizeHotelName(name1)));
+  const words2 = new Set(getSignificantWords(normalizeHotelName(name2)));
+  
+  let matches = 0;
+  for (const word of words1) {
+    if (words2.has(word)) {
+      matches++;
+    }
+  }
+  
+  return matches;
+}
+
+/**
+ * Check if two hotel names match using word-based comparison.
  * 
- * @param name1 First hotel name
- * @param name2 Second hotel name
- * @param threshold Minimum similarity score (0-1) to consider a match. Default 0.8
+ * Matching criteria:
+ * 1. Exact match after normalization → always match
+ * 2. One contains the other → match
+ * 3. At least 2 significant words match → match
+ * 4. For short names (1-2 words), require 1+ match with high similarity
+ * 
+ * @param searchName The hotel name being searched for
+ * @param resultName The hotel name from search results
+ * @param minMatchingWords Minimum matching words required (default: 2)
  * @returns true if names are similar enough
  */
-export function hotelNamesMatch(name1: string, name2: string, threshold = 0.8): boolean {
-  const normalized1 = normalizeHotelName(name1);
-  const normalized2 = normalizeHotelName(name2);
+export function hotelNamesMatch(
+  searchName: string, 
+  resultName: string, 
+  minMatchingWords = 2
+): boolean {
+  const normalized1 = normalizeHotelName(searchName);
+  const normalized2 = normalizeHotelName(resultName);
   
   // Exact match after normalization
-  if (normalized1 === normalized2) return true;
+  if (normalized1 === normalized2) {
+    return true;
+  }
   
-  // Check if one contains the other
+  // Check if one contains the other (handles "Hotel Nia" matching "Hotel Nia Menlo Park")
   if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) {
     return true;
   }
   
-  // Calculate similarity score
-  const similarity = calculateSimilarity(normalized1, normalized2);
-  return similarity >= threshold;
-}
-
-/**
- * Calculate Levenshtein distance-based similarity between two strings.
- * Returns a value between 0 (completely different) and 1 (identical).
- */
-function calculateSimilarity(str1: string, str2: string): number {
-  const longer = str1.length > str2.length ? str1 : str2;
-  const shorter = str1.length > str2.length ? str2 : str1;
+  // Word-based matching
+  const matchingWords = countMatchingWords(searchName, resultName);
+  const searchWords = getSignificantWords(normalized1);
   
-  if (longer.length === 0) return 1.0;
-  
-  const editDistance = levenshteinDistance(longer, shorter);
-  return (longer.length - editDistance) / longer.length;
-}
-
-/**
- * Calculate Levenshtein distance between two strings.
- */
-function levenshteinDistance(str1: string, str2: string): number {
-  const m = str1.length;
-  const n = str2.length;
-  
-  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
-  
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (str1[i - 1] === str2[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1];
-      } else {
-        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-      }
-    }
+  // For short names (1-2 significant words), require all words to match
+  if (searchWords.length <= 2) {
+    // All significant words from search must be in result
+    return matchingWords >= searchWords.length && searchWords.length > 0;
   }
   
-  return dp[m][n];
+  // For longer names, require at least minMatchingWords
+  return matchingWords >= minMatchingWords;
+}
+
+/**
+ * Validate that a search result is for the correct city.
+ * Helps reject results that are clearly for a different location.
+ */
+export function validateCity(resultAddress: string | undefined, expectedCity: string): boolean {
+  if (!resultAddress) return true; // Can't validate without address
+  
+  const normalizedAddress = resultAddress.toLowerCase();
+  const normalizedCity = expectedCity.toLowerCase().split(',')[0].trim();
+  
+  return normalizedAddress.includes(normalizedCity);
 }
 
 /**

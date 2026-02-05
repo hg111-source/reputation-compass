@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { normalizeHotelName, hotelNamesMatch, generateSearchQueries } from "../_shared/hotelNameUtils.ts";
+import { analyzeHotelMatch, generateSearchQueries } from "../_shared/hotelNameUtils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -98,15 +98,21 @@ async function trySearch(searchQuery: string, apiToken: string): Promise<Booking
   }
 }
 
-// Find best matching hotel from results using normalized name matching
+// Find best matching hotel from results using word-based matching with logging
 function findBestMatch(results: BookingResult[], hotelName: string): BookingResult | null {
   if (!results || results.length === 0) return null;
   
-  // Use the shared hotel name matching function
+  // Use the word-based hotel name matching with detailed analysis
   for (const result of results) {
-    if (result.name && hotelNamesMatch(hotelName, result.name, 0.7)) {
-      console.log(`Matched: "${result.name}" with "${hotelName}"`);
-      return result;
+    if (result.name) {
+      const matchResult = analyzeHotelMatch(hotelName, result.name);
+      console.log(`Analyzing: "${result.name}" vs "${hotelName}"`);
+      console.log(`  → ${matchResult.reason}`);
+      
+      if (matchResult.isMatch) {
+        console.log(`  ✓ MATCH`);
+        return result;
+      }
     }
   }
   
