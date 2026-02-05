@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Plus, Building2, RefreshCw, Download } from 'lucide-react';
 import googleLogo from '@/assets/logos/google.png';
-import tripadvisorLogo from '@/assets/logos/tripadvisor.svg';
+import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
 import bookingLogo from '@/assets/logos/booking.png';
 import expediaLogo from '@/assets/logos/expedia.ico';
 import { useToast } from '@/hooks/use-toast';
