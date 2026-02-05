@@ -30,6 +30,7 @@ export function useResolveUrls() {
         body: {
           hotelName: property.name,
           city: property.city,
+          state: property.state,
           platforms: ['booking', 'tripadvisor', 'expedia'],
         },
       });

@@ -5,58 +5,170 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface SearchResult {
-  platform: 'booking' | 'tripadvisor' | 'expedia';
-  url: string | null;
-}
-
-const PLATFORM_SITES: Record<string, string> = {
-  booking: 'booking.com',
-  tripadvisor: 'tripadvisor.com',
-  expedia: 'expedia.com',
+const PLATFORM_FILTERS: Record<string, string> = {
+  booking: 'site:booking.com/hotel',
+  tripadvisor: 'site:tripadvisor.com/Hotel',
+  expedia: 'site:expedia.com inurl:Hotel',
 };
 
-async function searchSerpApiForUrl(
+// Normalize text for comparison (lowercase, remove special chars)
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Simplify hotel name (remove common suffixes like "Hotel", "Resort", etc.)
+function simplifyHotelName(name: string): string {
+  return name
+    .replace(/\b(hotel|resort|inn|suites?|lodge|motel|b&b|bed\s*&?\s*breakfast)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Calculate match score between hotel name and URL/title
+function calculateMatchScore(hotelName: string, url: string, title: string): number {
+  const normalizedHotel = normalizeText(hotelName);
+  const normalizedTitle = normalizeText(title);
+  const normalizedUrl = normalizeText(url);
+  
+  const hotelWords = normalizedHotel.split(' ').filter(w => w.length > 2);
+  
+  let score = 0;
+  
+  // Check how many hotel name words appear in the title
+  for (const word of hotelWords) {
+    if (normalizedTitle.includes(word)) {
+      score += 2;
+    }
+    if (normalizedUrl.includes(word)) {
+      score += 1;
+    }
+  }
+  
+  // Bonus for exact phrase match
+  if (normalizedTitle.includes(normalizedHotel)) {
+    score += 10;
+  }
+  
+  // Bonus for simplified name match
+  const simplifiedHotel = normalizeText(simplifyHotelName(hotelName));
+  if (simplifiedHotel && normalizedTitle.includes(simplifiedHotel)) {
+    score += 5;
+  }
+  
+  return score;
+}
+
+// Generate query variations for better matching
+function generateQueryVariations(hotelName: string, city: string, state?: string): string[] {
+  const queries: string[] = [];
+  
+  // Primary: Full name + city
+  queries.push(`${hotelName} ${city}`);
+  
+  // Secondary: Full name + state (if provided)
+  if (state) {
+    queries.push(`${hotelName} ${state}`);
+  }
+  
+  // Tertiary: Simplified name + city
+  const simplified = simplifyHotelName(hotelName);
+  if (simplified !== hotelName && simplified.length > 3) {
+    queries.push(`${simplified} ${city}`);
+  }
+  
+  // Quaternary: Just the hotel name (for unique names)
+  if (hotelName.split(' ').length >= 3) {
+    queries.push(hotelName);
+  }
+  
+  return queries;
+}
+
+interface SearchResult {
+  link: string;
+  title: string;
+  score: number;
+}
+
+async function searchSerpApiWithValidation(
   apiKey: string,
   hotelName: string,
   city: string,
+  state: string | undefined,
   platform: string
 ): Promise<string | null> {
-  const site = PLATFORM_SITES[platform];
-  const query = `${hotelName} ${city} site:${site}`;
+  const siteFilter = PLATFORM_FILTERS[platform];
+  const queryVariations = generateQueryVariations(hotelName, city, state);
   
-  const url = new URL('https://serpapi.com/search.json');
-  url.searchParams.set('api_key', apiKey);
-  url.searchParams.set('q', query);
-  url.searchParams.set('engine', 'google');
-  url.searchParams.set('num', '1');
-
-  console.log(`Searching SerpAPI for: ${query}`);
-
-  try {
-    const response = await fetch(url.toString());
+  console.log(`Searching ${platform} for: ${hotelName}, ${city}`);
+  console.log(`Query variations: ${queryVariations.join(' | ')}`);
+  
+  let bestResult: SearchResult | null = null;
+  const minScoreThreshold = 3; // Minimum score to consider a valid match
+  
+  for (const baseQuery of queryVariations) {
+    const query = `${baseQuery} ${siteFilter}`;
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`SerpAPI error: ${response.status} - ${errorText}`);
-      return null;
+    const url = new URL('https://serpapi.com/search.json');
+    url.searchParams.set('api_key', apiKey);
+    url.searchParams.set('q', query);
+    url.searchParams.set('engine', 'google');
+    url.searchParams.set('num', '5'); // Get top 5 results
+
+    console.log(`  Trying query: ${query}`);
+
+    try {
+      const response = await fetch(url.toString());
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`  SerpAPI error: ${response.status} - ${errorText}`);
+        continue;
+      }
+
+      const data = await response.json();
+      
+      if (data.organic_results && data.organic_results.length > 0) {
+        // Score all results and find the best match
+        for (const result of data.organic_results.slice(0, 5)) {
+          const score = calculateMatchScore(hotelName, result.link, result.title);
+          console.log(`    Result: ${result.title.substring(0, 50)}... (score: ${score})`);
+          
+          if (score >= minScoreThreshold && (!bestResult || score > bestResult.score)) {
+            bestResult = {
+              link: result.link,
+              title: result.title,
+              score: score,
+            };
+          }
+        }
+        
+        // If we found a high-confidence match, stop trying more queries
+        if (bestResult && bestResult.score >= 8) {
+          console.log(`  High-confidence match found: ${bestResult.link} (score: ${bestResult.score})`);
+          break;
+        }
+      }
+      
+      // Small delay between query attempts
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+    } catch (error) {
+      console.error(`  Error with query "${query}":`, error);
     }
-
-    const data = await response.json();
-    
-    // Check organic results
-    if (data.organic_results && data.organic_results.length > 0) {
-      const resultUrl = data.organic_results[0].link;
-      console.log(`Found ${platform} URL: ${resultUrl}`);
-      return resultUrl;
-    }
-    
-    console.log(`No ${platform} URL found for ${hotelName}`);
-    return null;
-  } catch (error) {
-    console.error(`Error searching for ${platform}:`, error);
-    return null;
   }
+  
+  if (bestResult) {
+    console.log(`  Best ${platform} match: ${bestResult.link} (score: ${bestResult.score})`);
+    return bestResult.link;
+  }
+  
+  console.log(`  No valid ${platform} URL found for ${hotelName}`);
+  return null;
 }
 
 serve(async (req) => {
@@ -73,7 +185,7 @@ serve(async (req) => {
     
     console.log(`SerpAPI Key configured: ${apiKey.substring(0, 8)}...`);
 
-    const { hotelName, city, platforms = ['booking', 'tripadvisor', 'expedia'] } = await req.json();
+    const { hotelName, city, state, platforms = ['booking', 'tripadvisor', 'expedia'] } = await req.json();
 
     if (!hotelName || !city) {
       return new Response(
@@ -82,8 +194,10 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Resolving URLs for: ${hotelName}, ${city}`);
-    console.log(`Platforms to search: ${platforms.join(', ')}`);
+    console.log(`\n========================================`);
+    console.log(`Resolving URLs for: ${hotelName}, ${city}${state ? `, ${state}` : ''}`);
+    console.log(`Platforms: ${platforms.join(', ')}`);
+    console.log(`========================================\n`);
 
     const results: Record<string, string | null> = {
       booking_url: null,
@@ -94,9 +208,8 @@ serve(async (req) => {
     const foundPlatforms: string[] = [];
     const notFoundPlatforms: string[] = [];
 
-    // Search for each platform with a 1-second delay between requests
     for (const platform of platforms) {
-      const url = await searchSerpApiForUrl(apiKey, hotelName, city, platform);
+      const url = await searchSerpApiWithValidation(apiKey, hotelName, city, state, platform);
       
       if (url) {
         results[`${platform}_url`] = url;
@@ -105,13 +218,17 @@ serve(async (req) => {
         notFoundPlatforms.push(platform);
       }
 
-      // 1-second delay between API calls to avoid rate limiting
+      // 1.5-second delay between platforms to avoid rate limiting
       if (platforms.indexOf(platform) < platforms.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
     }
 
-    console.log(`Results:`, results);
+    console.log(`\n========================================`);
+    console.log(`RESULTS for ${hotelName}:`);
+    console.log(`  Found: ${foundPlatforms.join(', ') || 'none'}`);
+    console.log(`  Not found: ${notFoundPlatforms.join(', ') || 'none'}`);
+    console.log(`========================================\n`);
 
     return new Response(
       JSON.stringify({
