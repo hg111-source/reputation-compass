@@ -28,7 +28,6 @@ export function useResolveUrls() {
     try {
       const { data, error } = await supabase.functions.invoke('resolve-hotel-urls', {
         body: {
-          propertyId: property.id,
           hotelName: property.name,
           city: property.city,
           platforms: ['booking', 'tripadvisor', 'expedia'],
@@ -37,6 +36,29 @@ export function useResolveUrls() {
 
       if (error) {
         throw new Error(error.message);
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Update the property with the found URLs (client-side)
+      const urls = data.urls || {};
+      const updateData: Record<string, string | null> = {};
+      
+      if (urls.booking_url !== undefined) updateData.booking_url = urls.booking_url;
+      if (urls.tripadvisor_url !== undefined) updateData.tripadvisor_url = urls.tripadvisor_url;
+      if (urls.expedia_url !== undefined) updateData.expedia_url = urls.expedia_url;
+
+      if (Object.keys(updateData).length > 0) {
+        const { error: updateError } = await supabase
+          .from('properties')
+          .update(updateData)
+          .eq('id', property.id);
+
+        if (updateError) {
+          console.error('Failed to update property URLs:', updateError);
+        }
       }
 
       return {
