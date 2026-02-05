@@ -369,11 +369,11 @@ export default function Properties() {
                 onValueChange={(v) => v && setViewMode(v as ViewMode)}
                 className="bg-muted p-1 rounded-lg"
               >
-                <ToggleGroupItem value="table" aria-label="Table view" className="data-[state=on]:bg-background">
+                <ToggleGroupItem value="table" aria-label="Table view" className="data-[state=on]:bg-background text-foreground">
                   <TableIcon className="h-4 w-4 mr-1.5" />
                   Table
                 </ToggleGroupItem>
-                <ToggleGroupItem value="card" aria-label="Card view" className="data-[state=on]:bg-background">
+                <ToggleGroupItem value="card" aria-label="Card view" className="data-[state=on]:bg-background text-foreground">
                   <LayoutGrid className="h-4 w-4 mr-1.5" />
                   Cards
                 </ToggleGroupItem>
