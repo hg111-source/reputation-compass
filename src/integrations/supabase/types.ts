@@ -108,6 +108,7 @@ export type Database = {
           name: string
           state: string
           user_id: string
+          website_url: string | null
         }
         Insert: {
           city: string
@@ -116,6 +117,7 @@ export type Database = {
           name: string
           state: string
           user_id: string
+          website_url?: string | null
         }
         Update: {
           city?: string
@@ -124,6 +126,7 @@ export type Database = {
           name?: string
           state?: string
           user_id?: string
+          website_url?: string | null
         }
         Relationships: []
       }

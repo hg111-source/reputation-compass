@@ -1,4 +1,4 @@
-import { MapPin, Trash2, RefreshCw } from 'lucide-react';
+import { MapPin, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -46,6 +46,16 @@ export function PropertyRow({
   // Calculate weighted average and total reviews using centralized logic
   const { avgScore: weightedAvg, totalReviews } = calculatePropertyMetrics(scores);
 
+  // Generate hotel link - use website_url if available, otherwise Google search
+  const getHotelLink = () => {
+    if (property.website_url) {
+      return property.website_url;
+    }
+    // Fallback to Google search
+    const query = encodeURIComponent(`${property.name} hotel ${property.city} ${property.state}`);
+    return `https://www.google.com/search?q=${query}`;
+  };
+
   const renderPlatformCell = (platform: ReviewSource) => {
     const data = scores?.[platform];
     const isRefreshingThis = isRefreshing && refreshingSource === platform;
@@ -73,7 +83,29 @@ export function PropertyRow({
   return (
     <TableRow className="group">
       {/* Hotel Name */}
-      <TableCell className="font-medium">{property.name}</TableCell>
+      <TableCell className="font-medium">
+        <a
+          href={getHotelLink()}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 hover:text-primary hover:underline transition-colors"
+        >
+          {property.name}
+          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+        </a>
+        {property.website_url && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-green-500" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Website linked</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </TableCell>
 
       {/* Location */}
       <TableCell>
