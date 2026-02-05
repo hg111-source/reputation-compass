@@ -6,8 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Hotels.com Review Scraper - same reviews as Expedia (both owned by Expedia Group)
-const HOTELS_COM_ACTOR_ID = 'merRpWJCABv7fb6Mf';
+// Expedia/Hotels.com/Vrbo Review Scraper - pay per event (no monthly fee)
+// Works with Hotels.com, Expedia, and Vrbo URLs
+const EXPEDIA_REVIEWS_ACTOR_ID = '4zyibEJ79jE7VXIpA';
 
 function parseRating(overallValue: string | undefined): number | null {
   if (!overallValue) return null;
@@ -55,18 +56,18 @@ async function pollActorRun(apiToken: string, runId: string, maxWaitMs = 180000)
 }
 
 async function fetchViaApify(apiToken: string, platformUrl: string): Promise<{ rating: number | null; reviewCount: number }> {
-  console.log(`Falling back to Apify scraper for: ${platformUrl}`);
+  console.log(`Using Apify Expedia/Hotels.com scraper for: ${platformUrl}`);
   
-  // Try both startUrls format (common for Apify actors)
+  // The tri_angle actor accepts startUrls array
   const actorInput = {
     startUrls: [{ url: platformUrl }],
-    maxReviews: 1,
+    maxReviewsPerHotel: 1, // We just need the rating summary, not all reviews
   };
 
   console.log(`Apify actor input: ${JSON.stringify(actorInput)}`);
 
   const runResponse = await fetch(
-    `https://api.apify.com/v2/acts/${HOTELS_COM_ACTOR_ID}/runs?token=${apiToken}`,
+    `https://api.apify.com/v2/acts/${EXPEDIA_REVIEWS_ACTOR_ID}/runs?token=${apiToken}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -87,10 +88,11 @@ async function fetchViaApify(apiToken: string, platformUrl: string): Promise<{ r
     throw new Error('No Apify run ID returned');
   }
 
-  console.log(`Apify Hotels.com run started: ${runId}`);
+  console.log(`Apify Expedia/Hotels.com run started: ${runId}`);
   const results = await pollActorRun(apiToken, runId);
   
   console.log(`Apify returned ${results?.length || 0} results`);
+  console.log(`Apify first result keys: ${results?.[0] ? JSON.stringify(Object.keys(results[0])) : 'none'}`);
   
   if (!results || results.length === 0) {
     return { rating: null, reviewCount: 0 };
@@ -100,27 +102,42 @@ async function fetchViaApify(apiToken: string, platformUrl: string): Promise<{ r
   let rating: number | null = null;
   let reviewCount = 0;
 
-  // Check various possible field names for rating
-  if (hotelData.hotelOverallRating) {
-    rating = parseFloat(hotelData.hotelOverallRating);
-  } else if (hotelData.overallRating) {
-    rating = parseFloat(hotelData.overallRating);
-  } else if (hotelData.rating) {
+  // Log full response for debugging (first 500 chars)
+  console.log(`Apify hotel data preview: ${JSON.stringify(hotelData).substring(0, 500)}`);
+
+  // The tri_angle actor returns reviews with hotelScore and reviewCount at top level
+  // or nested in various fields depending on the version
+  
+  // Check direct fields first
+  if (hotelData.hotelScore !== undefined) {
+    rating = parseFloat(hotelData.hotelScore);
+  } else if (hotelData.score !== undefined) {
+    rating = parseFloat(hotelData.score);
+  } else if (hotelData.rating !== undefined) {
     rating = parseFloat(hotelData.rating);
-  } else if (hotelData.hotelInfo?.rating) {
-    rating = parseFloat(hotelData.hotelInfo.rating);
-  } else if (hotelData.guestRating) {
+  } else if (hotelData.overallRating !== undefined) {
+    rating = parseFloat(hotelData.overallRating);
+  } else if (hotelData.guestRating !== undefined) {
     rating = parseFloat(hotelData.guestRating);
+  }
+  
+  // Check for hotelInfo nested structure
+  if (rating === null && hotelData.hotelInfo) {
+    if (hotelData.hotelInfo.score !== undefined) {
+      rating = parseFloat(hotelData.hotelInfo.score);
+    } else if (hotelData.hotelInfo.rating !== undefined) {
+      rating = parseFloat(hotelData.hotelInfo.rating);
+    }
   }
 
   // Check for review count
-  if (hotelData.hotelReviewCount) {
-    reviewCount = parseInt(hotelData.hotelReviewCount);
-  } else if (hotelData.reviewCount) {
+  if (hotelData.totalReviewCount !== undefined) {
+    reviewCount = parseInt(hotelData.totalReviewCount);
+  } else if (hotelData.reviewCount !== undefined) {
     reviewCount = parseInt(hotelData.reviewCount);
-  } else if (hotelData.totalReviews) {
+  } else if (hotelData.totalReviews !== undefined) {
     reviewCount = parseInt(hotelData.totalReviews);
-  } else if (hotelData.hotelInfo?.reviewCount) {
+  } else if (hotelData.hotelInfo?.reviewCount !== undefined) {
     reviewCount = parseInt(hotelData.hotelInfo.reviewCount);
   }
 
@@ -206,11 +223,19 @@ serve(async (req) => {
     let reviewCount = 0;
     let usedApify = false;
 
-    // Method 1: Try RapidAPI first (faster)
+    // Method 1: Try RapidAPI details endpoint first (faster)
     if (rapidApiKey && targetHotelId) {
       console.log(`Trying RapidAPI for hotel_id: ${targetHotelId}`);
       
-      const detailsUrl = `https://hotels-com-provider.p.rapidapi.com/v2/hotels/details?hotel_id=${targetHotelId}&domain=US&locale=en_US`;
+      // Add check-in/check-out dates - some APIs require them
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dayAfter = new Date();
+      dayAfter.setDate(dayAfter.getDate() + 2);
+      const chkin = tomorrow.toISOString().split('T')[0];
+      const chkout = dayAfter.toISOString().split('T')[0];
+      
+      const detailsUrl = `https://hotels-com-provider.p.rapidapi.com/v2/hotels/details?hotel_id=${targetHotelId}&domain=US&locale=en_US&checkin_date=${chkin}&checkout_date=${chkout}`;
       
       try {
         const response = await fetch(detailsUrl, {
@@ -224,18 +249,82 @@ serve(async (req) => {
         if (response.ok) {
           const data: any = await response.json();
           
-          // Extract rating from reviewInfo.summary
+          // Log available review fields for debugging
+          console.log(`RapidAPI reviewInfo keys: ${JSON.stringify(Object.keys(data.reviewInfo || {}))}`);
+          console.log(`RapidAPI summary: ${JSON.stringify(data.reviewInfo?.summary || {})}`);
+          
+          // Try multiple paths to find rating data
+          // Path 1: overallScoreWithDescriptionA11y (e.g., "9.0/10 Wonderful")
           if (data.reviewInfo?.summary?.overallScoreWithDescriptionA11y?.value) {
             rating = parseRating(data.reviewInfo.summary.overallScoreWithDescriptionA11y.value);
           }
+          // Path 2: Direct score field
+          if (rating === null && data.reviewInfo?.summary?.score) {
+            rating = parseFloat(data.reviewInfo.summary.score);
+          }
+          // Path 3: averageOverallRating
+          if (rating === null && data.reviewInfo?.summary?.averageOverallRating?.raw) {
+            rating = parseFloat(data.reviewInfo.summary.averageOverallRating.raw);
+          }
+          
+          // Try multiple paths for review count
           if (data.reviewInfo?.summary?.propertyReviewCountDetails?.shortDescription) {
             reviewCount = parseReviewCount(data.reviewInfo.summary.propertyReviewCountDetails.shortDescription);
           }
+          if (reviewCount === 0 && data.reviewInfo?.summary?.reviewCount) {
+            reviewCount = parseInt(data.reviewInfo.summary.reviewCount);
+          }
+          if (reviewCount === 0 && data.reviewInfo?.summary?.totalCount?.raw) {
+            reviewCount = parseInt(data.reviewInfo.summary.totalCount.raw);
+          }
           
-          console.log(`RapidAPI result: rating=${rating}, reviewCount=${reviewCount}`);
+          console.log(`RapidAPI details result: rating=${rating}, reviewCount=${reviewCount}`);
         }
       } catch (err) {
-        console.log(`RapidAPI failed: ${err}`);
+        console.log(`RapidAPI details failed: ${err}`);
+      }
+      
+      // Method 1b: If details didn't have rating, try reviews endpoint
+      if (rating === null) {
+        console.log(`Details had no rating, trying reviews endpoint...`);
+        const reviewsUrl = `https://hotels-com-provider.p.rapidapi.com/v2/hotels/reviews?hotel_id=${targetHotelId}&domain=US&locale=en_US`;
+        
+        try {
+          const reviewsResponse = await fetch(reviewsUrl, {
+            method: 'GET',
+            headers: {
+              'x-rapidapi-host': 'hotels-com-provider.p.rapidapi.com',
+              'x-rapidapi-key': rapidApiKey,
+            },
+          });
+
+          if (reviewsResponse.ok) {
+            const reviewsData: any = await reviewsResponse.json();
+            console.log(`RapidAPI reviews keys: ${JSON.stringify(Object.keys(reviewsData || {}))}`);
+            
+            // Try to extract rating from reviews response
+            if (reviewsData.summary?.overallScoreWithDescriptionA11y?.value) {
+              rating = parseRating(reviewsData.summary.overallScoreWithDescriptionA11y.value);
+            }
+            if (rating === null && reviewsData.summary?.score) {
+              rating = parseFloat(reviewsData.summary.score);
+            }
+            if (rating === null && reviewsData.averageOverallRating) {
+              rating = parseFloat(reviewsData.averageOverallRating);
+            }
+            
+            if (reviewsData.summary?.propertyReviewCountDetails?.shortDescription) {
+              reviewCount = parseReviewCount(reviewsData.summary.propertyReviewCountDetails.shortDescription);
+            }
+            if (reviewCount === 0 && reviewsData.summary?.reviewCount) {
+              reviewCount = parseInt(reviewsData.summary.reviewCount);
+            }
+            
+            console.log(`RapidAPI reviews result: rating=${rating}, reviewCount=${reviewCount}`);
+          }
+        } catch (err) {
+          console.log(`RapidAPI reviews failed: ${err}`);
+        }
       }
     }
 
