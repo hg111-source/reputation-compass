@@ -147,9 +147,14 @@ export default function Properties() {
     const state = formData.get('state') as string;
 
     try {
-      await createProperty.mutateAsync({ name, city, state });
-      toast({ title: 'Property created', description: `${name} has been added.` });
+      const newProperty = await createProperty.mutateAsync({ name, city, state });
+      toast({ title: 'Property created', description: `${name} has been added. Fetching ratings...` });
       setIsDialogOpen(false);
+      
+      // Auto-refresh all platforms for the new property
+      setIsAllPlatformsDialogOpen(true);
+      setAllPlatformsDialogOpen(true);
+      startAllPlatformsRefresh([newProperty]);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to create property.' });
     }
