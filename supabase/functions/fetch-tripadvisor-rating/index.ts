@@ -59,6 +59,9 @@ serve(async (req) => {
     if (!apiToken) {
       throw new Error('APIFY_API_TOKEN is not configured');
     }
+    
+    // Debug: log token format (masked)
+    console.log(`Token starts with: ${apiToken.substring(0, 10)}..., length: ${apiToken.length}`);
 
     const { hotelName, city } = await req.json();
     
