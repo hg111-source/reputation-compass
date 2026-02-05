@@ -228,6 +228,18 @@ export function useUnifiedRefresh() {
           normalized_score_0_10: parseFloat(normalizedScore.toFixed(2)),
         });
 
+        // For Google, also save placeId and website URL to the property
+        if (platform === 'google') {
+          const updateData: Record<string, string | null> = {};
+          if (data.placeId) updateData.google_place_id = data.placeId;
+          if (data.websiteUrl) updateData.website_url = data.websiteUrl;
+          
+          if (Object.keys(updateData).length > 0) {
+            await supabase.from('properties').update(updateData).eq('id', property.id);
+            console.log(`[google] Saved placeId and/or websiteUrl for ${property.name}`);
+          }
+        }
+
         console.log(`[${platform}] ${property.name} SUCCESS: ${data.rating}/${scale}`);
       }
 
