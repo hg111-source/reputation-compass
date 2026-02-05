@@ -8,7 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CheckCircle2, XCircle, Loader2, Clock, RefreshCw, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Clock, RefreshCw, AlertCircle, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PropertyPlatformState, Platform, RefreshStatus } from '@/hooks/useAllPlatformsRefresh';
 import { Property } from '@/lib/types';
@@ -19,7 +19,10 @@ interface AllPlatformsRefreshDialogProps {
   propertyStates: PropertyPlatformState[];
   currentPlatform: Platform | null;
   onRetry: (property: Property, platform: Platform) => void;
+  onRetryAllFailed: () => void;
+  failedCount: number;
   isComplete: boolean;
+  isRunning: boolean;
 }
 
 const PLATFORM_LABELS: Record<Platform, { label: string; color: string; isApify: boolean }> = {
@@ -33,6 +36,8 @@ function StatusIcon({ status }: { status: RefreshStatus }) {
   switch (status) {
     case 'complete':
       return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+    case 'not_listed':
+      return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
     case 'failed':
       return <XCircle className="h-4 w-4 text-destructive" />;
     case 'in_progress':
@@ -71,18 +76,25 @@ export function AllPlatformsRefreshDialog({
   propertyStates,
   currentPlatform,
   onRetry,
+  onRetryAllFailed,
+  failedCount,
   isComplete,
+  isRunning,
 }: AllPlatformsRefreshDialogProps) {
   const totalOperations = propertyStates.reduce((sum, p) => sum + p.platforms.length, 0);
   const completedOperations = propertyStates.reduce(
-    (sum, p) => sum + p.platforms.filter(pl => pl.status === 'complete' || pl.status === 'failed').length,
+    (sum, p) => sum + p.platforms.filter(pl => pl.status === 'complete' || pl.status === 'failed' || pl.status === 'not_listed').length,
     0
   );
   const failedOperations = propertyStates.reduce(
     (sum, p) => sum + p.platforms.filter(pl => pl.status === 'failed').length,
     0
   );
-  const successOperations = completedOperations - failedOperations;
+  const notListedOperations = propertyStates.reduce(
+    (sum, p) => sum + p.platforms.filter(pl => pl.status === 'not_listed').length,
+    0
+  );
+  const successOperations = completedOperations - failedOperations - notListedOperations;
   const progress = totalOperations > 0 ? (completedOperations / totalOperations) * 100 : 0;
 
   const currentPlatformConfig = currentPlatform ? PLATFORM_LABELS[currentPlatform] : null;
@@ -92,7 +104,7 @@ export function AllPlatformsRefreshDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {!isComplete && currentPlatform && (
+            {isRunning && currentPlatform && (
               <>
                 <RefreshCw className="h-5 w-5 animate-spin" />
                 <span>Fetching {currentPlatformConfig?.label}...</span>
@@ -104,7 +116,7 @@ export function AllPlatformsRefreshDialog({
                 Refresh Complete
               </>
             )}
-            {!isComplete && !currentPlatform && (
+            {isRunning && !currentPlatform && (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
                 Preparing...
@@ -115,11 +127,11 @@ export function AllPlatformsRefreshDialog({
 
         <div className="space-y-4">
           {/* Info banner for Apify platforms */}
-          {!isComplete && currentPlatformConfig?.isApify && (
+          {isRunning && currentPlatformConfig?.isApify && (
             <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950">
               <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="text-amber-800 dark:text-amber-200">
-                <span className="font-medium">{currentPlatformConfig.label}</span> requests may take 30-90 seconds each. Please wait...
+                <span className="font-medium">{currentPlatformConfig.label}</span> requests may take 30-90 seconds each. Automatic retry enabled for failures.
               </div>
             </div>
           )}
@@ -132,13 +144,16 @@ export function AllPlatformsRefreshDialog({
               {isComplete && (
                 <span>
                   <span className="text-emerald-500">{successOperations} success</span>
+                  {notListedOperations > 0 && (
+                    <>, <span className="text-muted-foreground">{notListedOperations} not listed</span></>
+                  )}
                   {failedOperations > 0 && (
                     <>, <span className="text-destructive">{failedOperations} failed</span></>
                   )}
                 </span>
               )}
             </div>
-            {!isComplete && (
+            {isRunning && (
               <p className="text-xs text-muted-foreground text-center pt-1">
                 You can close this dialog — refresh will continue in the background and you'll be notified when done.
               </p>
@@ -160,7 +175,8 @@ export function AllPlatformsRefreshDialog({
                           className={cn(
                             'flex items-center justify-between rounded-md border px-2 py-1.5 text-xs',
                             status === 'failed' && 'border-destructive/50 bg-destructive/5',
-                            status === 'in_progress' && 'border-primary/50 bg-primary/5'
+                            status === 'in_progress' && 'border-primary/50 bg-primary/5',
+                            status === 'not_listed' && 'border-muted bg-muted/20'
                           )}
                         >
                           <div className="flex items-center gap-1.5">
@@ -170,7 +186,7 @@ export function AllPlatformsRefreshDialog({
                             </span>
                             {status === 'in_progress' && <ElapsedTime startedAt={startedAt} />}
                           </div>
-                          {status === 'failed' && isComplete && (
+                          {status === 'failed' && isComplete && !isRunning && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -194,9 +210,20 @@ export function AllPlatformsRefreshDialog({
             </div>
           </ScrollArea>
 
-          {/* Close button */}
-          {isComplete && (
-            <div className="flex justify-end">
+          {/* Action buttons */}
+          {isComplete && !isRunning && (
+            <div className="flex justify-between">
+              {failedCount > 0 && (
+                <Button 
+                  variant="outline" 
+                  onClick={onRetryAllFailed}
+                  className="gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Retry All Failed ({failedCount})
+                </Button>
+              )}
+              <div className="flex-1" />
               <Button variant="secondary" onClick={() => onOpenChange(false)}>
                 Close
               </Button>

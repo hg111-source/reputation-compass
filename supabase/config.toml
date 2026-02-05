@@ -11,9 +11,13 @@ verify_jwt = false
 
 [functions.fetch-booking-rating]
 verify_jwt = false
+max_body_size = 2097152
+max_response_size = 2097152
 
 [functions.fetch-expedia-rating]
 verify_jwt = false
+max_body_size = 2097152
+max_response_size = 2097152
 
 [functions.analyze-reviews]
 verify_jwt = false
