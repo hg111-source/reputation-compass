@@ -34,6 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Property, ReviewSource } from '@/lib/types';
 import { PropertyRow } from '@/components/properties/PropertyRow';
 import { AllPlatformsRefreshDialog } from '@/components/properties/AllPlatformsRefreshDialog';
+import { PropertyHistoryDialog } from '@/components/properties/PropertyHistoryDialog';
 import { exportPropertiesToCSV } from '@/lib/csv';
 import { calculatePropertyMetrics } from '@/lib/scoring';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
@@ -52,6 +53,7 @@ export default function Properties() {
   const [refreshingSource, setRefreshingSource] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [historyProperty, setHistoryProperty] = useState<Property | null>(null);
   
   // Form state for controlled inputs
   const [formName, setFormName] = useState('');
@@ -517,6 +519,7 @@ export default function Properties() {
                     onRefreshGoogle={handleRefreshGoogle}
                     onRefreshOTA={handleRefreshOTA}
                     onRefreshAllPlatforms={handleRefreshSingleProperty}
+                    onViewHistory={setHistoryProperty}
                     isRefreshing={refreshingPropertyId === property.id}
                     refreshingSource={refreshingSource}
                     isRefreshingAll={isAllPlatformsRunning && propertyStates[property.id]?.status === 'in_progress'}
@@ -536,6 +539,13 @@ export default function Properties() {
           currentPlatform={currentPlatform}
           onRetry={retryPlatform}
           isComplete={isAllPlatformsComplete}
+        />
+
+        {/* Property history dialog */}
+        <PropertyHistoryDialog
+          property={historyProperty}
+          open={!!historyProperty}
+          onOpenChange={(open) => !open && setHistoryProperty(null)}
         />
       </div>
     </DashboardLayout>

@@ -1,4 +1,4 @@
-import { MapPin, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
+import { MapPin, Trash2, RefreshCw, ExternalLink, History } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -24,6 +24,7 @@ interface PropertyRowProps {
   onRefreshGoogle: (property: Property) => void;
   onRefreshOTA: (property: Property, source: 'tripadvisor' | 'booking' | 'expedia') => void;
   onRefreshAllPlatforms: (property: Property) => void;
+  onViewHistory: (property: Property) => void;
   isRefreshing: boolean;
   refreshingSource: string | null;
   isRefreshingAll?: boolean;
@@ -36,6 +37,7 @@ export function PropertyRow({
   onRefreshGoogle,
   onRefreshOTA,
   onRefreshAllPlatforms,
+  onViewHistory,
   isRefreshing,
   refreshingSource,
   isRefreshingAll = false,
@@ -170,14 +172,24 @@ export function PropertyRow({
       {/* Platform scores inline */}
       {REVIEW_SOURCES.map(renderPlatformCell)}
 
-      {/* Actions - just delete */}
+      {/* Actions */}
       <TableCell>
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
+            onClick={() => onViewHistory(property)}
+            title="View history"
+          >
+            <History className="h-3.5 w-3.5" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
             onClick={() => onDelete(property.id, property.name)}
+            title="Delete property"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
