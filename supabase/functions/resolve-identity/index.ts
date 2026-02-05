@@ -342,19 +342,34 @@ serve(async (req) => {
 
       resolutions.push(resolution);
 
+      // Apply confidence threshold: if < 0.7, mark as needs_review instead of resolved
+      const CONFIDENCE_THRESHOLD = 0.7;
+      let finalStatus = resolution.status;
+      
+      if (resolution.status === 'resolved' && (resolution.confidence ?? 0) < CONFIDENCE_THRESHOLD) {
+        console.log(`  ${source}: Confidence ${resolution.confidence} < ${CONFIDENCE_THRESHOLD}, marking as needs_review`);
+        finalStatus = 'needs_review';
+      }
+
       // Store resolution in hotel_aliases table
       const aliasData: Record<string, unknown> = {
         property_id: propertyId,
         source,
-        resolution_status: resolution.status,
+        resolution_status: finalStatus,
         platform_id: resolution.platformId || null,
         platform_url: resolution.platformUrl || null,
         source_id_or_url: resolution.platformUrl || resolution.platformId || null,
         source_name_raw: resolution.platformName || null,
         confidence_score: resolution.confidence || null,
-        candidate_options: resolution.candidates || [],
+        candidate_options: finalStatus === 'needs_review' ? (resolution.candidates || [{ 
+          name: resolution.platformName, 
+          url: resolution.platformUrl, 
+          platformId: resolution.platformId,
+          confidence: resolution.confidence,
+          reason: 'Low confidence match'
+        }]) : [],
         last_resolved_at: new Date().toISOString(),
-        last_verified_at: resolution.status === 'resolved' ? new Date().toISOString() : null,
+        last_verified_at: finalStatus === 'resolved' ? new Date().toISOString() : null,
         last_error: resolution.error || null,
       };
 
