@@ -1,6 +1,7 @@
 import { MapPin, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TableCell, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Property, ReviewSource } from '@/lib/types';
 import { 
@@ -82,15 +83,26 @@ export function PropertyRow({
         </div>
       </TableCell>
 
-      {/* Avg Score - PRIMARY */}
+      {/* Avg Score - PRIMARY with tooltip */}
       <TableCell className="text-center">
-        {weightedAvg !== null ? (
-          <span className={cn('text-xl font-bold', getScoreColor(weightedAvg))}>
-            {weightedAvg.toFixed(1)}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">N/A</span>
-        )}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className={cn('cursor-help text-xl font-bold', weightedAvg !== null ? getScoreColor(weightedAvg) : 'text-muted-foreground')}>
+                {weightedAvg !== null ? weightedAvg.toFixed(1) : 'N/A'}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p className="font-semibold">Weighted Average Score</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Calculated as: Σ(score × reviews) ÷ Σ(reviews)
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Platforms with more reviews have greater influence on this score.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </TableCell>
 
       {/* Total Reviews - PRIMARY */}
