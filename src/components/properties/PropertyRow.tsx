@@ -1,4 +1,4 @@
-import { MapPin, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
+import { MapPin, Trash2, RefreshCw, ExternalLink, Link2 } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -112,7 +112,7 @@ export function PropertyRow({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-green-500" />
+                <Link2 className="ml-1.5 h-3 w-3 text-muted-foreground/60" />
               </TooltipTrigger>
               <TooltipContent>
                 <p className="text-xs">Website linked</p>
