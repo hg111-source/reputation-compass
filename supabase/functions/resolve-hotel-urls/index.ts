@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { normalizeHotelName, analyzeHotelMatch } from "../_shared/hotelNameUtils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,78 +12,26 @@ const PLATFORM_FILTERS: Record<string, string> = {
   expedia: 'site:expedia.com inurl:Hotel',
 };
 
-// Normalize text for comparison (lowercase, remove special chars)
-function normalizeText(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// Simplify hotel name (remove common suffixes like "Hotel", "Resort", etc.)
-function simplifyHotelName(name: string): string {
-  return name
-    .replace(/\b(hotel|resort|inn|suites?|lodge|motel|b&b|bed\s*&?\s*breakfast)\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// Calculate match score between hotel name and URL/title
-function calculateMatchScore(hotelName: string, url: string, title: string): number {
-  const normalizedHotel = normalizeText(hotelName);
-  const normalizedTitle = normalizeText(title);
-  const normalizedUrl = normalizeText(url);
-  
-  const hotelWords = normalizedHotel.split(' ').filter(w => w.length > 2);
-  
-  let score = 0;
-  
-  // Check how many hotel name words appear in the title
-  for (const word of hotelWords) {
-    if (normalizedTitle.includes(word)) {
-      score += 2;
-    }
-    if (normalizedUrl.includes(word)) {
-      score += 1;
-    }
-  }
-  
-  // Bonus for exact phrase match
-  if (normalizedTitle.includes(normalizedHotel)) {
-    score += 10;
-  }
-  
-  // Bonus for simplified name match
-  const simplifiedHotel = normalizeText(simplifyHotelName(hotelName));
-  if (simplifiedHotel && normalizedTitle.includes(simplifiedHotel)) {
-    score += 5;
-  }
-  
-  return score;
-}
-
 // Generate query variations for better matching
 function generateQueryVariations(hotelName: string, city: string, state?: string): string[] {
+  const normalized = normalizeHotelName(hotelName);
   const queries: string[] = [];
   
-  // Primary: Full name + city
+  // Primary: normalized name + city
+  queries.push(`${normalized} ${city}`);
+  
+  // With state if provided
+  if (state) {
+    queries.push(`${normalized} ${city} ${state}`);
+  }
+  
+  // Original name + city (in case brand matters for search)
   queries.push(`${hotelName} ${city}`);
   
-  // Secondary: Full name + state (if provided)
-  if (state) {
-    queries.push(`${hotelName} ${state}`);
-  }
-  
-  // Tertiary: Simplified name + city
-  const simplified = simplifyHotelName(hotelName);
-  if (simplified !== hotelName && simplified.length > 3) {
-    queries.push(`${simplified} ${city}`);
-  }
-  
-  // Quaternary: Just the hotel name (for unique names)
-  if (hotelName.split(' ').length >= 3) {
-    queries.push(hotelName);
+  // Simplified: first two significant words + city
+  const words = normalized.split(' ').filter(w => w.length > 2);
+  if (words.length > 2) {
+    queries.push(`${words.slice(0, 2).join(' ')} hotel ${city}`);
   }
   
   return queries;
@@ -91,7 +40,8 @@ function generateQueryVariations(hotelName: string, city: string, state?: string
 interface SearchResult {
   link: string;
   title: string;
-  score: number;
+  isMatch: boolean;
+  reason: string;
 }
 
 async function searchSerpApiWithValidation(
@@ -108,7 +58,6 @@ async function searchSerpApiWithValidation(
   console.log(`Query variations: ${queryVariations.join(' | ')}`);
   
   let bestResult: SearchResult | null = null;
-  const minScoreThreshold = 3; // Minimum score to consider a valid match
   
   for (const baseQuery of queryVariations) {
     const query = `${baseQuery} ${siteFilter}`;
@@ -117,7 +66,7 @@ async function searchSerpApiWithValidation(
     url.searchParams.set('api_key', apiKey);
     url.searchParams.set('q', query);
     url.searchParams.set('engine', 'google');
-    url.searchParams.set('num', '5'); // Get top 5 results
+    url.searchParams.set('num', '5');
 
     console.log(`  Trying query: ${query}`);
 
@@ -133,25 +82,25 @@ async function searchSerpApiWithValidation(
       const data = await response.json();
       
       if (data.organic_results && data.organic_results.length > 0) {
-        // Score all results and find the best match
+        // Use shared matching logic to validate results
         for (const result of data.organic_results.slice(0, 5)) {
-          const score = calculateMatchScore(hotelName, result.link, result.title);
-          console.log(`    Result: ${result.title.substring(0, 50)}... (score: ${score})`);
+          const matchAnalysis = analyzeHotelMatch(hotelName, result.title);
+          console.log(`    Result: ${result.title.substring(0, 50)}...`);
+          console.log(`      Match: ${matchAnalysis.isMatch} - ${matchAnalysis.reason}`);
           
-          if (score >= minScoreThreshold && (!bestResult || score > bestResult.score)) {
+          if (matchAnalysis.isMatch && !bestResult) {
             bestResult = {
               link: result.link,
               title: result.title,
-              score: score,
+              isMatch: true,
+              reason: matchAnalysis.reason,
             };
+            console.log(`  ✓ Match found: ${bestResult.link}`);
+            break; // First valid match wins
           }
         }
         
-        // If we found a high-confidence match, stop trying more queries
-        if (bestResult && bestResult.score >= 8) {
-          console.log(`  High-confidence match found: ${bestResult.link} (score: ${bestResult.score})`);
-          break;
-        }
+        if (bestResult) break; // Stop trying more queries
       }
       
       // Small delay between query attempts
@@ -163,7 +112,7 @@ async function searchSerpApiWithValidation(
   }
   
   if (bestResult) {
-    console.log(`  Best ${platform} match: ${bestResult.link} (score: ${bestResult.score})`);
+    console.log(`  Best ${platform} match: ${bestResult.link} (${bestResult.reason})`);
     return bestResult.link;
   }
   
