@@ -1,50 +1,54 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const APIFY_BASE_URL = 'https://api.apify.com/v2';
-const EXPEDIA_ACTOR_ID = '4zyibEJ79jE7VXIpA'; // tri_angle/expedia-hotels-com-reviews-scraper
+function extractRatingFromHtml(html: string): { rating: number | null; reviewCount: number; hotelName: string | null } {
+  let rating: number | null = null;
+  let reviewCount = 0;
+  let hotelName: string | null = null;
 
-interface ApifyRunResponse {
-  data: {
-    id: string;
-    status: string;
-    defaultDatasetId: string;
-  };
-}
-
-interface ExpediaResult {
-  hotelName?: string;
-  hotelOverallRating?: number;
-  hotelReviewCount?: number;
-}
-
-async function waitForRun(runId: string, token: string, maxWaitMs = 180000): Promise<string> {
-  const startTime = Date.now();
+  // Try JSON-LD structured data
+  const jsonLdMatches = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
   
-  while (Date.now() - startTime < maxWaitMs) {
-    const response = await fetch(`${APIFY_BASE_URL}/actor-runs/${runId}?token=${token}`);
-    const data = await response.json();
-    
-    console.log(`Run ${runId} status: ${data.data.status}`);
-    
-    if (data.data.status === 'SUCCEEDED') {
-      return data.data.defaultDatasetId;
+  if (jsonLdMatches) {
+    for (const match of jsonLdMatches) {
+      try {
+        const jsonContent = match.replace(/<script[^>]*>|<\/script>/gi, '').trim();
+        const data = JSON.parse(jsonContent);
+        const items = Array.isArray(data) ? data : [data];
+        
+        for (const item of items) {
+          if (item['@type'] === 'Hotel' || item['@type'] === 'LodgingBusiness') {
+            hotelName = item.name || hotelName;
+            if (item.aggregateRating) {
+              rating = parseFloat(item.aggregateRating.ratingValue);
+              reviewCount = parseInt(item.aggregateRating.reviewCount) || 0;
+            }
+          }
+        }
+      } catch (_e) { /* continue */ }
     }
-    
-    if (data.data.status === 'FAILED' || data.data.status === 'ABORTED' || data.data.status === 'TIMED-OUT') {
-      throw new Error(`Apify run ${data.data.status}`);
-    }
-    
-    // Poll every 5 seconds
-    await new Promise(resolve => setTimeout(resolve, 5000));
   }
-  
-  throw new Error('Apify run timeout - try again later');
+
+  // Fallback patterns
+  if (rating === null) {
+    const ratingMatch = html.match(/ratingValue["']?\s*[:=]\s*["']?([\d.]+)/i);
+    if (ratingMatch) rating = parseFloat(ratingMatch[1]);
+    
+    const reviewMatch = html.match(/reviewCount["']?\s*[:=]\s*["']?(\d+)/i);
+    if (reviewMatch) reviewCount = parseInt(reviewMatch[1]);
+  }
+
+  if (rating === null) {
+    const scorePattern = html.match(/([\d.]+)\s*\/\s*10\s*(?:Exceptional|Wonderful|Very Good|Good|Pleasant)/i);
+    if (scorePattern) rating = parseFloat(scorePattern[1]);
+  }
+
+  return { rating, reviewCount, hotelName };
 }
 
 serve(async (req) => {
@@ -53,14 +57,10 @@ serve(async (req) => {
   }
 
   try {
-    const apiToken = Deno.env.get('APIFY_API_TOKEN');
-    if (!apiToken) {
-      throw new Error('APIFY_API_TOKEN is not configured');
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
 
     const { propertyId } = await req.json();
     
@@ -71,7 +71,7 @@ serve(async (req) => {
       );
     }
 
-    // Step 1: Check hotel_aliases for resolved Expedia URL
+    // Check hotel_aliases for resolved Expedia URL
     const { data: alias, error: aliasError } = await supabase
       .from('hotel_aliases')
       .select('platform_url, resolution_status')
@@ -80,165 +80,78 @@ serve(async (req) => {
       .single();
 
     if (aliasError && aliasError.code !== 'PGRST116') {
-      console.error('Error fetching alias:', aliasError);
       throw new Error('Database error');
     }
 
-    // Step 2: If no alias or no URL, return no_alias status
     if (!alias || !alias.platform_url) {
-      console.log(`No Expedia URL found for property ${propertyId}`);
       return new Response(
-        JSON.stringify({ 
-          success: false,
-          status: 'no_alias',
-          message: 'Resolve URLs first to get Expedia rating' 
-        }),
+        JSON.stringify({ success: false, status: 'no_alias', message: 'Resolve URLs first' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if marked as not_listed
     if (alias.resolution_status === 'not_listed') {
       return new Response(
-        JSON.stringify({ 
-          success: true,
-          status: 'not_listed',
-          message: 'Hotel not listed on Expedia' 
-        }),
+        JSON.stringify({ success: true, status: 'not_listed' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const expediaUrl = alias.platform_url;
-    console.log(`Fetching Expedia rating from: ${expediaUrl}`);
+    console.log(`Fetching: ${alias.platform_url}`);
 
-    // Step 3: Call tri_angle actor with correct input format
-    const runResponse = await fetch(
-      `${APIFY_BASE_URL}/acts/${EXPEDIA_ACTOR_ID}/runs?token=${apiToken}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startUrls: [{ url: expediaUrl }],
-          maxReviews: 1, // We only need the rating, not all reviews
-        }),
-      }
-    );
+    const response = await fetch(alias.platform_url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html',
+      },
+    });
 
-    if (!runResponse.ok) {
-      const errorText = await runResponse.text();
-      console.error('Apify run start error:', errorText);
+    if (!response.ok) {
       return new Response(
-        JSON.stringify({ 
-          success: false,
-          status: 'error',
-          error: 'Failed to start Apify run' 
-        }),
+        JSON.stringify({ success: false, status: 'error', error: `HTTP ${response.status}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const runData: ApifyRunResponse = await runResponse.json();
-    const runId = runData.data.id;
-    console.log(`Apify Expedia run started: ${runId}`);
+    const html = await response.text();
+    const { rating, reviewCount, hotelName } = extractRatingFromHtml(html);
 
-    // Wait for completion (3 min timeout)
-    const datasetId = await waitForRun(runId, apiToken);
-    
-    const resultsResponse = await fetch(
-      `${APIFY_BASE_URL}/datasets/${datasetId}/items?token=${apiToken}`
-    );
-    
-    if (!resultsResponse.ok) {
-      throw new Error('Failed to fetch results');
-    }
-
-    const results: ExpediaResult[] = await resultsResponse.json();
-    console.log(`Expedia results:`, JSON.stringify(results, null, 2));
-
-    if (!results || results.length === 0) {
-      // Update alias to mark as not found
-      await supabase
-        .from('hotel_aliases')
-        .update({ resolution_status: 'not_listed', last_resolved_at: new Date().toISOString() })
-        .eq('property_id', propertyId)
-        .eq('source', 'expedia');
-
+    if (rating === null) {
       return new Response(
-        JSON.stringify({ 
-          success: true,
-          status: 'not_listed',
-          message: 'No rating data found' 
-        }),
+        JSON.stringify({ success: false, status: 'not_found', message: 'Rating not found in page' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const result = results[0];
-    
-    // Step 4: Extract rating and review count
-    const rawRating = result.hotelOverallRating;
-    const reviewCount = result.hotelReviewCount || 0;
-
-    if (rawRating === null || rawRating === undefined) {
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          status: 'not_listed',
-          message: 'No rating in response' 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Step 5: Normalize to 0-10 scale (tri_angle returns 0-10 already)
-    const scale = 10;
-    const normalizedScore = parseFloat(rawRating.toFixed(2));
-
-    // Step 6: Save to source_snapshots
-    const { error: insertError } = await supabase.from('source_snapshots').insert({
+    // Save snapshot
+    await supabase.from('source_snapshots').insert({
       property_id: propertyId,
       source: 'expedia',
-      score_raw: rawRating,
-      score_scale: scale,
+      score_raw: rating,
+      score_scale: 10,
       review_count: reviewCount,
-      normalized_score_0_10: normalizedScore,
+      normalized_score_0_10: rating,
       status: 'found',
     });
 
-    if (insertError) {
-      console.error('Error saving snapshot:', insertError);
-    }
-
-    // Update alias verification timestamp
+    // Update alias
     await supabase
       .from('hotel_aliases')
-      .update({ 
-        last_verified_at: new Date().toISOString(),
-        resolution_status: 'verified'
-      })
+      .update({ last_verified_at: new Date().toISOString(), resolution_status: 'verified', source_name_raw: hotelName })
       .eq('property_id', propertyId)
       .eq('source', 'expedia');
 
-    console.log(`Expedia rating saved: ${rawRating}/${scale} (${reviewCount} reviews)`);
+    console.log(`Expedia: ${rating}/10 (${reviewCount} reviews)`);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        status: 'found',
-        rating: rawRating,
-        reviewCount: reviewCount,
-        scale: scale,
-        normalizedScore: normalizedScore,
-      }),
+      JSON.stringify({ success: true, status: 'found', rating, reviewCount, scale: 10 }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: unknown) {
-    console.error('Error fetching Expedia rating:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error:', error);
     return new Response(
-      JSON.stringify({ success: false, status: 'error', error: errorMessage }),
+      JSON.stringify({ success: false, status: 'error', error: error instanceof Error ? error.message : 'Unknown' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
