@@ -36,9 +36,9 @@ export function SortableTableHead({
         <TooltipTrigger asChild>
           <TableHead
             className={cn(
-              'cursor-pointer select-none transition-all',
-              'border-b-2 border-transparent hover:border-muted-foreground/30 hover:bg-muted',
-              isActive && 'border-foreground/50 bg-muted/50',
+              'cursor-pointer select-none transition-colors',
+              'border-b-2 border-transparent hover:bg-muted/30',
+              isActive && 'bg-muted/50 border-foreground/50',
               'group',
               className
             )}
