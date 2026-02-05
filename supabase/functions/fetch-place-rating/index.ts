@@ -15,8 +15,111 @@ interface PlaceResult {
   websiteUri?: string;
 }
 
+// Fetch place details by ID (faster, no search needed)
+async function fetchPlaceById(apiKey: string, placeId: string): Promise<PlaceResult | null> {
+  console.log(`Fetching place by ID: ${placeId}`);
+  
+  const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}`;
+  
+  const response = await fetch(detailsUrl, {
+    method: 'GET',
+    headers: {
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': 'id,displayName,formattedAddress,rating,userRatingCount,websiteUri',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Place Details API error: ${response.status} - ${errorText}`);
+    return null;
+  }
+
+  const data = await response.json();
+  console.log(`Place details found: ${data.displayName?.text} - ${data.rating}/5 (${data.userRatingCount} reviews)`);
+  
+  return {
+    id: data.id,
+    displayName: data.displayName,
+    formattedAddress: data.formattedAddress,
+    rating: data.rating,
+    userRatingCount: data.userRatingCount,
+    websiteUri: data.websiteUri,
+  };
+}
+
+// Search for place by name (fallback when no placeId)
+async function searchPlace(apiKey: string, hotelName: string, city: string): Promise<PlaceResult | null> {
+  const normalizedName = normalizeHotelName(hotelName);
+  const searchUrl = 'https://places.googleapis.com/v1/places:searchText';
+  const query = `${normalizedName} hotel ${city}`;
+
+  console.log(`Searching for: ${hotelName} (normalized: ${normalizedName}) in ${city}`);
+
+  const searchResponse = await fetch(searchUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.websiteUri',
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      includedType: 'lodging',
+      maxResultCount: 5,
+    }),
+  });
+
+  if (!searchResponse.ok) {
+    const errorText = await searchResponse.text();
+    console.error('Google Places API error:', searchResponse.status, errorText);
+    throw new Error(`Google Places API error: ${searchResponse.status} - ${errorText}`);
+  }
+
+  const searchData = await searchResponse.json();
+
+  if (!searchData.places || searchData.places.length === 0) {
+    return null;
+  }
+
+  // Find best matching place
+  let bestPlace: PlaceResult | null = null;
+  const [cityName] = city.split(',').map((s: string) => s.trim());
+  
+  for (const place of searchData.places as PlaceResult[]) {
+    const placeName = place.displayName?.text || '';
+    const matchResult = analyzeHotelMatch(hotelName, placeName);
+    
+    console.log(`Analyzing: "${placeName}" vs "${hotelName}"`);
+    console.log(`  → ${matchResult.reason}`);
+    console.log(`  → Matching words: [${matchResult.searchWords.filter(w => matchResult.resultWords.includes(w)).join(', ')}]`);
+    
+    if (matchResult.isMatch) {
+      if (validateCity(place.formattedAddress, cityName)) {
+        bestPlace = place;
+        console.log(`  ✓ MATCH (city validated)`);
+        break;
+      } else {
+        console.log(`  ✗ Name matches but wrong city`);
+      }
+    }
+  }
+  
+  // Fall back to first result only if it's in the right city
+  if (!bestPlace && searchData.places.length > 0) {
+    const firstPlace = searchData.places[0] as PlaceResult;
+    if (validateCity(firstPlace.formattedAddress, cityName)) {
+      bestPlace = firstPlace;
+      console.log(`No exact match, using first result: ${bestPlace.displayName?.text}`);
+    } else {
+      console.log(`First result is in wrong city, rejecting`);
+    }
+  }
+
+  return bestPlace;
+}
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -27,7 +130,7 @@ serve(async (req) => {
       throw new Error('GOOGLE_PLACES_API_KEY is not configured');
     }
 
-    const { hotelName, city } = await req.json();
+    const { hotelName, city, placeId } = await req.json();
     
     if (!hotelName || !city) {
       return new Response(
@@ -36,83 +139,25 @@ serve(async (req) => {
       );
     }
 
-    // Normalize hotel name for better matching
-    const normalizedName = normalizeHotelName(hotelName);
-    
-    // Use the new Places API (Text Search)
-    const searchUrl = 'https://places.googleapis.com/v1/places:searchText';
-    const query = `${normalizedName} hotel ${city}`;
+    let place: PlaceResult | null = null;
 
-    console.log(`Searching for: ${hotelName} (normalized: ${normalizedName}) in ${city}`);
-
-    const searchResponse = await fetch(searchUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': apiKey,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.websiteUri',
-      },
-      body: JSON.stringify({
-        textQuery: query,
-        includedType: 'lodging',
-        maxResultCount: 5, // Get multiple results to find best match
-      }),
-    });
-
-    if (!searchResponse.ok) {
-      const errorText = await searchResponse.text();
-      console.error('Google Places API error:', searchResponse.status, errorText);
-      throw new Error(`Google Places API error: ${searchResponse.status} - ${errorText}`);
-    }
-
-    const searchData = await searchResponse.json();
-
-    if (!searchData.places || searchData.places.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          found: false, 
-          message: 'No matching hotel found' 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Find best matching place using word-based comparison
-    let bestPlace: PlaceResult | null = null;
-    const [cityName] = city.split(',').map((s: string) => s.trim());
-    
-    for (const place of searchData.places as PlaceResult[]) {
-      const placeName = place.displayName?.text || '';
-      const matchResult = analyzeHotelMatch(hotelName, placeName);
+    // PRIORITY 1: Use stored placeId if available (faster, more reliable)
+    if (placeId) {
+      console.log(`Using stored placeId: ${placeId}`);
+      place = await fetchPlaceById(apiKey, placeId);
       
-      console.log(`Analyzing: "${placeName}" vs "${hotelName}"`);
-      console.log(`  → ${matchResult.reason}`);
-      console.log(`  → Matching words: [${matchResult.searchWords.filter(w => matchResult.resultWords.includes(w)).join(', ')}]`);
-      
-      // Check if name matches AND city is correct
-      if (matchResult.isMatch) {
-        if (validateCity(place.formattedAddress, cityName)) {
-          bestPlace = place;
-          console.log(`  ✓ MATCH (city validated)`);
-          break;
-        } else {
-          console.log(`  ✗ Name matches but wrong city`);
-        }
-      }
-    }
-    
-    // Fall back to first result only if it's in the right city
-    if (!bestPlace && searchData.places.length > 0) {
-      const firstPlace = searchData.places[0] as PlaceResult;
-      if (validateCity(firstPlace.formattedAddress, cityName)) {
-        bestPlace = firstPlace;
-        console.log(`No exact match, using first result: ${bestPlace.displayName?.text}`);
-      } else {
-        console.log(`First result is in wrong city, rejecting`);
+      if (!place) {
+        console.log(`PlaceId ${placeId} not found, falling back to search`);
       }
     }
 
-    if (!bestPlace) {
+    // PRIORITY 2: Search by name if no placeId or placeId lookup failed
+    if (!place) {
+      console.log(`No placeId or lookup failed, searching by name...`);
+      place = await searchPlace(apiKey, hotelName, city);
+    }
+
+    if (!place) {
       return new Response(
         JSON.stringify({ 
           found: false, 
@@ -125,12 +170,12 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         found: true,
-        placeId: bestPlace.id,
-        name: bestPlace.displayName?.text,
-        address: bestPlace.formattedAddress,
-        rating: bestPlace.rating ?? null,
-        reviewCount: bestPlace.userRatingCount ?? 0,
-        websiteUrl: bestPlace.websiteUri ?? null,
+        placeId: place.id,
+        name: place.displayName?.text,
+        address: place.formattedAddress,
+        rating: place.rating ?? null,
+        reviewCount: place.userRatingCount ?? 0,
+        websiteUrl: place.websiteUri ?? null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

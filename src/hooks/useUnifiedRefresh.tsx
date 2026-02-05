@@ -167,7 +167,12 @@ export function useUnifiedRefresh() {
       const body = platform === 'expedia' 
         ? { propertyId: property.id }
         : platform === 'google'
-          ? { hotelName: property.name, city: `${property.city}, ${property.state}` }
+          ? { 
+              hotelName: property.name, 
+              city: `${property.city}, ${property.state}`,
+              // Pass stored placeId for faster lookup (avoids search)
+              placeId: property.google_place_id || null,
+            }
           : {
               hotelName: property.name,
               city: `${property.city}, ${property.state}`,
