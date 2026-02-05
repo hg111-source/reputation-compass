@@ -1,4 +1,4 @@
-import { MapPin, RefreshCw, ExternalLink, History, Sparkles, Trash2 } from 'lucide-react';
+import { MapPin, RefreshCw, ExternalLink, Sparkles, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -166,15 +166,6 @@ export function PropertyCard({
           >
             <Sparkles className="mr-1 h-3 w-3" />
             Insights
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 h-8 text-xs"
-            onClick={() => onViewHistory(property)}
-          >
-            <History className="mr-1 h-3 w-3" />
-            History
           </Button>
         </div>
       </CardContent>
