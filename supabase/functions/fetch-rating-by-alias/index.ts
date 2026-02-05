@@ -8,10 +8,11 @@ const corsHeaders = {
 
 const APIFY_BASE_URL = 'https://api.apify.com/v2';
 
+// Use actor name format (username~actorname) for reliability
 const APIFY_ACTORS: Record<string, string> = {
-  tripadvisor: 'dbEyMBriog95Fv8CW', // maxcopell/tripadvisor
-  booking: 'oeiQgfg5fsmIJB7Cn', // voyager/booking-scraper  
-  expedia: 'wBnAOMgAtH92vVJri', // tri_angle/expedia-hotels-com-reviews-scraper
+  tripadvisor: 'maxcopell~tripadvisor',
+  booking: 'voyager~booking-scraper',  
+  expedia: 'tri_angle~expedia-hotels-com-reviews-scraper',
 };
 
 type ReviewSource = 'google' | 'tripadvisor' | 'booking' | 'expedia';
@@ -109,22 +110,22 @@ async function fetchApifyRating(
   let runBody: Record<string, unknown>;
 
   if (source === 'tripadvisor') {
-    // maxcopell/tripadvisor uses startUrls array
+    // maxcopell/tripadvisor uses startUrls array of objects
     runBody = {
       startUrls: [{ url: platformUrl }],
       maxItems: 1,
     };
   } else if (source === 'booking') {
-    // voyager/booking-scraper uses startUrls with hotel detail URLs
+    // voyager/booking-scraper uses startUrls with URL objects
     runBody = {
-      startUrls: [platformUrl],
+      startUrls: [{ url: platformUrl }],
       maxItems: 1,
       simple: true,
     };
   } else if (source === 'expedia') {
-    // tri_angle/expedia-hotels-com-reviews-scraper uses startUrls
+    // tri_angle/expedia-hotels-com-reviews-scraper uses startUrls with URL objects
     runBody = {
-      startUrls: [platformUrl],
+      startUrls: [{ url: platformUrl }],
     };
   } else {
     throw new Error(`Unsupported source: ${source}`);
