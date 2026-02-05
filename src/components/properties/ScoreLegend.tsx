@@ -10,11 +10,15 @@ const SCORE_TIERS = [
   { min: 0, label: 'Needs Work', color: 'bg-red-500' },
 ];
 
-export function ScoreLegend() {
+interface ScoreLegendProps {
+  className?: string;
+}
+
+export function ScoreLegend({ className }: ScoreLegendProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <button className={cn('inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors', className)}>
           <Info className="h-3.5 w-3.5" />
           <span>Score guide</span>
         </button>

@@ -378,7 +378,7 @@ export default function Properties() {
                   Cards
                 </ToggleGroupItem>
               </ToggleGroup>
-              <ScoreLegend />
+              <ScoreLegend className="ml-auto" />
             </div>
             
             {viewMode === 'table' ? (
