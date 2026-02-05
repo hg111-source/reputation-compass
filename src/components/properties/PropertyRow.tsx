@@ -4,7 +4,13 @@ import { Button } from '@/components/ui/button';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { Property, ReviewSource } from '@/lib/types';
-import { getScoreColor, formatScore, SOURCE_LABELS } from '@/lib/scoring';
+import { 
+  getScoreColor, 
+  formatScore, 
+  SOURCE_LABELS, 
+  REVIEW_SOURCES,
+  calculatePropertyMetrics 
+} from '@/lib/scoring';
 
 interface PlatformScore {
   score: number;
@@ -40,20 +46,9 @@ export function PropertyRow({
 }: PropertyRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Calculate weighted average and total reviews
-  const platforms: ReviewSource[] = ['google', 'tripadvisor', 'booking', 'expedia'];
-  let totalPoints = 0;
-  let totalReviews = 0;
-
-  for (const platform of platforms) {
-    const data = scores?.[platform];
-    if (data && data.score > 0 && data.count > 0) {
-      totalPoints += data.score * data.count;
-      totalReviews += data.count;
-    }
-  }
-
-  const weightedAvg = totalReviews > 0 ? totalPoints / totalReviews : null;
+  // Calculate weighted average and total reviews using centralized logic
+  // See src/lib/scoring.ts for formula documentation and assumptions
+  const { avgScore: weightedAvg, totalReviews } = calculatePropertyMetrics(scores);
 
   return (
     <>
@@ -128,7 +123,7 @@ export function PropertyRow({
         <TableRow className="bg-muted/30 hover:bg-muted/30">
           <TableCell colSpan={6} className="py-4">
             <div className="grid grid-cols-4 gap-4 pl-10">
-              {platforms.map((platform) => {
+              {REVIEW_SOURCES.map((platform) => {
                 const data = scores?.[platform];
                 const isRefreshingThis = isRefreshing && refreshingSource === platform;
 
