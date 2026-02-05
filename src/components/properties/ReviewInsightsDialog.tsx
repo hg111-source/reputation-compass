@@ -86,8 +86,8 @@ export function ReviewInsightsDialog({
         propertyId: property.id,
         hotelName: property.name,
         city: property.city,
-        platform: 'tripadvisor',
-        maxReviews: 50,
+        platform: 'all', // Fetch from all available platforms
+        maxReviews: 30, // Per platform
       });
 
       clearInterval(progressInterval);
@@ -184,13 +184,13 @@ export function ReviewInsightsDialog({
           <div className="py-8 text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-accent mx-auto" />
             <div className="space-y-2">
-              <p className="font-medium">
+            <p className="font-medium">
                 {step === 'fetching' 
-                  ? 'Fetching reviews from TripAdvisor...' 
+                  ? 'Fetching reviews from TripAdvisor & Google...' 
                   : 'Analyzing reviews with AI...'}
               </p>
               <p className="text-sm text-muted-foreground">
-                This may take 30-60 seconds
+                This may take 60-90 seconds (fetching from multiple platforms)
               </p>
             </div>
             <Progress value={progress} className="w-64 mx-auto" />
