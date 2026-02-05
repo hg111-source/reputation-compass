@@ -11,6 +11,7 @@ export interface PlatformRefreshState {
   platform: Platform;
   status: RefreshStatus;
   error?: string;
+  startedAt?: number;
 }
 
 export interface PropertyPlatformState {
@@ -44,7 +45,8 @@ export function useAllPlatformsRefresh() {
     propertyId: string,
     platform: Platform,
     status: RefreshStatus,
-    error?: string
+    error?: string,
+    startedAt?: number
   ) => {
     setPropertyStates(prev =>
       prev.map(p =>
@@ -52,7 +54,7 @@ export function useAllPlatformsRefresh() {
           ? {
               ...p,
               platforms: p.platforms.map(pl =>
-                pl.platform === platform ? { ...pl, status, error } : pl
+                pl.platform === platform ? { ...pl, status, error, startedAt } : pl
               ),
             }
           : p
@@ -145,7 +147,7 @@ export function useAllPlatformsRefresh() {
       for (let i = 0; i < properties.length; i++) {
         const property = properties[i];
         
-        updatePlatformStatus(property.id, platform, 'in_progress');
+        updatePlatformStatus(property.id, platform, 'in_progress', undefined, Date.now());
         
         const result = await fetchSinglePlatform(property, platform);
         

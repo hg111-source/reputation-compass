@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const APIFY_BASE_URL = 'https://api.apify.com/v2';
-const BOOKING_ACTOR_ID = 'voyager~booking-scraper';
+const BOOKING_ACTOR_ID = 'oeiQgfg5fsmIJB7Cn'; // voyager/booking-scraper
 
 interface ApifyRunResponse {
   data: {
@@ -23,6 +23,7 @@ interface BookingResult {
   score?: number;
   reviewCount?: number;
   numberOfReviews?: number;
+  reviews?: number;
   url?: string;
 }
 
@@ -33,18 +34,21 @@ async function waitForRun(runId: string, token: string, maxWaitMs = 120000): Pro
     const response = await fetch(`${APIFY_BASE_URL}/actor-runs/${runId}?token=${token}`);
     const data = await response.json();
     
+    console.log(`Run ${runId} status: ${data.data.status}`);
+    
     if (data.data.status === 'SUCCEEDED') {
       return data.data.defaultDatasetId;
     }
     
-    if (data.data.status === 'FAILED' || data.data.status === 'ABORTED') {
+    if (data.data.status === 'FAILED' || data.data.status === 'ABORTED' || data.data.status === 'TIMED-OUT') {
       throw new Error(`Apify run ${data.data.status}`);
     }
     
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Poll every 5 seconds
+    await new Promise(resolve => setTimeout(resolve, 5000));
   }
   
-  throw new Error('Apify run timeout');
+  throw new Error('Apify run timeout - try again later');
 }
 
 serve(async (req) => {
@@ -70,7 +74,7 @@ serve(async (req) => {
     const searchQuery = `${hotelName} ${city}`;
     console.log(`Booking.com search: ${searchQuery}`);
 
-    // Start the Apify actor run
+    // Start the Apify actor run with correct input format
     const runResponse = await fetch(
       `${APIFY_BASE_URL}/acts/${BOOKING_ACTOR_ID}/runs?token=${apiToken}`,
       {
@@ -79,8 +83,7 @@ serve(async (req) => {
         body: JSON.stringify({
           search: searchQuery,
           maxItems: 1,
-          language: 'en-us',
-          currency: 'USD',
+          simple: true,
         }),
       }
     );
@@ -94,9 +97,9 @@ serve(async (req) => {
     const runData: ApifyRunResponse = await runResponse.json();
     const runId = runData.data.id;
     
-    console.log(`Apify run started: ${runId}`);
+    console.log(`Apify Booking.com run started: ${runId}`);
 
-    // Wait for the run to complete
+    // Wait for the run to complete (polls every 5 seconds, timeout 120 seconds)
     const datasetId = await waitForRun(runId, apiToken);
     
     // Get the results
@@ -109,6 +112,8 @@ serve(async (req) => {
     }
 
     const results: BookingResult[] = await resultsResponse.json();
+    
+    console.log(`Booking.com results:`, JSON.stringify(results[0] || {}, null, 2));
     
     if (!results || results.length === 0) {
       return new Response(
@@ -123,7 +128,7 @@ serve(async (req) => {
     const hotel = results[0];
     // Booking.com typically uses 0-10 scale
     const rating = hotel.reviewScore || hotel.score || hotel.rating || null;
-    const reviewCount = hotel.reviewCount || hotel.numberOfReviews || 0;
+    const reviewCount = hotel.reviewCount || hotel.numberOfReviews || hotel.reviews || 0;
 
     return new Response(
       JSON.stringify({
