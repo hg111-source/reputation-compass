@@ -86,7 +86,7 @@ export default {
           DEFAULT: "hsl(var(--navy))",
           light: "hsl(var(--navy-light))",
         },
-        coral: "hsl(var(--coral))",
+        teal: "hsl(var(--teal))",
       },
       spacing: {
         '18': '4.5rem',

@@ -34,8 +34,8 @@
     --muted: 220 13% 91%; /* #E5E7EB */
     --muted-foreground: 220 9% 46%; /* #6B7280 */
 
-    /* Accent - Kasa Coral #FF6B6B */
-    --accent: 0 100% 71%;
+    /* Accent - Kasa Teal Blue (from their buttons) */
+    --accent: 195 75% 25%;
     --accent-foreground: 0 0% 100%;
 
     /* Destructive */
@@ -45,7 +45,7 @@
     /* Borders and Inputs - #E5E7EB */
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 0 100% 71%;
+    --ring: 195 75% 25%;
 
     --radius: 0.75rem;
 
@@ -63,13 +63,13 @@
     --sidebar-accent: 216 60% 22%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 216 50% 25%;
-    --sidebar-ring: 0 100% 71%;
+    --sidebar-ring: 195 75% 25%;
 
     /* Extended Kasa palette */
     --cream: 42 33% 97%;
     --navy: 216 75% 15%;
     --navy-light: 216 50% 30%;
-    --coral: 0 100% 71%;
+    --teal: 195 75% 25%;
   }
 
   .dark {
@@ -91,15 +91,15 @@
     --muted: 216 50% 18%;
     --muted-foreground: 220 9% 60%;
 
-    --accent: 0 100% 71%;
-    --accent-foreground: 216 75% 8%;
+    --accent: 195 70% 35%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 60% 45%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 216 50% 20%;
     --input: 216 50% 20%;
-    --ring: 0 100% 71%;
+    --ring: 195 70% 35%;
 
     --success: 160 70% 45%;
     --success-foreground: 0 0% 100%;
@@ -108,17 +108,17 @@
 
     --sidebar-background: 216 75% 6%;
     --sidebar-foreground: 220 13% 80%;
-    --sidebar-primary: 0 100% 71%;
-    --sidebar-primary-foreground: 216 75% 6%;
+    --sidebar-primary: 195 70% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 216 60% 15%;
     --sidebar-accent-foreground: 42 33% 95%;
     --sidebar-border: 216 50% 15%;
-    --sidebar-ring: 0 100% 71%;
+    --sidebar-ring: 195 70% 35%;
 
     --cream: 42 20% 15%;
     --navy: 216 75% 15%;
     --navy-light: 216 40% 40%;
-    --coral: 0 100% 71%;
+    --teal: 195 70% 35%;
   }
 }
 
@@ -199,8 +199,8 @@
     background: linear-gradient(135deg, hsl(216, 75%, 15%) 0%, hsl(216, 75%, 10%) 100%);
   }
 
-  .gradient-coral {
-    background: linear-gradient(135deg, hsl(0, 100%, 71%) 0%, hsl(0, 100%, 65%) 100%);
+  .gradient-teal {
+    background: linear-gradient(135deg, hsl(195, 75%, 25%) 0%, hsl(195, 70%, 30%) 100%);
   }
 }
 
