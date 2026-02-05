@@ -8,6 +8,7 @@ interface GoogleRatingResult {
   address?: string;
   rating?: number | null;
   reviewCount?: number;
+  websiteUrl?: string | null;
   message?: string;
   error?: string;
 }
@@ -67,9 +68,23 @@ export function useGoogleRatings() {
         }
       }
 
+      // Update property with website URL if found
+      if (data.websiteUrl) {
+        const { error: updateError } = await supabase
+          .from('properties')
+          .update({ website_url: data.websiteUrl })
+          .eq('id', property.id);
+
+        if (updateError) {
+          console.error('Error saving website URL:', updateError);
+          // Don't throw - website is optional
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
       queryClient.invalidateQueries({ queryKey: ['property-snapshots'] });
       queryClient.invalidateQueries({ queryKey: ['latest-scores'] });
       queryClient.invalidateQueries({ queryKey: ['property-google-snapshots'] });

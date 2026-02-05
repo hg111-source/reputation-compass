@@ -1,11 +1,12 @@
- export interface Property {
-   id: string;
-   user_id: string;
-   name: string;
-   city: string;
-   state: string;
-   created_at: string;
- }
+export interface Property {
+  id: string;
+  user_id: string;
+  name: string;
+  city: string;
+  state: string;
+  created_at: string;
+  website_url?: string | null;
+}
  
  export interface Group {
    id: string;

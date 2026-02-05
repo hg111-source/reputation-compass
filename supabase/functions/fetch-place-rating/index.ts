@@ -2,14 +2,19 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface PlaceResult {
+  place_id?: string;
   rating?: number;
   user_ratings_total?: number;
   name?: string;
   formatted_address?: string;
+}
+
+interface PlaceDetails {
+  website?: string;
 }
 
 serve(async (req) => {
@@ -35,19 +40,19 @@ serve(async (req) => {
 
     // Use Text Search to find the hotel
     const query = encodeURIComponent(`${hotelName} hotel ${city}`);
-    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&type=lodging&key=${apiKey}`;
+    const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&type=lodging&key=${apiKey}`;
 
     console.log(`Searching for: ${hotelName} in ${city}`);
 
-    const response = await fetch(url);
-    const data = await response.json();
+    const searchResponse = await fetch(searchUrl);
+    const searchData = await searchResponse.json();
 
-    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-      console.error('Google Places API error:', data.status, data.error_message);
-      throw new Error(`Google Places API error: ${data.status}`);
+    if (searchData.status !== 'OK' && searchData.status !== 'ZERO_RESULTS') {
+      console.error('Google Places API error:', searchData.status, searchData.error_message);
+      throw new Error(`Google Places API error: ${searchData.status}`);
     }
 
-    if (!data.results || data.results.length === 0) {
+    if (!searchData.results || searchData.results.length === 0) {
       return new Response(
         JSON.stringify({ 
           found: false, 
@@ -57,7 +62,25 @@ serve(async (req) => {
       );
     }
 
-    const place: PlaceResult = data.results[0];
+    const place: PlaceResult = searchData.results[0];
+    let websiteUrl: string | null = null;
+
+    // Fetch Place Details to get the website URL
+    if (place.place_id) {
+      try {
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=website&key=${apiKey}`;
+        const detailsResponse = await fetch(detailsUrl);
+        const detailsData = await detailsResponse.json();
+        
+        if (detailsData.status === 'OK' && detailsData.result?.website) {
+          websiteUrl = detailsData.result.website;
+          console.log(`Found website: ${websiteUrl}`);
+        }
+      } catch (detailsError) {
+        console.error('Error fetching place details:', detailsError);
+        // Continue without website - don't fail the whole request
+      }
+    }
 
     return new Response(
       JSON.stringify({
@@ -66,6 +89,7 @@ serve(async (req) => {
         address: place.formatted_address,
         rating: place.rating ?? null,
         reviewCount: place.user_ratings_total ?? 0,
+        websiteUrl,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
