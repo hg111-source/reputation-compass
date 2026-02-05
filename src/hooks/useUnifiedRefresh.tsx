@@ -72,15 +72,25 @@ export function useUnifiedRefresh() {
     );
   }, []);
 
-  // STEP 1: Resolve URLs if missing
-  const resolvePropertyUrls = useCallback(async (property: Property): Promise<{ success: boolean; hotelIds?: Record<string, string>; updatedProperty?: Property }> => {
+  // STEP 1: Resolve URLs if missing - only resolves specified platforms
+  const resolvePropertyUrls = useCallback(async (
+    property: Property,
+    platformsToResolve: Platform[] = ['booking', 'tripadvisor', 'expedia']
+  ): Promise<{ success: boolean; hotelIds?: Record<string, string>; updatedProperty?: Property }> => {
+    // Filter out google since it doesn't use URL resolution
+    const platforms = platformsToResolve.filter(p => p !== 'google');
+    
+    if (platforms.length === 0) {
+      return { success: true, updatedProperty: property };
+    }
+    
     try {
       const { data, error } = await supabase.functions.invoke('resolve-hotel-urls', {
         body: {
           hotelName: property.name,
           city: property.city,
           state: property.state,
-          platforms: ['booking', 'tripadvisor', 'expedia'],
+          platforms,
         },
       });
 
@@ -102,17 +112,57 @@ export function useUnifiedRefresh() {
         await supabase.from('properties').update(updateData).eq('id', property.id);
       }
 
-      // Store Expedia hotel_id in hotel_aliases
-      if (urls.expedia_url && hotelIds.expedia_hotel_id) {
-        await supabase.from('hotel_aliases').upsert({
+      // Store aliases for resolved platforms
+      const aliasInserts: Array<{
+        property_id: string;
+        source: Platform;
+        platform_url: string;
+        platform_id?: string;
+        source_id_or_url: string;
+        resolution_status: string;
+        last_resolved_at: string;
+      }> = [];
+      
+      if (urls.booking_url && platforms.includes('booking')) {
+        aliasInserts.push({
           property_id: property.id,
-          source: 'expedia' as const,
+          source: 'booking',
+          platform_url: urls.booking_url,
+          source_id_or_url: urls.booking_url,
+          resolution_status: 'resolved',
+          last_resolved_at: new Date().toISOString(),
+        });
+      }
+      
+      if (urls.tripadvisor_url && platforms.includes('tripadvisor')) {
+        aliasInserts.push({
+          property_id: property.id,
+          source: 'tripadvisor',
+          platform_url: urls.tripadvisor_url,
+          source_id_or_url: urls.tripadvisor_url,
+          resolution_status: 'resolved',
+          last_resolved_at: new Date().toISOString(),
+        });
+      }
+      
+      if (urls.expedia_url && platforms.includes('expedia')) {
+        aliasInserts.push({
+          property_id: property.id,
+          source: 'expedia',
           platform_url: urls.expedia_url,
           platform_id: hotelIds.expedia_hotel_id,
           source_id_or_url: urls.expedia_url,
           resolution_status: 'resolved',
           last_resolved_at: new Date().toISOString(),
-        }, { onConflict: 'property_id,source' });
+        });
+      }
+      
+      // Upsert all aliases
+      if (aliasInserts.length > 0) {
+        for (const alias of aliasInserts) {
+          await supabase.from('hotel_aliases').upsert(alias, { onConflict: 'property_id,source' });
+        }
+        console.log(`[resolve] Saved ${aliasInserts.length} aliases for ${property.name}`);
       }
 
       // Return updated property with new URLs
@@ -130,22 +180,11 @@ export function useUnifiedRefresh() {
     }
   }, []);
 
-  // Check if property needs URL resolution
+  // Check if property needs URL resolution - returns false if already resolved
   const needsUrlResolution = useCallback(async (property: Property, platform: Platform): Promise<boolean> => {
     if (platform === 'google') return false; // Google uses Places API, not URLs
     
-    // ALWAYS re-resolve Expedia to get fresh hotel_id (avoids stale Hotels.com IDs)
-    if (platform === 'expedia') {
-      // Delete any existing alias to force fresh resolution
-      await supabase
-        .from('hotel_aliases')
-        .delete()
-        .eq('property_id', property.id)
-        .eq('source', 'expedia');
-      return true;
-    }
-    
-    // Check if alias exists for this platform
+    // Check if alias exists for this platform with resolved status
     const { data: alias } = await supabase
       .from('hotel_aliases')
       .select('platform_url, platform_id, resolution_status')
@@ -153,13 +192,25 @@ export function useUnifiedRefresh() {
       .eq('source', platform)
       .maybeSingle();
 
+    // No alias = needs resolution
     if (!alias) return true;
-    if (alias.resolution_status === 'not_listed') return false; // Already marked as not listed
     
-    // For others, we need the URL
-    if (!alias.platform_url) return true;
+    // Already resolved with URL/ID = no need to re-resolve
+    if (alias.resolution_status === 'resolved') {
+      if (platform === 'expedia' && alias.platform_id) {
+        console.log(`[${platform}] ${property.name} already has hotel_id: ${alias.platform_id}`);
+        return false;
+      }
+      if (alias.platform_url) {
+        console.log(`[${platform}] ${property.name} already has URL: ${alias.platform_url}`);
+        return false;
+      }
+    }
     
-    return false;
+    // Not listed = don't try again
+    if (alias.resolution_status === 'not_listed') return false;
+    
+    return true;
   }, []);
 
   // STEP 2: Fetch rating for a single platform
@@ -300,11 +351,13 @@ export function useUnifiedRefresh() {
       if (needsResolve) {
         console.log(`[${platform}] ${property.name} needs URL resolution`);
         updatePlatformStatus(property.id, platform, 'resolving');
-        const resolveResult = await resolvePropertyUrls(property);
+        const resolveResult = await resolvePropertyUrls(property, [platform]);
         if (resolveResult.updatedProperty) {
           currentProperty = resolveResult.updatedProperty;
         }
         await delay(1000); // Brief pause after resolution
+      } else {
+        console.log(`[${platform}] ${property.name} using cached URL, skipping resolution`);
       }
 
       // Step 2: Fetch the rating
@@ -362,21 +415,29 @@ export function useUnifiedRefresh() {
     }]);
 
     try {
-      // Step 1: Resolve URLs for OTA platforms
+      // Step 1: Check which platforms need URL resolution
       console.log(`=== Refreshing all platforms for ${property.name} ===`);
       updatePropertyPhase(property.id, 'resolving');
       
+      const platformsNeedingResolution: Platform[] = [];
       for (const platform of ['tripadvisor', 'booking', 'expedia'] as Platform[]) {
         const needsResolve = await needsUrlResolution(property, platform);
         if (needsResolve) {
+          platformsNeedingResolution.push(platform);
           updatePlatformStatus(property.id, platform, 'resolving');
         }
       }
 
-      // Resolve all at once and get updated property with URLs
-      const resolveResult = await resolvePropertyUrls(property);
-      const currentProperty = resolveResult.updatedProperty || property;
-      await delay(1500);
+      // Only resolve if at least one platform needs it
+      let currentProperty = property;
+      if (platformsNeedingResolution.length > 0) {
+        console.log(`[resolve] ${property.name} needs resolution for: ${platformsNeedingResolution.join(', ')}`);
+        const resolveResult = await resolvePropertyUrls(property, platformsNeedingResolution);
+        currentProperty = resolveResult.updatedProperty || property;
+        await delay(1500);
+      } else {
+        console.log(`[resolve] ${property.name} has all URLs cached, skipping resolution`);
+      }
 
       // Step 2: Fetch all platforms
       setCurrentPhase('fetching');
@@ -460,20 +521,24 @@ export function useUnifiedRefresh() {
       updatePropertyPhase(property.id, 'resolving');
       
       // Check which platforms need resolution
-      const needsAnyResolution = await Promise.all(
-        ['tripadvisor', 'booking', 'expedia'].map(p => needsUrlResolution(property, p as Platform))
+      const otaPlatforms = ['tripadvisor', 'booking', 'expedia'] as Platform[];
+      const needsResolution = await Promise.all(
+        otaPlatforms.map(p => needsUrlResolution(property, p))
       );
       
-      if (needsAnyResolution.some(n => n)) {
-        for (let i = 0; i < ['tripadvisor', 'booking', 'expedia'].length; i++) {
-          if (needsAnyResolution[i]) {
-            updatePlatformStatus(property.id, ['tripadvisor', 'booking', 'expedia'][i] as Platform, 'resolving');
-          }
+      const platformsToResolve = otaPlatforms.filter((_, i) => needsResolution[i]);
+      
+      if (platformsToResolve.length > 0) {
+        console.log(`[resolve] ${property.name} needs resolution for: ${platformsToResolve.join(', ')}`);
+        for (const platform of platformsToResolve) {
+          updatePlatformStatus(property.id, platform, 'resolving');
         }
-        const resolveResult = await resolvePropertyUrls(property);
+        const resolveResult = await resolvePropertyUrls(property, platformsToResolve);
         if (resolveResult.updatedProperty) {
           updatedPropertiesMap.set(property.id, resolveResult.updatedProperty);
         }
+      } else {
+        console.log(`[resolve] ${property.name} has all URLs cached, skipping resolution`);
       }
       
       // Brief delay between properties during resolution
