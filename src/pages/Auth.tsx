@@ -235,6 +235,11 @@ export default function Auth() {
           </CardContent>
         </Card>
 
+        <p className="mt-6 max-w-md text-center text-xs text-muted-foreground">
+          Sign up to track your hotel reputation across Google, TripAdvisor, Expedia & Booking.com. 
+          We'll automatically fetch and normalize scores, track 30-day trends, and refresh ratings daily.
+        </p>
+
         <p className="mt-10 text-center text-sm text-muted-foreground lg:hidden">
           Aggregate scores from Google, TripAdvisor, Expedia & Booking
         </p>
