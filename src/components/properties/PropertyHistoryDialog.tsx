@@ -1,11 +1,21 @@
 import { format } from 'date-fns';
-import { History } from 'lucide-react';
+import { History, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Property, SourceSnapshot, ReviewSource } from '@/lib/types';
 import { usePropertySnapshots } from '@/hooks/useSnapshots';
 import { cn } from '@/lib/utils';
 import { getScoreColor, formatScore, calculateWeightedScore, REVIEW_SOURCES, SOURCE_LABELS } from '@/lib/scoring';
+
+const TREND_THRESHOLD = 0.05;
+
+function getTrendIndicator(current: number | null, previous: number | null) {
+  if (current === null || previous === null) return null;
+  const diff = current - previous;
+  if (diff > TREND_THRESHOLD) return { icon: TrendingUp, color: 'text-emerald-500', label: 'Up' };
+  if (diff < -TREND_THRESHOLD) return { icon: TrendingDown, color: 'text-red-500', label: 'Down' };
+  return { icon: Minus, color: 'text-muted-foreground', label: 'Flat' };
+}
 
 interface PropertyHistoryDialogProps {
   property: Property | null;
@@ -118,16 +128,24 @@ export function PropertyHistoryDialog({ property, open, onOpenChange }: Property
                     </TableCell>
                     {REVIEW_SOURCES.map(source => {
                       const data = row.scores[source];
+                      const prevRow = groupedRows[index + 1];
+                      const prevData = prevRow?.scores[source];
+                      const trend = getTrendIndicator(data?.score ?? null, prevData?.score ?? null);
                       return (
                         <TableCell key={source} className="text-center">
                           {data ? (
-                            <div>
-                              <span className={cn('font-semibold', getScoreColor(data.score))}>
-                                {formatScore(data.score)}
-                              </span>
-                              <div className="text-xs text-muted-foreground">
-                                {data.count.toLocaleString()}
+                            <div className="flex items-center justify-center gap-1">
+                              <div>
+                                <span className={cn('font-semibold', getScoreColor(data.score))}>
+                                  {formatScore(data.score)}
+                                </span>
+                                <div className="text-xs text-muted-foreground">
+                                  {data.count.toLocaleString()}
+                                </div>
                               </div>
+                              {trend && (
+                                <trend.icon className={cn('h-3 w-3', trend.color)} aria-label={trend.label} />
+                              )}
                             </div>
                           ) : (
                             <span className="text-muted-foreground">—</span>
@@ -136,9 +154,20 @@ export function PropertyHistoryDialog({ property, open, onOpenChange }: Property
                       );
                     })}
                     <TableCell className="text-center">
-                      <span className={cn('font-bold', row.weightedAvg !== null ? getScoreColor(row.weightedAvg) : 'text-muted-foreground')}>
-                        {row.weightedAvg !== null ? row.weightedAvg.toFixed(1) : '—'}
-                      </span>
+                      {(() => {
+                        const prevRow = groupedRows[index + 1];
+                        const trend = getTrendIndicator(row.weightedAvg, prevRow?.weightedAvg ?? null);
+                        return (
+                          <div className="flex items-center justify-center gap-1">
+                            <span className={cn('font-bold', row.weightedAvg !== null ? getScoreColor(row.weightedAvg) : 'text-muted-foreground')}>
+                              {row.weightedAvg !== null ? row.weightedAvg.toFixed(1) : '—'}
+                            </span>
+                            {trend && (
+                              <trend.icon className={cn('h-3 w-3', trend.color)} aria-label={trend.label} />
+                            )}
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                   </TableRow>
                 ))}
