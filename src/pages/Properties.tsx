@@ -237,6 +237,12 @@ export default function Properties() {
     startAllPlatformsRefresh(properties);
   };
 
+  const handleRefreshSingleProperty = (property: Property) => {
+    setIsAllPlatformsDialogOpen(true);
+    setAllPlatformsDialogOpen(true);
+    startAllPlatformsRefresh([property]);
+  };
+
   const handleRefreshSinglePlatform = (platform: Platform) => {
     setIsAllPlatformsDialogOpen(true);
     setAllPlatformsDialogOpen(true);
@@ -382,6 +388,7 @@ export default function Properties() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="w-8"></TableHead>
                   <SortableTableHead
                     sortKey="name"
                     currentSort={sortKey}
@@ -510,8 +517,10 @@ export default function Properties() {
                     onDelete={handleDelete}
                     onRefreshGoogle={handleRefreshGoogle}
                     onRefreshOTA={handleRefreshOTA}
+                    onRefreshAllPlatforms={handleRefreshSingleProperty}
                     isRefreshing={refreshingPropertyId === property.id}
                     refreshingSource={refreshingSource}
+                    isRefreshingAll={isAllPlatformsRunning && propertyStates[property.id]?.status === 'in_progress'}
                   />
                 ))}
               </TableBody>
