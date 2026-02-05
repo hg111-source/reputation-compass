@@ -215,33 +215,30 @@ export default function Properties() {
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="font-semibold">Name</TableHead>
                   <TableHead className="font-semibold">Location</TableHead>
-                  <TableHead className="text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="font-semibold">Google Rating</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleBulkRefresh}
-                        disabled={isRunning || properties.length === 0}
-                        className="h-6 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        {isRunning ? (
-                          <>
-                            <RefreshCw className="h-3 w-3 animate-spin" />
-                            Refreshing...
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="h-3 w-3" />
-                            Refresh All
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </TableHead>
+                  <TableHead className="text-center font-semibold">Google Rating</TableHead>
                   <TableHead className="text-center font-semibold">Reviews</TableHead>
                   <TableHead className="font-semibold">Last Updated</TableHead>
-                  <TableHead className="w-[120px]"></TableHead>
+                  <TableHead className="w-[140px]">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleBulkRefresh}
+                      disabled={isRunning || properties.length === 0}
+                      className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      {isRunning ? (
+                        <>
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          Refreshing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          Refresh All
+                        </>
+                      )}
+                    </Button>
+                  </TableHead>
                 </TableRow>
                 </TableHeader>
                 <TableBody>
