@@ -126,6 +126,17 @@ export function useUnifiedRefresh() {
   const needsUrlResolution = useCallback(async (property: Property, platform: Platform): Promise<boolean> => {
     if (platform === 'google') return false; // Google uses Places API, not URLs
     
+    // ALWAYS re-resolve Expedia to get fresh hotel_id (avoids stale Hotels.com IDs)
+    if (platform === 'expedia') {
+      // Delete any existing alias to force fresh resolution
+      await supabase
+        .from('hotel_aliases')
+        .delete()
+        .eq('property_id', property.id)
+        .eq('source', 'expedia');
+      return true;
+    }
+    
     // Check if alias exists for this platform
     const { data: alias } = await supabase
       .from('hotel_aliases')
@@ -137,11 +148,8 @@ export function useUnifiedRefresh() {
     if (!alias) return true;
     if (alias.resolution_status === 'not_listed') return false; // Already marked as not listed
     
-    // For expedia, we need the hotel_id
-    if (platform === 'expedia' && !alias.platform_id) return true;
-    
     // For others, we need the URL
-    if (platform !== 'expedia' && !alias.platform_url) return true;
+    if (!alias.platform_url) return true;
     
     return false;
   }, []);
