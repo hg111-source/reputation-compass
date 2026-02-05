@@ -9,7 +9,7 @@ interface GroupDefinition {
   propertyIds: string[];
 }
 
-export type AutoGroupStrategy = 'city' | 'state' | 'score';
+export type AutoGroupStrategy = 'state' | 'score';
 
 interface ScoreData {
   [propertyId: string]: Record<ReviewSource, { score: number; count: number }> | undefined;
@@ -25,8 +25,6 @@ export function useAutoGroup() {
     strategy: AutoGroupStrategy
   ): GroupDefinition[] => {
     switch (strategy) {
-      case 'city':
-        return groupByCity(properties);
       case 'state':
         return groupByState(properties);
       case 'score':
@@ -34,26 +32,6 @@ export function useAutoGroup() {
       default:
         return [];
     }
-  };
-
-  const groupByCity = (properties: Property[]): GroupDefinition[] => {
-    const cityMap = new Map<string, string[]>();
-    
-    for (const property of properties) {
-      const city = property.city.trim();
-      if (!cityMap.has(city)) {
-        cityMap.set(city, []);
-      }
-      cityMap.get(city)!.push(property.id);
-    }
-
-    return Array.from(cityMap.entries())
-      .filter(([_, ids]) => ids.length > 0)
-      .sort((a, b) => b[1].length - a[1].length)
-      .map(([city, propertyIds]) => ({
-        name: `${city} Properties`,
-        propertyIds,
-      }));
   };
 
   const groupByState = (properties: Property[]): GroupDefinition[] => {
