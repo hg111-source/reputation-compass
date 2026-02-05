@@ -1,6 +1,6 @@
 import { MapPin, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { TableCell, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Property, ReviewSource } from '@/lib/types';
@@ -27,13 +27,6 @@ interface PropertyRowProps {
   refreshingSource: string | null;
 }
 
-const PLATFORM_COLORS: Record<ReviewSource, string> = {
-  google: 'text-blue-500',
-  tripadvisor: 'text-green-600',
-  booking: 'text-blue-800',
-  expedia: 'text-yellow-500',
-};
-
 export function PropertyRow({
   property,
   scores,
@@ -56,13 +49,21 @@ export function PropertyRow({
     return `https://www.google.com/search?q=${query}`;
   };
 
+  const handleRefresh = (platform: ReviewSource) => {
+    if (platform === 'google') {
+      onRefreshGoogle(property);
+    } else {
+      onRefreshOTA(property, platform as 'tripadvisor' | 'booking' | 'expedia');
+    }
+  };
+
   const renderPlatformCell = (platform: ReviewSource) => {
     const data = scores?.[platform];
     const isRefreshingThis = isRefreshing && refreshingSource === platform;
 
     return (
-      <TableCell key={platform} className="text-center">
-        <div className="flex flex-col items-center gap-0.5">
+      <TableCell key={platform} className="text-center group/cell">
+        <div className="relative flex flex-col items-center gap-0.5">
           {data && data.score > 0 ? (
             <>
               <span className={cn('font-semibold', getScoreColor(data.score))}>
@@ -75,6 +76,20 @@ export function PropertyRow({
           ) : (
             <span className="text-muted-foreground">—</span>
           )}
+          {/* Hover refresh button */}
+          <button
+            onClick={() => handleRefresh(platform)}
+            disabled={isRefreshing}
+            className={cn(
+              'absolute -right-1 -top-1 rounded-full p-0.5 opacity-0 transition-opacity',
+              'bg-background shadow-sm border border-border',
+              'hover:bg-muted group-hover/cell:opacity-100',
+              isRefreshingThis && 'opacity-100'
+            )}
+            title={`Refresh ${platform}`}
+          >
+            <RefreshCw className={cn('h-3 w-3 text-muted-foreground', isRefreshingThis && 'animate-spin')} />
+          </button>
         </div>
       </TableCell>
     );
@@ -151,59 +166,16 @@ export function PropertyRow({
       {/* Platform scores inline */}
       {REVIEW_SOURCES.map(renderPlatformCell)}
 
-      {/* Actions */}
+      {/* Actions - just delete */}
       <TableCell>
-        <div className="flex items-center justify-end gap-0.5">
-          {/* Refresh buttons */}
+        <div className="flex items-center justify-end">
           <Button
             variant="ghost"
             size="icon"
-            className={cn('h-6 w-6', PLATFORM_COLORS.google)}
-            onClick={() => onRefreshGoogle(property)}
-            disabled={isRefreshing}
-            title="Refresh Google"
-          >
-            <RefreshCw className={cn('h-3 w-3', isRefreshing && refreshingSource === 'google' && 'animate-spin')} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn('h-6 w-6', PLATFORM_COLORS.tripadvisor)}
-            onClick={() => onRefreshOTA(property, 'tripadvisor')}
-            disabled={isRefreshing}
-            title="Refresh TripAdvisor"
-          >
-            <RefreshCw className={cn('h-3 w-3', isRefreshing && refreshingSource === 'tripadvisor' && 'animate-spin')} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn('h-6 w-6', PLATFORM_COLORS.booking)}
-            onClick={() => onRefreshOTA(property, 'booking')}
-            disabled={isRefreshing}
-            title="Refresh Booking"
-          >
-            <RefreshCw className={cn('h-3 w-3', isRefreshing && refreshingSource === 'booking' && 'animate-spin')} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn('h-6 w-6', PLATFORM_COLORS.expedia)}
-            onClick={() => onRefreshOTA(property, 'expedia')}
-            disabled={isRefreshing}
-            title="Refresh Expedia"
-          >
-            <RefreshCw className={cn('h-3 w-3', isRefreshing && refreshingSource === 'expedia' && 'animate-spin')} />
-          </Button>
-          
-          {/* Delete button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+            className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
             onClick={() => onDelete(property.id, property.name)}
           >
-            <Trash2 className="h-3 w-3" />
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       </TableCell>

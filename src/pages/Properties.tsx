@@ -433,7 +433,7 @@ export default function Properties() {
                       <span className="text-yellow-500">Expedia</span>
                     </div>
                   </SortableTableHead>
-                  <TableHead className="w-40"></TableHead>
+                  <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
