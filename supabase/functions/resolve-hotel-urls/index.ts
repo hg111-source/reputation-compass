@@ -16,37 +16,37 @@ const PLATFORM_SITES: Record<string, string> = {
   expedia: 'expedia.com',
 };
 
-async function searchGoogleForUrl(
+async function searchSerpApiForUrl(
   apiKey: string,
-  cseId: string,
   hotelName: string,
   city: string,
   platform: string
 ): Promise<string | null> {
   const site = PLATFORM_SITES[platform];
-  const query = `${hotelName} ${city} ${site}`;
+  const query = `${hotelName} ${city} site:${site}`;
   
-  const url = new URL('https://www.googleapis.com/customsearch/v1');
-  url.searchParams.set('key', apiKey);
-  url.searchParams.set('cx', cseId);
+  const url = new URL('https://serpapi.com/search.json');
+  url.searchParams.set('api_key', apiKey);
   url.searchParams.set('q', query);
+  url.searchParams.set('engine', 'google');
   url.searchParams.set('num', '1');
 
-  console.log(`Searching Google for: ${query}`);
+  console.log(`Searching SerpAPI for: ${query}`);
 
   try {
     const response = await fetch(url.toString());
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Google Search API error: ${response.status} - ${errorText}`);
+      console.error(`SerpAPI error: ${response.status} - ${errorText}`);
       return null;
     }
 
     const data = await response.json();
     
-    if (data.items && data.items.length > 0) {
-      const resultUrl = data.items[0].link;
+    // Check organic results
+    if (data.organic_results && data.organic_results.length > 0) {
+      const resultUrl = data.organic_results[0].link;
       console.log(`Found ${platform} URL: ${resultUrl}`);
       return resultUrl;
     }
@@ -65,19 +65,13 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('GOOGLE_PLACES_API_KEY');
-    const cseId = Deno.env.get('GOOGLE_CSE_ID');
+    const apiKey = Deno.env.get('SERPAPI_API_KEY');
     
     if (!apiKey) {
-      throw new Error('GOOGLE_PLACES_API_KEY is not configured');
-    }
-    if (!cseId) {
-      throw new Error('GOOGLE_CSE_ID is not configured');
+      throw new Error('SERPAPI_API_KEY is not configured');
     }
     
-    // Debug: log key prefix to verify correct key is loaded
-    console.log(`API Key prefix: ${apiKey.substring(0, 8)}...`);
-    console.log(`CSE ID prefix: ${cseId.substring(0, 8)}...`);
+    console.log(`SerpAPI Key configured: ${apiKey.substring(0, 8)}...`);
 
     const { hotelName, city, platforms = ['booking', 'tripadvisor', 'expedia'] } = await req.json();
 
@@ -102,7 +96,7 @@ serve(async (req) => {
 
     // Search for each platform with a 1-second delay between requests
     for (const platform of platforms) {
-      const url = await searchGoogleForUrl(apiKey, cseId, hotelName, city, platform);
+      const url = await searchSerpApiForUrl(apiKey, hotelName, city, platform);
       
       if (url) {
         results[`${platform}_url`] = url;
@@ -111,7 +105,7 @@ serve(async (req) => {
         notFoundPlatforms.push(platform);
       }
 
-      // 1-second delay between Google API calls to avoid rate limiting
+      // 1-second delay between API calls to avoid rate limiting
       if (platforms.indexOf(platform) < platforms.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
