@@ -398,19 +398,17 @@ export default function Properties() {
                     onSort={handleSort}
                     className="font-semibold"
                   >
-                    <div className="flex flex-col items-center gap-1 group/header">
-                      <div className="flex items-center gap-1">
-                        <img src={googleLogo} alt="Google" className="h-4 w-4" />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('google'); }}
-                          disabled={isAllPlatformsRunning}
-                          className="p-0.5 rounded opacity-0 group-hover/header:opacity-100 hover:bg-muted transition-opacity"
-                          title="Refresh all Google"
-                        >
-                          <RefreshCw className={`h-3 w-3 text-muted-foreground ${isAllPlatformsRunning && currentPlatform === 'google' ? 'animate-spin' : ''}`} />
-                        </button>
-                      </div>
+                    <div className="relative flex flex-col items-center gap-1 group/header">
+                      <img src={googleLogo} alt="Google" className="h-4 w-4" />
                       <span className="text-blue-500">Google</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('google'); }}
+                        disabled={isAllPlatformsRunning}
+                        className="absolute -right-1 top-0 p-0.5 rounded opacity-0 group-hover/header:opacity-100 hover:bg-muted/50 transition-opacity"
+                        title="Refresh all Google"
+                      >
+                        <RefreshCw className={`h-3 w-3 text-gray-400 ${isAllPlatformsRunning && currentPlatform === 'google' ? 'animate-spin' : ''}`} />
+                      </button>
                     </div>
                   </SortableTableHead>
                   <SortableTableHead
@@ -420,19 +418,17 @@ export default function Properties() {
                     onSort={handleSort}
                     className="font-semibold"
                   >
-                    <div className="flex flex-col items-center gap-1 group/header">
-                      <div className="flex items-center gap-1">
-                        <img src={tripadvisorLogo} alt="TripAdvisor" className="h-4 w-auto max-w-[60px] mix-blend-multiply" />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('tripadvisor'); }}
-                          disabled={isAllPlatformsRunning}
-                          className="p-0.5 rounded opacity-0 group-hover/header:opacity-100 hover:bg-muted transition-opacity"
-                          title="Refresh all TripAdvisor"
-                        >
-                          <RefreshCw className={`h-3 w-3 text-muted-foreground ${isAllPlatformsRunning && currentPlatform === 'tripadvisor' ? 'animate-spin' : ''}`} />
-                        </button>
-                      </div>
+                    <div className="relative flex flex-col items-center gap-1 group/header">
+                      <img src={tripadvisorLogo} alt="TripAdvisor" className="h-4 w-auto max-w-[60px] mix-blend-multiply" />
                       <span className="text-green-600">TripAdvisor</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('tripadvisor'); }}
+                        disabled={isAllPlatformsRunning}
+                        className="absolute -right-1 top-0 p-0.5 rounded opacity-0 group-hover/header:opacity-100 hover:bg-muted/50 transition-opacity"
+                        title="Refresh all TripAdvisor"
+                      >
+                        <RefreshCw className={`h-3 w-3 text-gray-400 ${isAllPlatformsRunning && currentPlatform === 'tripadvisor' ? 'animate-spin' : ''}`} />
+                      </button>
                     </div>
                   </SortableTableHead>
                   <SortableTableHead
@@ -442,19 +438,17 @@ export default function Properties() {
                     onSort={handleSort}
                     className="font-semibold"
                   >
-                    <div className="flex flex-col items-center gap-1 group/header">
-                      <div className="flex items-center gap-1">
-                        <img src={bookingLogo} alt="Booking" className="h-4 w-auto mix-blend-multiply" />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('booking'); }}
-                          disabled={isAllPlatformsRunning}
-                          className="p-0.5 rounded opacity-0 group-hover/header:opacity-100 hover:bg-muted transition-opacity"
-                          title="Refresh all Booking"
-                        >
-                          <RefreshCw className={`h-3 w-3 text-muted-foreground ${isAllPlatformsRunning && currentPlatform === 'booking' ? 'animate-spin' : ''}`} />
-                        </button>
-                      </div>
+                    <div className="relative flex flex-col items-center gap-1 group/header">
+                      <img src={bookingLogo} alt="Booking" className="h-4 w-auto mix-blend-multiply" />
                       <span className="text-blue-800">Booking</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('booking'); }}
+                        disabled={isAllPlatformsRunning}
+                        className="absolute -right-1 top-0 p-0.5 rounded opacity-0 group-hover/header:opacity-100 hover:bg-muted/50 transition-opacity"
+                        title="Refresh all Booking"
+                      >
+                        <RefreshCw className={`h-3 w-3 text-gray-400 ${isAllPlatformsRunning && currentPlatform === 'booking' ? 'animate-spin' : ''}`} />
+                      </button>
                     </div>
                   </SortableTableHead>
                   <SortableTableHead
@@ -464,19 +458,17 @@ export default function Properties() {
                     onSort={handleSort}
                     className="font-semibold"
                   >
-                    <div className="flex flex-col items-center gap-1 group/header">
-                      <div className="flex items-center gap-1">
-                        <img src={expediaLogo} alt="Expedia" className="h-4 w-4 mix-blend-multiply" />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('expedia'); }}
-                          disabled={isAllPlatformsRunning}
-                          className="p-0.5 rounded opacity-0 group-hover/header:opacity-100 hover:bg-muted transition-opacity"
-                          title="Refresh all Expedia"
-                        >
-                          <RefreshCw className={`h-3 w-3 text-muted-foreground ${isAllPlatformsRunning && currentPlatform === 'expedia' ? 'animate-spin' : ''}`} />
-                        </button>
-                      </div>
+                    <div className="relative flex flex-col items-center gap-1 group/header">
+                      <img src={expediaLogo} alt="Expedia" className="h-4 w-4 mix-blend-multiply" />
                       <span className="text-yellow-500">Expedia</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('expedia'); }}
+                        disabled={isAllPlatformsRunning}
+                        className="absolute -right-1 top-0 p-0.5 rounded opacity-0 group-hover/header:opacity-100 hover:bg-muted/50 transition-opacity"
+                        title="Refresh all Expedia"
+                      >
+                        <RefreshCw className={`h-3 w-3 text-gray-400 ${isAllPlatformsRunning && currentPlatform === 'expedia' ? 'animate-spin' : ''}`} />
+                      </button>
                     </div>
                   </SortableTableHead>
                   <TableHead className="w-12"></TableHead>
