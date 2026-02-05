@@ -101,31 +101,29 @@ export function PropertyRow({
 
   return (
     <TableRow className="group">
-      {/* Refresh All button - left side */}
-      <TableCell className="w-8 pr-0">
-        <button
-          onClick={() => onRefreshAllPlatforms(property)}
-          disabled={isRefreshing || isRefreshingAll}
-          className="p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted disabled:opacity-50"
-          title="Refresh all platforms for this hotel"
-        >
-          <RefreshCw className={cn('h-3.5 w-3.5 text-muted-foreground', isRefreshingAll && 'animate-spin text-primary')} />
-        </button>
-      </TableCell>
-
       {/* Hotel Name */}
       <TableCell className="font-medium">
-        <a
-          href={getHotelLink()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 hover:text-primary hover:underline transition-colors"
-        >
-          {property.name}
-          {property.website_url && (
-            <ExternalLink className="h-3 w-3 text-muted-foreground/50" />
-          )}
-        </a>
+        <div className="flex items-center gap-1.5">
+          <a
+            href={getHotelLink()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 hover:text-primary hover:underline transition-colors"
+          >
+            {property.name}
+            {property.website_url && (
+              <ExternalLink className="h-3 w-3 text-muted-foreground/50" />
+            )}
+          </a>
+          <button
+            onClick={() => onRefreshAllPlatforms(property)}
+            disabled={isRefreshing || isRefreshingAll}
+            className="p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted disabled:opacity-50"
+            title="Refresh all platforms"
+          >
+            <RefreshCw className={cn('h-3 w-3 text-muted-foreground', isRefreshingAll && 'animate-spin text-primary')} />
+          </button>
+        </div>
       </TableCell>
 
       {/* Location */}
