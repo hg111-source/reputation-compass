@@ -100,6 +100,62 @@ export type Database = {
         }
         Relationships: []
       }
+      hotel_aliases: {
+        Row: {
+          candidate_options: Json | null
+          confidence_score: number | null
+          created_at: string
+          id: string
+          last_error: string | null
+          last_resolved_at: string | null
+          platform_id: string | null
+          platform_name: string | null
+          platform_url: string | null
+          property_id: string
+          resolution_status: string
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at: string
+        }
+        Insert: {
+          candidate_options?: Json | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_resolved_at?: string | null
+          platform_id?: string | null
+          platform_name?: string | null
+          platform_url?: string | null
+          property_id: string
+          resolution_status?: string
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+        }
+        Update: {
+          candidate_options?: Json | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_resolved_at?: string | null
+          platform_id?: string | null
+          platform_name?: string | null
+          platform_url?: string | null
+          property_id?: string
+          resolution_status?: string
+          source?: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_aliases_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       properties: {
         Row: {
           booking_url: string | null

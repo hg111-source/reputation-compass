@@ -30,3 +30,9 @@ verify_jwt = false
 
 [functions.place-autocomplete]
 verify_jwt = false
+
+[functions.resolve-identity]
+verify_jwt = false
+
+[functions.fetch-rating-by-alias]
+verify_jwt = false
