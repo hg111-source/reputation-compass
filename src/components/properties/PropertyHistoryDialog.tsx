@@ -32,12 +32,19 @@ interface SnapshotRow {
 export function PropertyHistoryDialog({ property, open, onOpenChange }: PropertyHistoryDialogProps) {
   const { data: snapshots = [], isLoading } = usePropertySnapshots(property?.id ?? null);
 
-  // Group snapshots by collected_at timestamp and calculate weighted averages
+  // Group snapshots by collected_at timestamp (rounded to minute) and calculate weighted averages
   const groupedRows: SnapshotRow[] = (() => {
     if (snapshots.length === 0) return [];
 
+    // Round timestamp to the nearest minute for grouping
+    const roundToMinute = (timestamp: string) => {
+      const date = new Date(timestamp);
+      date.setSeconds(0, 0);
+      return date.toISOString();
+    };
+
     const grouped = snapshots.reduce((acc, snapshot) => {
-      const key = snapshot.collected_at;
+      const key = roundToMinute(snapshot.collected_at);
       if (!acc[key]) acc[key] = [];
       acc[key].push(snapshot);
       return acc;
