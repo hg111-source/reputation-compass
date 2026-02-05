@@ -81,25 +81,24 @@ export function PropertyRow({
                 {data.count.toLocaleString()}
               </span>
             </>
-          ) : showMissingUrlWarning ? (
+          ) : (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1 text-amber-500 cursor-help">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    <span className="text-xs">No URL</span>
-                  </div>
+                  <span className="text-orange-500 font-semibold cursor-help">?</span>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs max-w-xs">
-                  <p className="font-medium">Missing platform URL</p>
+                  <p className="font-medium">
+                    {showMissingUrlWarning ? 'Missing platform URL' : 'Rating not found'}
+                  </p>
                   <p className="text-muted-foreground mt-1">
-                    Click the refresh button to auto-resolve and fetch ratings
+                    {showMissingUrlWarning 
+                      ? 'Click the refresh button to auto-resolve and fetch ratings'
+                      : 'Not included in weighted average'}
                   </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          ) : (
-            <span className="text-muted-foreground">—</span>
           )}
           {/* Hover refresh button */}
           <button
