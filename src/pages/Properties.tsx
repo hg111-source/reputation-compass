@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
@@ -35,6 +35,10 @@ import { Property, ReviewSource } from '@/lib/types';
 import { PropertyRow } from '@/components/properties/PropertyRow';
 import { AllPlatformsRefreshDialog } from '@/components/properties/AllPlatformsRefreshDialog';
 import { exportPropertiesToCSV } from '@/lib/csv';
+import { calculatePropertyMetrics } from '@/lib/scoring';
+import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
+
+type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 
 export default function Properties() {
   const { user, loading } = useAuth();
@@ -44,6 +48,8 @@ export default function Properties() {
   const [isAllPlatformsDialogOpen, setIsAllPlatformsDialogOpen] = useState(false);
   const [refreshingPropertyId, setRefreshingPropertyId] = useState<string | null>(null);
   const [refreshingSource, setRefreshingSource] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
@@ -58,6 +64,64 @@ export default function Properties() {
     retryPlatform,
     setDialogOpen: setAllPlatformsDialogOpen,
   } = useAllPlatformsRefresh();
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortDirection === 'desc') {
+        setSortDirection('asc');
+      } else if (sortDirection === 'asc') {
+        setSortKey(null);
+        setSortDirection(null);
+      }
+    } else {
+      setSortKey(key as SortKey);
+      setSortDirection('desc');
+    }
+  };
+
+  const sortedProperties = useMemo(() => {
+    if (!sortKey || !sortDirection) return properties;
+
+    return [...properties].sort((a, b) => {
+      let aVal: number | string = 0;
+      let bVal: number | string = 0;
+
+      switch (sortKey) {
+        case 'name':
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+          break;
+        case 'location':
+          aVal = `${a.city}, ${a.state}`.toLowerCase();
+          bVal = `${b.city}, ${b.state}`.toLowerCase();
+          break;
+        case 'avgScore':
+          const aMetrics = calculatePropertyMetrics(scores[a.id]);
+          const bMetrics = calculatePropertyMetrics(scores[b.id]);
+          aVal = aMetrics.avgScore ?? -1;
+          bVal = bMetrics.avgScore ?? -1;
+          break;
+        case 'totalReviews':
+          const aTotal = calculatePropertyMetrics(scores[a.id]);
+          const bTotal = calculatePropertyMetrics(scores[b.id]);
+          aVal = aTotal.totalReviews;
+          bVal = bTotal.totalReviews;
+          break;
+        case 'google':
+        case 'tripadvisor':
+        case 'booking':
+        case 'expedia':
+          aVal = scores[a.id]?.[sortKey]?.score ?? -1;
+          bVal = scores[b.id]?.[sortKey]?.score ?? -1;
+          break;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return sortDirection === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+    });
+  }, [properties, scores, sortKey, sortDirection]);
 
   if (loading) {
     return (
@@ -280,39 +344,95 @@ export default function Properties() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="font-semibold">Hotel Name</TableHead>
-                  <TableHead className="font-semibold">Location</TableHead>
-                  <TableHead className="text-center font-semibold">Avg Score</TableHead>
-                  <TableHead className="text-center font-semibold">Total Reviews</TableHead>
-                  <TableHead className="text-center font-semibold">
+                  <SortableTableHead
+                    sortKey="name"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="font-semibold text-left"
+                  >
+                    Hotel Name
+                  </SortableTableHead>
+                  <SortableTableHead
+                    sortKey="location"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="font-semibold text-left"
+                  >
+                    Location
+                  </SortableTableHead>
+                  <SortableTableHead
+                    sortKey="avgScore"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="font-semibold"
+                  >
+                    Avg Score
+                  </SortableTableHead>
+                  <SortableTableHead
+                    sortKey="totalReviews"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="font-semibold"
+                  >
+                    Total Reviews
+                  </SortableTableHead>
+                  <SortableTableHead
+                    sortKey="google"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="font-semibold"
+                  >
                     <div className="flex flex-col items-center gap-1">
                       <img src={googleLogo} alt="Google" className="h-4 w-4" />
                       <span className="text-amber-600">Google</span>
                     </div>
-                  </TableHead>
-                  <TableHead className="text-center font-semibold">
+                  </SortableTableHead>
+                  <SortableTableHead
+                    sortKey="tripadvisor"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="font-semibold"
+                  >
                     <div className="flex flex-col items-center gap-1">
                       <img src={tripadvisorLogo} alt="TripAdvisor" className="h-4 w-auto max-w-[60px]" />
                       <span className="text-orange-600">TripAdvisor</span>
                     </div>
-                  </TableHead>
-                  <TableHead className="text-center font-semibold">
+                  </SortableTableHead>
+                  <SortableTableHead
+                    sortKey="booking"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="font-semibold"
+                  >
                     <div className="flex flex-col items-center gap-1">
                       <img src={bookingLogo} alt="Booking" className="h-4 w-auto" />
                       <span className="text-blue-600">Booking</span>
                     </div>
-                  </TableHead>
-                  <TableHead className="text-center font-semibold">
+                  </SortableTableHead>
+                  <SortableTableHead
+                    sortKey="expedia"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="font-semibold"
+                  >
                     <div className="flex flex-col items-center gap-1">
                       <img src={expediaLogo} alt="Expedia" className="h-4 w-4" />
                       <span className="text-purple-600">Expedia</span>
                     </div>
-                  </TableHead>
+                  </SortableTableHead>
                   <TableHead className="w-40"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {properties.map(property => (
+                {sortedProperties.map(property => (
                   <PropertyRow
                     key={property.id}
                     property={property}
