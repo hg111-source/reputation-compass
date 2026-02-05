@@ -9,8 +9,9 @@ const corsHeaders = {
 const PLATFORM_FILTERS: Record<string, string> = {
   booking: 'site:booking.com/hotel',
   tripadvisor: 'site:tripadvisor.com inurl:Hotel_Review',
-  // Search Expedia directly to get proper hotel_id from "selected=" parameter
-  expedia: 'site:expedia.com inurl:Hotel-Search',
+  // Search Expedia broadly - hotel_id can be extracted from various URL patterns
+  // Patterns: .hXXXXX. in URL, selected=XXXXX, hotelId=XXXXX, /pinned/XXXXX/
+  expedia: 'site:expedia.com hotel',
 };
 
 // Generate query variations for better matching
@@ -46,39 +47,53 @@ interface SearchResult {
   hotelId?: string; // Hotels.com hotel_id extracted from URL
 }
 
-// Extract Expedia hotel_id from URL
+// Extract Expedia hotel_id from URL - try multiple patterns
 function extractExpediaHotelId(url: string): string | undefined {
-  // Try multiple patterns for Expedia URLs
+  console.log(`  Attempting to extract hotel_id from: ${url}`);
   
-  // Pattern 1: /pinned/5075/ (from go/hotel/search/pinned/ID/...)
-  const pinnedMatch = url.match(/\/pinned\/(\d+)/);
-  if (pinnedMatch) {
-    console.log(`  Extracted hotel_id from /pinned/ path: ${pinnedMatch[1]}`);
-    return pinnedMatch[1];
-  }
-  
-  // Pattern 2: selected=5075 query param
-  const selectedMatch = url.match(/[?&]selected=(\d+)/);
-  if (selectedMatch) {
-    console.log(`  Extracted hotel_id from selected param: ${selectedMatch[1]}`);
-    return selectedMatch[1];
-  }
-  
-  // Pattern 3: hotelId=5075 query param
-  const hotelIdMatch = url.match(/[?&]hotelId=(\d+)/);
-  if (hotelIdMatch) {
-    console.log(`  Extracted hotel_id from hotelId param: ${hotelIdMatch[1]}`);
-    return hotelIdMatch[1];
-  }
-  
-  // Pattern 4: .h5075. in URL path
+  // Pattern 1: .hXXXXXXX. in URL path (e.g., The-Ambrose-Hotel.h12345.Hotel-Information)
   const hMatch = url.match(/\.h(\d+)\./);
   if (hMatch) {
-    console.log(`  Extracted hotel_id from .hXXX. pattern: ${hMatch[1]}`);
+    console.log(`  ✓ Extracted hotel_id from .hXXX. pattern: ${hMatch[1]}`);
     return hMatch[1];
   }
   
-  console.log(`  Could not extract hotel_id from URL: ${url}`);
+  // Pattern 2: -h followed by digits (e.g., -h12345-)
+  const hDashMatch = url.match(/-h(\d+)[-./]/);
+  if (hDashMatch) {
+    console.log(`  ✓ Extracted hotel_id from -hXXX pattern: ${hDashMatch[1]}`);
+    return hDashMatch[1];
+  }
+  
+  // Pattern 3: /pinned/5075/ (from go/hotel/search/pinned/ID/...)
+  const pinnedMatch = url.match(/\/pinned\/(\d+)/);
+  if (pinnedMatch) {
+    console.log(`  ✓ Extracted hotel_id from /pinned/ path: ${pinnedMatch[1]}`);
+    return pinnedMatch[1];
+  }
+  
+  // Pattern 4: selected=5075 query param
+  const selectedMatch = url.match(/[?&]selected=(\d+)/);
+  if (selectedMatch) {
+    console.log(`  ✓ Extracted hotel_id from selected param: ${selectedMatch[1]}`);
+    return selectedMatch[1];
+  }
+  
+  // Pattern 5: hotelId=5075 query param
+  const hotelIdMatch = url.match(/[?&]hotelId=(\d+)/);
+  if (hotelIdMatch) {
+    console.log(`  ✓ Extracted hotel_id from hotelId param: ${hotelIdMatch[1]}`);
+    return hotelIdMatch[1];
+  }
+  
+  // Pattern 6: Just digits in common Expedia patterns like /Hotel-Information or -Hotels-
+  const infoMatch = url.match(/[.-](\d{5,})[.-]/);
+  if (infoMatch) {
+    console.log(`  ✓ Extracted hotel_id from digit pattern: ${infoMatch[1]}`);
+    return infoMatch[1];
+  }
+  
+  console.log(`  ✗ Could not extract hotel_id from URL`);
   return undefined;
 }
 
