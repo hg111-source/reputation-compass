@@ -28,8 +28,10 @@ interface PlatformMetric {
 }
 
 export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps) {
-  const platformMetrics = useMemo(() => {
+  const { platformMetrics, overallMetrics } = useMemo(() => {
     const metrics: PlatformMetric[] = [];
+    let overallPoints = 0;
+    let overallReviews = 0;
 
     for (const platform of REVIEW_SOURCES) {
       let totalPoints = 0;
@@ -47,6 +49,9 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
         }
       }
 
+      overallPoints += totalPoints;
+      overallReviews += totalReviews;
+
       metrics.push({
         platform,
         avgScore: totalReviews > 0 ? totalPoints / totalReviews : null,
@@ -55,7 +60,13 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
       });
     }
 
-    return metrics;
+    return {
+      platformMetrics: metrics,
+      overallMetrics: {
+        avgScore: overallReviews > 0 ? overallPoints / overallReviews : null,
+        totalReviews: overallReviews,
+      },
+    };
   }, [properties, scores]);
 
   return (
@@ -67,7 +78,7 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
         </p>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {platformMetrics.map(metric => (
             <div
               key={metric.platform}
@@ -88,13 +99,28 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
                 {metric.avgScore !== null ? formatScore(metric.avgScore) : '—'}
               </span>
               <p className="text-xs text-muted-foreground mt-1">
-                {metric.totalReviews.toLocaleString()} reviews
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {metric.propertyCount} {metric.propertyCount === 1 ? 'property' : 'properties'}
+                ({metric.totalReviews.toLocaleString()})
               </p>
             </div>
           ))}
+          {/* Overall Group Average */}
+          <div className="flex flex-col items-center p-4 rounded-xl bg-primary/10 border border-primary/20 text-center">
+            <div className="h-6 w-6 flex items-center justify-center mb-2">
+              <span className="text-lg font-bold text-primary">Σ</span>
+            </div>
+            <p className="text-xs text-muted-foreground font-medium mb-1">
+              Overall
+            </p>
+            <span className={cn(
+              'text-2xl font-bold',
+              getScoreColor(overallMetrics.avgScore)
+            )}>
+              {overallMetrics.avgScore !== null ? formatScore(overallMetrics.avgScore) : '—'}
+            </span>
+            <p className="text-xs text-muted-foreground mt-1">
+              ({overallMetrics.totalReviews.toLocaleString()})
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -9,13 +9,11 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ScoreCell } from './ScoreCell';
 import { Property, PropertyWithScores, ReviewSource } from '@/lib/types';
 import { REVIEW_SOURCES, SOURCE_LABELS, calculateWeightedScore, formatScore, getScoreColor } from '@/lib/scoring';
 import { useGoogleTrends, formatChange } from '@/hooks/useGoogleTrends';
 import { RefreshCw, Trash2, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 
 interface GroupScoresTableProps {
   properties: Property[];
@@ -35,16 +33,18 @@ export function GroupScoresTable({
   const propertyIds = properties.map(p => p.id);
   const { data: trends = {} } = useGoogleTrends(propertyIds);
   
-  const propertiesWithScores: PropertyWithScores[] = useMemo(() => {
+  const propertiesWithScores = useMemo(() => {
     return properties.map(property => {
       const propertyScores = scores[property.id] || {};
       const scoreData: PropertyWithScores['scores'] = {};
       let lastUpdated: string | null = null;
+      let totalReviews = 0;
 
       for (const source of REVIEW_SOURCES) {
         const sourceScore = propertyScores[source];
         if (sourceScore) {
           scoreData[source] = { score: sourceScore.score, count: sourceScore.count };
+          totalReviews += sourceScore.count || 0;
           if (!lastUpdated || sourceScore.updated > lastUpdated) {
             lastUpdated = sourceScore.updated;
           }
@@ -62,6 +62,7 @@ export function GroupScoresTable({
         ...property,
         scores: scoreData,
         weightedScore,
+        totalReviews,
         lastUpdated,
       };
     });
@@ -93,16 +94,16 @@ export function GroupScoresTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
-            <TableHead className="w-[220px] py-4 font-semibold">Property</TableHead>
-            <TableHead className="w-[160px] py-4 font-semibold">Location</TableHead>
+            <TableHead className="w-[200px] py-4 font-semibold">Property</TableHead>
+            <TableHead className="w-[140px] py-4 font-semibold">Location</TableHead>
             {REVIEW_SOURCES.map(source => (
-              <TableHead key={source} className="w-[110px] py-4 text-center font-semibold">
+              <TableHead key={source} className="w-[100px] py-4 text-center font-semibold">
                 {SOURCE_LABELS[source]}
               </TableHead>
             ))}
-            <TableHead className="w-[110px] py-4 text-center font-semibold">Weighted</TableHead>
-            <TableHead className="w-[140px] py-4 font-semibold">Updated</TableHead>
-            <TableHead className="w-[90px] py-4"></TableHead>
+            <TableHead className="w-[90px] py-4 text-center font-semibold">Weighted Avg</TableHead>
+            <TableHead className="w-[90px] py-4 text-center font-semibold">Total Reviews</TableHead>
+            <TableHead className="w-[80px] py-4"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -118,44 +119,46 @@ export function GroupScoresTable({
               {REVIEW_SOURCES.map(source => {
                 const sourceScore = property.scores[source];
                 const trend30d = source === 'google' ? trends[property.id] : null;
+                const hasData = sourceScore?.score && sourceScore.score > 0;
                 
                 return (
                   <TableCell key={source} className="py-4">
                     <div className="text-center">
-                      <div className={cn(
-                        'font-semibold text-sm',
-                        getScoreColor(sourceScore?.score ?? null)
-                      )}>
-                        {formatScore(sourceScore?.score ?? null)}
-                      </div>
-                      {sourceScore?.count !== undefined && (
-                        <div className="text-xs text-muted-foreground">
-                          {sourceScore.count > 0 ? `${sourceScore.count} reviews` : '—'}
-                        </div>
-                      )}
-                      {source === 'google' && trend30d?.change30d !== null && trend30d?.change30d !== undefined && (
-                        <div className={cn(
-                          'text-xs mt-0.5',
-                          trend30d.change30d >= 0.05
-                            ? 'text-emerald-600'
-                            : trend30d.change30d <= -0.05
-                              ? 'text-red-600'
-                              : 'text-muted-foreground'
-                        )}>
-                          30d: {formatChange(trend30d.change30d)}
-                        </div>
+                      {hasData ? (
+                        <>
+                          <span className={cn('font-semibold', getScoreColor(sourceScore.score))}>
+                            {formatScore(sourceScore.score)}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({sourceScore.count.toLocaleString()})
+                          </span>
+                          {source === 'google' && trend30d?.change30d !== null && trend30d?.change30d !== undefined && (
+                            <div className={cn(
+                              'text-xs mt-0.5',
+                              trend30d.change30d >= 0.05
+                                ? 'text-emerald-600'
+                                : trend30d.change30d <= -0.05
+                                  ? 'text-red-600'
+                                  : 'text-muted-foreground'
+                            )}>
+                              {formatChange(trend30d.change30d)}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </div>
                   </TableCell>
                 );
               })}
-              <TableCell className="py-4">
-                <ScoreCell score={property.weightedScore} showCount={false} isWeighted />
+              <TableCell className="py-4 text-center">
+                <span className={cn('font-bold', getScoreColor(property.weightedScore))}>
+                  {formatScore(property.weightedScore)}
+                </span>
               </TableCell>
-              <TableCell className="py-4 text-sm text-muted-foreground">
-                {property.lastUpdated
-                  ? format(new Date(property.lastUpdated), 'MMM d, h:mm a')
-                  : '—'}
+              <TableCell className="py-4 text-center font-medium">
+                {property.totalReviews > 0 ? property.totalReviews.toLocaleString() : '—'}
               </TableCell>
               <TableCell className="py-4">
                 <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
