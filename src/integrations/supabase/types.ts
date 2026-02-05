@@ -200,6 +200,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_duplicate_snapshots: {
+        Args: never
+        Returns: {
+          deleted_count: number
+        }[]
+      }
       owns_group: { Args: { group_uuid: string }; Returns: boolean }
       owns_property: { Args: { property_uuid: string }; Returns: boolean }
     }
