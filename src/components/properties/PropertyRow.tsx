@@ -115,13 +115,13 @@ export function PropertyRow({
         </div>
       </TableCell>
 
-      {/* Avg Score - PRIMARY with tooltip */}
+      {/* Average Score - PRIMARY with tooltip */}
       <TableCell className="text-center">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className={cn('cursor-help text-xl font-bold', weightedAvg !== null ? getScoreColor(weightedAvg) : 'text-muted-foreground')}>
-                {weightedAvg !== null ? weightedAvg.toFixed(1) : 'N/A'}
+              <span className={cn('cursor-help text-base font-semibold', weightedAvg !== null ? getScoreColor(weightedAvg) : 'text-muted-foreground')}>
+                {weightedAvg !== null ? weightedAvg.toFixed(1) : '—'}
               </span>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
@@ -140,7 +140,7 @@ export function PropertyRow({
       {/* Total Reviews - PRIMARY */}
       <TableCell className="text-center">
         {totalReviews > 0 ? (
-          <span className="font-semibold text-foreground">
+          <span className="text-base font-semibold text-foreground">
             {totalReviews.toLocaleString()}
           </span>
         ) : (
