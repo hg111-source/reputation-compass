@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { useGoogleRatings, getGoogleRatingErrorMessage } from '@/hooks/useGoogleRatings';
+import { useBulkGoogleRefresh } from '@/hooks/useBulkGoogleRefresh';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,23 +25,26 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Plus, Trash2, Building2, MapPin, RefreshCw, Star, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Building2, MapPin, RefreshCw, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Property } from '@/lib/types';
 import { getScoreColor } from '@/lib/scoring';
+import { BulkRefreshDialog } from '@/components/properties/BulkRefreshDialog';
 
 export default function Properties() {
   const { user, loading } = useAuth();
   const { properties, isLoading, createProperty, deleteProperty } = useProperties();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [refreshingPropertyId, setRefreshingPropertyId] = useState<string | null>(null);
   
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
   const { fetchGoogleRating } = useGoogleRatings();
+  const { isRunning, propertyStates, startBulkRefresh } = useBulkGoogleRefresh();
 
   if (loading) {
     return (
@@ -106,6 +110,11 @@ export default function Properties() {
 
   const getGoogleScore = (propertyId: string) => {
     return scores[propertyId]?.google;
+  };
+
+  const handleBulkRefresh = () => {
+    setIsBulkDialogOpen(true);
+    startBulkRefresh(properties);
   };
 
   return (
@@ -193,99 +202,133 @@ export default function Properties() {
             </p>
           </div>
         ) : (
-          <Card className="overflow-hidden shadow-kasa">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="font-semibold">Name</TableHead>
-                  <TableHead className="font-semibold">Location</TableHead>
-                  <TableHead className="text-center font-semibold">Google Rating</TableHead>
-                  <TableHead className="text-center font-semibold">Reviews</TableHead>
-                  <TableHead className="font-semibold">Last Updated</TableHead>
-                  <TableHead className="w-[120px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {properties.map(property => {
-                  const googleScore = getGoogleScore(property.id);
-                  const isRefreshing = refreshingPropertyId === property.id;
-                  const scoreColor = googleScore ? getScoreColor(googleScore.score) : '';
-                  
-                  return (
-                    <TableRow key={property.id} className="group">
-                      <TableCell className="font-medium">{property.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <MapPin className="h-3.5 w-3.5" />
-                          {property.city}, {property.state}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {googleScore ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                            <span className={cn('font-semibold', scoreColor)}>
-                              {googleScore.score.toFixed(1)}
-                            </span>
-                            <span className="text-muted-foreground text-xs">/ 10</span>
+          <>
+            {/* Bulk actions */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleBulkRefresh}
+                disabled={isRunning}
+                className="gap-2"
+              >
+                {isRunning ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh All Google
+                  </>
+                )}
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {properties.length} propert{properties.length === 1 ? 'y' : 'ies'}
+              </span>
+            </div>
+
+            <Card className="overflow-hidden shadow-kasa">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableHead className="font-semibold">Name</TableHead>
+                    <TableHead className="font-semibold">Location</TableHead>
+                    <TableHead className="text-center font-semibold">Google Rating</TableHead>
+                    <TableHead className="text-center font-semibold">Reviews</TableHead>
+                    <TableHead className="font-semibold">Last Updated</TableHead>
+                    <TableHead className="w-[120px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {properties.map(property => {
+                    const googleScore = getGoogleScore(property.id);
+                    const isRefreshing = refreshingPropertyId === property.id;
+                    const scoreColor = googleScore ? getScoreColor(googleScore.score) : '';
+                    
+                    return (
+                      <TableRow key={property.id} className="group">
+                        <TableCell className="font-medium">{property.name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <MapPin className="h-3.5 w-3.5" />
+                            {property.city}, {property.state}
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {googleScore ? (
-                          <span className="text-muted-foreground">
-                            {googleScore.count.toLocaleString()}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {googleScore?.updated
-                          ? format(new Date(googleScore.updated), 'MMM d, h:mm a')
-                          : '—'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                            onClick={() => handleRefreshGoogle(property)}
-                            disabled={isRefreshing}
-                          >
-                            {isRefreshing ? (
-                              <>
-                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                                <span>Fetching...</span>
-                              </>
-                            ) : (
-                              <>
-                                <RefreshCw className="h-3.5 w-3.5" />
-                                <span>Google</span>
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                            onClick={() => handleDelete(property.id, property.name)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {googleScore ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                              <span className={cn('font-semibold', scoreColor)}>
+                                {googleScore.score.toFixed(1)}
+                              </span>
+                              <span className="text-muted-foreground text-xs">/ 10</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {googleScore ? (
+                            <span className="text-muted-foreground">
+                              {googleScore.count.toLocaleString()}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {googleScore?.updated
+                            ? format(new Date(googleScore.updated), 'MMM d, h:mm a')
+                            : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={() => handleRefreshGoogle(property)}
+                              disabled={isRefreshing}
+                            >
+                              {isRefreshing ? (
+                                <>
+                                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                  <span>Fetching...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                  <span>Google</span>
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                              onClick={() => handleDelete(property.id, property.name)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+          </>
         )}
+
+        {/* Bulk refresh dialog */}
+        <BulkRefreshDialog
+          open={isBulkDialogOpen}
+          onOpenChange={setIsBulkDialogOpen}
+          properties={propertyStates}
+        />
       </div>
     </DashboardLayout>
   );
 }
+
