@@ -16,6 +16,7 @@ interface PlaceDetails {
   city: string;
   state: string;
   websiteUrl: string | null;
+  placeId: string;
 }
 
 interface HotelAutocompleteProps {
@@ -104,6 +105,7 @@ export function HotelAutocomplete({
         city: data.city,
         state: data.state,
         websiteUrl: data.websiteUrl,
+        placeId: prediction.placeId,
       });
     } catch (err) {
       console.error('Error fetching place details:', err);
@@ -113,6 +115,7 @@ export function HotelAutocomplete({
         city: '',
         state: '',
         websiteUrl: null,
+        placeId: prediction.placeId,
       });
     } finally {
       setIsLoading(false);
