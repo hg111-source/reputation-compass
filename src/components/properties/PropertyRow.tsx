@@ -1,4 +1,4 @@
-import { MapPin, Trash2, RefreshCw, ExternalLink, History, Sparkles } from 'lucide-react';
+import { MapPin, Trash2, RefreshCw, ExternalLink, History, Sparkles, AlertCircle } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -68,6 +68,17 @@ export function PropertyRow({
   const renderPlatformCell = (platform: ReviewSource) => {
     const data = scores?.[platform];
     const isRefreshingThis = isRefreshing && refreshingSource === platform;
+    
+    // Check if URL is missing for OTA platforms
+    const hasUrl = platform === 'google' 
+      ? !!property.google_place_id 
+      : platform === 'booking' 
+        ? !!property.booking_url 
+        : platform === 'tripadvisor' 
+          ? !!property.tripadvisor_url 
+          : !!property.expedia_url;
+    
+    const showMissingUrlWarning = !hasUrl && platform !== 'google';
 
     return (
       <TableCell key={platform} className="text-center group/cell">
@@ -81,6 +92,23 @@ export function PropertyRow({
                 {data.count.toLocaleString()}
               </span>
             </>
+          ) : showMissingUrlWarning ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 text-amber-500 cursor-help">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    <span className="text-xs">No URL</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs max-w-xs">
+                  <p className="font-medium">Missing platform URL</p>
+                  <p className="text-muted-foreground mt-1">
+                    Use "Resolve URLs" to find this property on {platform === 'booking' ? 'Booking.com' : platform === 'tripadvisor' ? 'TripAdvisor' : 'Expedia'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : (
             <span className="text-muted-foreground">—</span>
           )}
