@@ -6,15 +6,12 @@ const corsHeaders = {
 };
 
 interface PlaceResult {
-  place_id?: string;
+  id: string;
+  displayName?: { text: string };
+  formattedAddress?: string;
   rating?: number;
-  user_ratings_total?: number;
-  name?: string;
-  formatted_address?: string;
-}
-
-interface PlaceDetails {
-  website?: string;
+  userRatingCount?: number;
+  websiteUri?: string;
 }
 
 serve(async (req) => {
@@ -38,21 +35,35 @@ serve(async (req) => {
       );
     }
 
-    // Use Text Search to find the hotel
-    const query = encodeURIComponent(`${hotelName} hotel ${city}`);
-    const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&type=lodging&key=${apiKey}`;
+    // Use the new Places API (Text Search)
+    const searchUrl = 'https://places.googleapis.com/v1/places:searchText';
+    const query = `${hotelName} hotel ${city}`;
 
     console.log(`Searching for: ${hotelName} in ${city}`);
 
-    const searchResponse = await fetch(searchUrl);
-    const searchData = await searchResponse.json();
+    const searchResponse = await fetch(searchUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.websiteUri',
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        includedType: 'lodging',
+        maxResultCount: 1,
+      }),
+    });
 
-    if (searchData.status !== 'OK' && searchData.status !== 'ZERO_RESULTS') {
-      console.error('Google Places API error:', searchData.status, searchData.error_message);
-      throw new Error(`Google Places API error: ${searchData.status}`);
+    if (!searchResponse.ok) {
+      const errorText = await searchResponse.text();
+      console.error('Google Places API error:', searchResponse.status, errorText);
+      throw new Error(`Google Places API error: ${searchResponse.status} - ${errorText}`);
     }
 
-    if (!searchData.results || searchData.results.length === 0) {
+    const searchData = await searchResponse.json();
+
+    if (!searchData.places || searchData.places.length === 0) {
       return new Response(
         JSON.stringify({ 
           found: false, 
@@ -62,34 +73,17 @@ serve(async (req) => {
       );
     }
 
-    const place: PlaceResult = searchData.results[0];
-    let websiteUrl: string | null = null;
-
-    // Fetch Place Details to get the website URL
-    if (place.place_id) {
-      try {
-        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=website&key=${apiKey}`;
-        const detailsResponse = await fetch(detailsUrl);
-        const detailsData = await detailsResponse.json();
-        
-        if (detailsData.status === 'OK' && detailsData.result?.website) {
-          websiteUrl = detailsData.result.website;
-          console.log(`Found website: ${websiteUrl}`);
-        }
-      } catch (detailsError) {
-        console.error('Error fetching place details:', detailsError);
-        // Continue without website - don't fail the whole request
-      }
-    }
+    const place: PlaceResult = searchData.places[0];
 
     return new Response(
       JSON.stringify({
         found: true,
-        name: place.name,
-        address: place.formatted_address,
+        placeId: place.id,
+        name: place.displayName?.text,
+        address: place.formattedAddress,
         rating: place.rating ?? null,
-        reviewCount: place.user_ratings_total ?? 0,
-        websiteUrl,
+        reviewCount: place.userRatingCount ?? 0,
+        websiteUrl: place.websiteUri ?? null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
