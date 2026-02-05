@@ -15,37 +15,18 @@
  * normalizeHotelName("The Sanctuary Beach Resort") // "sanctuary beach resort"
  * normalizeHotelName("Le Méridien Tampa") // "le meridien tampa"
  */
-export function normalizeHotelName(name: string): string {
-  return name
+export function normalizeHotelName(name: string, keepBrandPrefix = false): string {
+  let result = name
     // Lowercase everything
     .toLowerCase()
     
     // Remove "The " at start
     .replace(/^the\s+/i, '')
     
-    // Remove Marriott brand suffixes
+    // Remove collection/portfolio suffixes (these are always safe to remove)
     .replace(/,?\s*(autograph collection|tribute portfolio hotel|a tribute portfolio hotel|tribute portfolio)/gi, '')
-    .replace(/,?\s*(luxury collection|edition|moxy|aloft|element|ac hotel|courtyard)/gi, '')
-    .replace(/,?\s*(residence inn|springhill suites|fairfield|towneplace suites)/gi, '')
-    .replace(/^(jw marriott|marriott|sheraton|westin|le meridien|st\. regis|st regis|w hotel|delta hotels?)\s*/gi, '')
-    
-    // Remove Hilton brand suffixes
-    .replace(/,?\s*(curio collection|tapestry collection|canopy|signia|lxr hotels?)/gi, '')
-    .replace(/^(waldorf astoria|conrad|hilton|doubletree|embassy suites|hampton|homewood suites|home2 suites|tru)\s*/gi, '')
-    
-    // Remove Hyatt brand suffixes
-    .replace(/,?\s*(unbound collection|destination|joie de vivre)/gi, '')
-    .replace(/^(park hyatt|grand hyatt|hyatt regency|hyatt centric|hyatt place|hyatt house|andaz|thompson|alila)\s*/gi, '')
-    
-    // Remove IHG brand suffixes
-    .replace(/^(intercontinental|kimpton|hotel indigo|crowne plaza|holiday inn|staybridge|candlewood|avid|atwell|vignette)/gi, '')
-    .replace(/,?\s*(vignette collection|regent|six senses)/gi, '')
-    
-    // Remove luxury/independent brand prefixes
-    .replace(/^(four seasons|ritz[- ]carlton|peninsula|mandarin oriental|rosewood|aman|banyan tree|raffles|fairmont|sofitel|nobu)\s*/gi, '')
-    
-    // Remove other chain prefixes
-    .replace(/^(wyndham|radisson|best western|choice|la quinta|motel 6|red roof|quality inn|comfort inn|days inn|super 8|ramada)\s*/gi, '')
+    .replace(/,?\s*(luxury collection|curio collection|tapestry collection|unbound collection|vignette collection)/gi, '')
+    .replace(/,?\s*(joie de vivre|destination|regent|six senses|lxr hotels?|canopy|signia)/gi, '')
     
     // Remove "by [Brand]" suffixes
     .replace(/,?\s*by\s+(marriott|hilton|hyatt|ihg|wyndham|accor|choice|best western|radisson|sonesta)/gi, '')
@@ -65,6 +46,59 @@ export function normalizeHotelName(name: string): string {
     // Remove extra whitespace
     .replace(/\s+/g, ' ')
     .trim();
+  
+  // Only strip brand prefixes if explicitly requested AND if there's enough name left
+  // This prevents "Andaz West Hollywood" from becoming just "West Hollywood"
+  if (!keepBrandPrefix) {
+    const withoutBrand = result
+      // Hyatt brands
+      .replace(/^(park hyatt|grand hyatt|hyatt regency|hyatt centric|hyatt place|hyatt house|andaz|thompson|alila)\s+/gi, '')
+      // Marriott brands
+      .replace(/^(jw marriott|marriott|sheraton|westin|le meridien|st\. regis|st regis|w hotel|delta hotels?|edition|moxy|aloft|element|ac hotel|courtyard|residence inn|springhill suites|fairfield|towneplace suites)\s+/gi, '')
+      // Hilton brands
+      .replace(/^(waldorf astoria|conrad|hilton|doubletree|embassy suites|hampton|homewood suites|home2 suites|tru)\s+/gi, '')
+      // IHG brands
+      .replace(/^(intercontinental|kimpton|hotel indigo|crowne plaza|holiday inn|staybridge|candlewood|avid|atwell|vignette)\s+/gi, '')
+      // Luxury brands
+      .replace(/^(four seasons|ritz[- ]carlton|peninsula|mandarin oriental|rosewood|aman|banyan tree|raffles|fairmont|sofitel|nobu)\s+/gi, '')
+      // Other chains
+      .replace(/^(wyndham|radisson|best western|choice|la quinta|motel 6|red roof|quality inn|comfort inn|days inn|super 8|ramada)\s+/gi, '')
+      .trim();
+    
+    // Only use the brand-stripped version if it has meaningful content (not just a location)
+    const remainingWords = withoutBrand.split(' ').filter(w => 
+      w.length > 2 && !['hotel', 'inn', 'resort', 'suites', 'west', 'east', 'north', 'south', 'downtown', 'airport', 'beach', 'center', 'centre'].includes(w)
+    );
+    
+    if (remainingWords.length >= 1) {
+      result = withoutBrand;
+    }
+    // Otherwise keep the brand name as it's the distinctive part
+  }
+  
+  return result;
+}
+
+/**
+ * Get the brand prefix from a hotel name if present.
+ * Returns null if no recognizable brand.
+ */
+export function extractBrandPrefix(name: string): string | null {
+  const brandPatterns = [
+    /^(andaz|thompson|alila|park hyatt|grand hyatt|hyatt regency|hyatt centric|hyatt place|hyatt house)/i,
+    /^(jw marriott|marriott|sheraton|westin|le meridien|st\. regis|st regis|w hotel|edition|moxy|aloft|element|ac hotel)/i,
+    /^(waldorf astoria|conrad|hilton|doubletree|embassy suites|hampton)/i,
+    /^(intercontinental|kimpton|hotel indigo|crowne plaza|holiday inn)/i,
+    /^(four seasons|ritz[- ]carlton|peninsula|mandarin oriental|rosewood|fairmont|sofitel|nobu)/i,
+  ];
+  
+  for (const pattern of brandPatterns) {
+    const match = name.match(pattern);
+    if (match) {
+      return match[1].toLowerCase();
+    }
+  }
+  return null;
 }
 
 /**
@@ -168,25 +202,53 @@ export function analyzeHotelMatch(searchName: string, resultName: string): Match
   const resultWords = getSignificantWords(normalizedResult);
   const matchingWords = countMatchingWords(searchName, resultName);
   
+  // Check brand prefix matching - if search has a brand, result should too
+  const searchBrand = extractBrandPrefix(searchName);
+  const resultBrand = extractBrandPrefix(resultName);
+  
   let isMatch = false;
   let reason = '';
   
-  if (normalizedSearch === normalizedResult) {
+  // STRICT: If search has a brand prefix, result must have the same brand
+  if (searchBrand && resultBrand && searchBrand !== resultBrand) {
+    isMatch = false;
+    reason = `Brand mismatch: searching for "${searchBrand}" but found "${resultBrand}"`;
+  } else if (searchBrand && !resultBrand) {
+    // Search has brand but result doesn't - might be ok if normalized names match well
+    // But be cautious
+    if (normalizedSearch === normalizedResult) {
+      isMatch = true;
+      reason = 'Exact normalized match (brand in search only)';
+    } else {
+      isMatch = false;
+      reason = `Brand "${searchBrand}" in search but no brand in result - likely different hotel`;
+    }
+  } else if (normalizedSearch === normalizedResult) {
     isMatch = true;
     reason = 'Exact match after normalization';
   } else if (normalizedSearch.includes(normalizedResult) || normalizedResult.includes(normalizedSearch)) {
-    isMatch = true;
-    reason = 'One name contains the other';
+    // Additional check: the containing name shouldn't be too short
+    const shorter = normalizedSearch.length < normalizedResult.length ? normalizedSearch : normalizedResult;
+    if (shorter.split(' ').filter(w => w.length > 2).length >= 2) {
+      isMatch = true;
+      reason = 'One name contains the other';
+    } else {
+      isMatch = false;
+      reason = `Containment match rejected: "${shorter}" is too generic`;
+    }
   } else if (searchWords.length <= 2) {
+    // For short names, require ALL significant words to match
     isMatch = matchingWords >= searchWords.length && searchWords.length > 0;
     reason = isMatch 
       ? `Short name: all ${searchWords.length} significant words match`
       : `Short name: only ${matchingWords}/${searchWords.length} significant words match`;
   } else {
-    isMatch = matchingWords >= 2;
+    // For longer names, require at least 50% of words to match (minimum 2)
+    const threshold = Math.max(2, Math.ceil(searchWords.length * 0.5));
+    isMatch = matchingWords >= threshold;
     reason = isMatch
-      ? `${matchingWords} significant words match (≥2 required)`
-      : `Only ${matchingWords} significant words match (<2 required)`;
+      ? `${matchingWords}/${searchWords.length} significant words match (≥${threshold} required)`
+      : `Only ${matchingWords}/${searchWords.length} significant words match (<${threshold} required)`;
   }
   
   return {
