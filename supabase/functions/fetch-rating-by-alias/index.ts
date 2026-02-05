@@ -12,7 +12,7 @@ const APIFY_BASE_URL = 'https://api.apify.com/v2';
 const APIFY_ACTORS: Record<string, string> = {
   tripadvisor: 'maxcopell~tripadvisor',
   booking: 'voyager~booking-scraper',  
-  expedia: 'tri_angle~expedia-hotels-com-reviews-scraper',
+  expedia: 'jupri~expedia-hotels', // lighter actor, uses search-based lookup
 };
 
 type ReviewSource = 'google' | 'tripadvisor' | 'booking' | 'expedia';
@@ -70,27 +70,47 @@ async function fetchGoogleRating(
   placeId: string,
   apiKey: string
 ): Promise<{ rating: number | null; reviewCount: number; name: string }> {
-  const detailsUrl = new URL('https://maps.googleapis.com/maps/api/place/details/json');
-  detailsUrl.searchParams.set('place_id', placeId);
-  detailsUrl.searchParams.set('fields', 'name,rating,user_ratings_total');
-  detailsUrl.searchParams.set('key', apiKey);
+  console.log(`=== GOOGLE API DEBUG ===`);
+  console.log(`Place ID: ${placeId}`);
+  console.log(`API Key exists: ${!!apiKey}, length: ${apiKey?.length || 0}`);
+  
+  // Use new Places API (v1)
+  const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}`;
 
-  const response = await fetch(detailsUrl.toString());
+  console.log(`Google API URL: ${detailsUrl}`);
+
+  const response = await fetch(detailsUrl, {
+    method: 'GET',
+    headers: {
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': 'displayName,rating,userRatingCount',
+    },
+  });
+  
+  const responseText = await response.text();
+  
+  console.log(`Google API response status: ${response.status}`);
+  console.log(`Google API response body: ${responseText.substring(0, 500)}`);
   
   if (!response.ok) {
-    throw new Error(`Google API error: ${response.status}`);
+    throw new Error(`Google API HTTP error: ${response.status} - ${responseText}`);
   }
 
-  const data = await response.json();
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (e) {
+    throw new Error(`Google API invalid JSON: ${responseText.substring(0, 200)}`);
+  }
   
-  if (data.status !== 'OK' || !data.result) {
-    throw new Error(`Place not found: ${data.status}`);
+  if (data.error) {
+    throw new Error(`Google API error: ${data.error.status} - ${data.error.message}`);
   }
 
   return {
-    rating: data.result.rating ?? null,
-    reviewCount: data.result.user_ratings_total || 0,
-    name: data.result.name,
+    rating: data.rating ?? null,
+    reviewCount: data.userRatingCount || 0,
+    name: data.displayName?.text || '',
   };
 }
 
@@ -123,18 +143,33 @@ async function fetchApifyRating(
       simple: true,
     };
   } else if (source === 'expedia') {
-    // tri_angle/expedia-hotels-com-reviews-scraper uses startUrls with URL objects
+    // jupri/expedia-hotels uses search query - extract hotel name and city from URL
+    // URL format: https://www.expedia.com/Los-Angeles-Hotels-The-Ambrose.h890565.Hotel-Information
+    const cityMatch = platformUrl.match(/expedia\.com\/([^-]+-[^-]+)-Hotels?/i);
+    const hotelNameMatch = platformUrl.match(/Hotels?-([^.]+)\./i);
+    
+    const city = cityMatch ? cityMatch[1].replace(/-/g, ' ') : '';
+    const hotelName = hotelNameMatch ? hotelNameMatch[1].replace(/-/g, ' ') : '';
+    const searchQuery = `${hotelName} ${city}`.trim() || platformUrl;
+    
+    console.log(`Expedia search: hotel="${hotelName}", city="${city}", query="${searchQuery}"`);
+    
     runBody = {
-      startUrls: [{ url: platformUrl }],
+      search: searchQuery,
+      maxItems: 5,
     };
   } else {
     throw new Error(`Unsupported source: ${source}`);
   }
 
+  console.log(`=== APIFY API DEBUG (${source}) ===`);
+  console.log(`Actor ID: ${actorId}`);
+  console.log(`Token exists: ${!!apiToken}, length: ${apiToken?.length || 0}`);
+  console.log(`Platform URL: ${platformUrl}`);
+  console.log(`Run body: ${JSON.stringify(runBody)}`);
+  
   const apifyUrl = `${APIFY_BASE_URL}/acts/${actorId}/runs?token=${apiToken}`;
   console.log(`Apify URL: ${apifyUrl.replace(apiToken, 'TOKEN_HIDDEN')}`);
-  console.log(`Apify body:`, JSON.stringify(runBody));
-  console.log(`Platform URL: ${platformUrl}`);
 
   const runResponse = await fetch(
     apifyUrl,
@@ -145,12 +180,21 @@ async function fetchApifyRating(
     }
   );
 
+  const runResponseText = await runResponse.text();
+  console.log(`Apify run response status: ${runResponse.status}`);
+  console.log(`Apify run response body: ${runResponseText.substring(0, 500)}`);
+
   if (!runResponse.ok) {
-    const errorText = await runResponse.text();
-    throw new Error(`Apify run start failed: ${runResponse.status} ${errorText}`);
+    throw new Error(`Apify run start failed: ${runResponse.status} - ${runResponseText}`);
+  }
+  
+  let runData;
+  try {
+    runData = JSON.parse(runResponseText);
+  } catch (e) {
+    throw new Error(`Apify invalid JSON response: ${runResponseText.substring(0, 200)}`);
   }
 
-  const runData = await runResponse.json();
   const runId = runData.data.id;
 
   console.log(`Apify run started: ${runId}`);
@@ -198,11 +242,10 @@ async function fetchApifyRating(
     name = result.name ?? result.hotelName ?? '';
     scale = 10;
   } else if (source === 'expedia') {
-    // tri_angle/expedia-hotels-com-reviews-scraper returns review data
-    // We need to calculate average from reviews or get hotel info
-    rating = result.rating ?? result.score ?? result.guestRating ?? null;
-    reviewCount = result.reviewCount ?? result.totalReviews ?? results.length ?? 0;
-    name = result.hotelName ?? result.name ?? '';
+    // jupri/expedia-hotels returns: rating (out of 10), reviewCount, name
+    rating = result.rating ?? result.guestRating ?? result.score ?? null;
+    reviewCount = result.reviewCount ?? result.numberOfReviews ?? result.reviews ?? 0;
+    name = result.name ?? result.hotelName ?? '';
     scale = 10;
   }
 
@@ -229,6 +272,13 @@ serve(async (req) => {
     const apifyToken = Deno.env.get('APIFY_API_TOKEN');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    // Debug: Log if secrets exist
+    console.log('=== SECRET DEBUG ===');
+    console.log('GOOGLE_PLACES_API_KEY exists:', !!googleApiKey, googleApiKey ? `(length: ${googleApiKey.length})` : '');
+    console.log('APIFY_API_TOKEN exists:', !!apifyToken, apifyToken ? `(length: ${apifyToken.length})` : '');
+    console.log('SUPABASE_URL exists:', !!supabaseUrl);
+    console.log('SUPABASE_SERVICE_ROLE_KEY exists:', !!supabaseServiceKey);
 
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Supabase configuration missing');
