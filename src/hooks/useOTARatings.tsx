@@ -22,7 +22,7 @@ interface FetchOTARatingParams {
 const SOURCE_CONFIG: Record<OTASource, { functionName: string; displayName: string }> = {
   tripadvisor: { functionName: 'fetch-tripadvisor-rating', displayName: 'TripAdvisor' },
   booking: { functionName: 'fetch-booking-rating', displayName: 'Booking.com' },
-  expedia: { functionName: 'fetch-hotelscom-rating', displayName: 'Expedia' }, // Uses Hotels.com API (same reviews)
+  expedia: { functionName: 'fetch-expedia-rating', displayName: 'Expedia' }, // Uses RapidAPI reviews/scores endpoint
 };
 
 export function useOTARatings() {
