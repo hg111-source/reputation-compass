@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useGroups, useGroupProperties } from '@/hooks/useGroups';
 import { useProperties } from '@/hooks/useProperties';
+import { useGroupMetrics } from '@/hooks/useGroupMetrics';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,9 +17,12 @@ import {
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, FolderOpen, Settings, CheckSquare, XSquare, Search, Building2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Plus, Trash2, FolderOpen, Settings, CheckSquare, XSquare, Search, Building2, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { getScoreColor, formatScore } from '@/lib/scoring';
+import { cn } from '@/lib/utils';
 
 export default function Groups() {
   const { user, loading } = useAuth();
@@ -165,7 +169,7 @@ function GroupCard({
   onManage: () => void;
   isSelected: boolean;
 }) {
-  const { properties } = useGroupProperties(group.id);
+  const { avgScore, totalProperties, totalReviews, isLoading } = useGroupMetrics(group.id);
 
   return (
     <Card className={`shadow-kasa transition-all hover:shadow-kasa-hover ${isSelected ? 'ring-2 ring-accent' : ''}`}>
@@ -191,17 +195,64 @@ function GroupCard({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
-            <Building2 className="h-6 w-6 text-muted-foreground" />
+        {/* Group Weighted Average Score - Primary metric */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="mb-5 flex items-center justify-center rounded-xl bg-muted/50 py-4 cursor-help">
+                {isLoading ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                ) : avgScore !== null ? (
+                  <div className="text-center">
+                    <div className={cn('text-4xl font-bold', getScoreColor(avgScore))}>
+                      {formatScore(avgScore)}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">Weighted Avg</p>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-muted-foreground">—</div>
+                    <p className="mt-1 text-xs text-muted-foreground">No data</p>
+                  </div>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p className="font-semibold">Group Weighted Average</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Σ(hotel_avg × hotel_reviews) ÷ Σ(hotel_reviews)
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Hotels with more reviews have greater influence on this score.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+              <Building2 className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <div className="text-xl font-bold">{totalProperties}</div>
+              <p className="text-xs text-muted-foreground">
+                {totalProperties === 1 ? 'property' : 'properties'}
+              </p>
+            </div>
           </div>
-          <div>
-            <div className="text-3xl font-bold">{properties.length}</div>
-            <p className="text-sm text-muted-foreground">
-              {properties.length === 1 ? 'property' : 'properties'}
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+              <MessageSquare className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <div className="text-xl font-bold">{totalReviews.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">reviews</p>
+            </div>
           </div>
         </div>
+
         <p className="mt-5 text-xs text-muted-foreground">
           Created {format(new Date(group.created_at), 'MMM d, yyyy')}
         </p>
