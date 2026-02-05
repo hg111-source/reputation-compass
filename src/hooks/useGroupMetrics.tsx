@@ -2,12 +2,15 @@ import { useMemo } from 'react';
 import { useGroupProperties } from './useGroups';
 import { useLatestPropertyScores } from './useSnapshots';
 import { calculatePropertyMetrics } from '@/lib/scoring';
+import { Property, ReviewSource } from '@/lib/types';
 
 interface GroupMetrics {
   avgScore: number | null;
   totalProperties: number;
   totalReviews: number;
   isLoading: boolean;
+  properties: Property[];
+  scores: Record<string, Record<ReviewSource, { score: number; count: number; updated: string }> | undefined>;
 }
 
 /**
@@ -55,6 +58,8 @@ export function useGroupMetrics(groupId: string | null): GroupMetrics {
 
   return {
     ...metrics,
+    properties,
+    scores,
     isLoading: propertiesLoading || scoresLoading,
   };
 }
