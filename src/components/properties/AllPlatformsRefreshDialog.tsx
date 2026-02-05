@@ -138,6 +138,11 @@ export function AllPlatformsRefreshDialog({
                 </span>
               )}
             </div>
+            {!isComplete && (
+              <p className="text-xs text-muted-foreground text-center pt-1">
+                You can close this dialog — refresh will continue in the background and you'll be notified when done.
+              </p>
+            )}
           </div>
 
           {/* Property list */}
