@@ -400,7 +400,7 @@ export default function Properties() {
                     className="font-semibold"
                   >
                     <div className="flex flex-col items-center gap-1">
-                      <img src={tripadvisorLogo} alt="TripAdvisor" className="h-4 w-auto max-w-[60px]" />
+                      <img src={tripadvisorLogo} alt="TripAdvisor" className="h-4 w-auto max-w-[60px] mix-blend-multiply" />
                       <span className="text-orange-600">TripAdvisor</span>
                     </div>
                   </SortableTableHead>
@@ -412,7 +412,7 @@ export default function Properties() {
                     className="font-semibold"
                   >
                     <div className="flex flex-col items-center gap-1">
-                      <img src={bookingLogo} alt="Booking" className="h-4 w-auto" />
+                      <img src={bookingLogo} alt="Booking" className="h-4 w-auto mix-blend-multiply" />
                       <span className="text-blue-600">Booking</span>
                     </div>
                   </SortableTableHead>
@@ -424,7 +424,7 @@ export default function Properties() {
                     className="font-semibold"
                   >
                     <div className="flex flex-col items-center gap-1">
-                      <img src={expediaLogo} alt="Expedia" className="h-4 w-4" />
+                      <img src={expediaLogo} alt="Expedia" className="h-4 w-4 mix-blend-multiply" />
                       <span className="text-purple-600">Expedia</span>
                     </div>
                   </SortableTableHead>
