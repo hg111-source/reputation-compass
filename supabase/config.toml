@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.fetch-reviews]
 verify_jwt = false
+
+[functions.resolve-hotel-urls]
+verify_jwt = false
+
+[functions.place-autocomplete]
+verify_jwt = false
