@@ -26,7 +26,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Plus, Building2, RefreshCw, Download } from 'lucide-react';
-import googleLogo from '@/assets/logos/google.png';
+import googleLogo from '@/assets/logos/google.svg';
 import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
 import bookingLogo from '@/assets/logos/booking.svg';
 import expediaLogo from '@/assets/logos/expedia.svg';
