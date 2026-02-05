@@ -276,12 +276,15 @@ export default function Properties() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="w-10"></TableHead>
                   <TableHead className="font-semibold">Hotel Name</TableHead>
                   <TableHead className="font-semibold">Location</TableHead>
                   <TableHead className="text-center font-semibold">Avg Score</TableHead>
                   <TableHead className="text-center font-semibold">Total Reviews</TableHead>
-                  <TableHead className="w-20"></TableHead>
+                  <TableHead className="text-center font-semibold text-amber-600">Google</TableHead>
+                  <TableHead className="text-center font-semibold text-orange-600">TripAdvisor</TableHead>
+                  <TableHead className="text-center font-semibold text-blue-600">Booking</TableHead>
+                  <TableHead className="text-center font-semibold text-purple-600">Expedia</TableHead>
+                  <TableHead className="w-40"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
