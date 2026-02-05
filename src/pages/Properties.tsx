@@ -3,9 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { useLatestPropertyScores } from '@/hooks/useSnapshots';
-import { useGoogleRatings, getGoogleRatingErrorMessage } from '@/hooks/useGoogleRatings';
-import { useOTARatings, getOTARatingErrorMessage, OTASource } from '@/hooks/useOTARatings';
-import { useAllPlatformsRefresh, Platform } from '@/hooks/useAllPlatformsRefresh';
+import { useUnifiedRefresh, Platform } from '@/hooks/useUnifiedRefresh';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Plus, Building2, RefreshCw, Download, Globe } from 'lucide-react';
+import { Plus, Building2, RefreshCw, Download } from 'lucide-react';
 import googleLogo from '@/assets/logos/google.svg';
 import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
 import bookingLogo from '@/assets/logos/booking.png';
@@ -33,7 +31,7 @@ import expediaLogo from '@/assets/logos/expedia.png';
 import { useToast } from '@/hooks/use-toast';
 import { Property, ReviewSource } from '@/lib/types';
 import { PropertyRow } from '@/components/properties/PropertyRow';
-import { AllPlatformsRefreshDialog } from '@/components/properties/AllPlatformsRefreshDialog';
+import { UnifiedRefreshDialog } from '@/components/properties/UnifiedRefreshDialog';
 import { PropertyHistoryDialog } from '@/components/properties/PropertyHistoryDialog';
 import { ReviewInsightsDialog } from '@/components/properties/ReviewInsightsDialog';
 import { exportPropertiesToCSV } from '@/lib/csv';
@@ -41,8 +39,6 @@ import { calculatePropertyMetrics } from '@/lib/scoring';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { HotelAutocomplete } from '@/components/properties/HotelAutocomplete';
-import { useResolveUrls } from '@/hooks/useResolveUrls';
-import { ResolveUrlsDialog } from '@/components/properties/ResolveUrlsDialog';
 
 type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 
@@ -51,9 +47,7 @@ export default function Properties() {
   const { properties, isLoading, createProperty, deleteProperty } = useProperties();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isAllPlatformsDialogOpen, setIsAllPlatformsDialogOpen] = useState(false);
-  const [refreshingPropertyId, setRefreshingPropertyId] = useState<string | null>(null);
-  const [refreshingSource, setRefreshingSource] = useState<string | null>(null);
+  const [isRefreshDialogOpen, setIsRefreshDialogOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [historyProperty, setHistoryProperty] = useState<Property | null>(null);
@@ -66,28 +60,22 @@ export default function Properties() {
   
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
-  const { fetchGoogleRating } = useGoogleRatings();
-  const { fetchOTARating } = useOTARatings();
+  
+  // Unified refresh hook - handles URL resolution + fetching in one flow
   const {
-    isRunning: isAllPlatformsRunning,
-    isComplete: isAllPlatformsComplete,
+    isRunning,
+    isComplete,
+    currentPhase,
     currentPlatform,
     propertyStates,
-    startAllPlatformsRefresh,
+    refreshSingleCell,
+    refreshSingleRow,
+    refreshAll,
     retryPlatform,
     retryAllFailed,
     getFailedCount,
-    setDialogOpen: setAllPlatformsDialogOpen,
-  } = useAllPlatformsRefresh();
-  
-  const {
-    isResolving,
-    bulkProgress,
-    resolveAllProperties,
-    clearProgress,
-  } = useResolveUrls();
-  const [isResolveDialogOpen, setIsResolveDialogOpen] = useState(false);
-  const isResolveComplete = bulkProgress ? bulkProgress.current === bulkProgress.total : false;
+    setDialogOpen,
+  } = useUnifiedRefresh();
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -184,10 +172,10 @@ export default function Properties() {
       setFormCity('');
       setFormState('');
       
-      // Auto-refresh all platforms for the new property
-      setIsAllPlatformsDialogOpen(true);
-      setAllPlatformsDialogOpen(true);
-      startAllPlatformsRefresh([newProperty]);
+      // Auto-refresh all platforms for the new property using unified flow
+      setIsRefreshDialogOpen(true);
+      setDialogOpen(true);
+      refreshSingleRow(newProperty);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to create property.' });
     }
@@ -202,73 +190,37 @@ export default function Properties() {
     }
   };
 
-  const handleRefreshGoogle = async (property: Property) => {
-    setRefreshingPropertyId(property.id);
-    setRefreshingSource('google');
-    
-    try {
-      const result = await fetchGoogleRating.mutateAsync({ property });
-      toast({
-        title: 'Google rating updated',
-        description: `${property.name}: ${result.rating?.toFixed(1) || 'N/A'} ★`,
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'API_ERROR';
-      toast({
-        variant: 'destructive',
-        title: 'Refresh failed',
-        description: getGoogleRatingErrorMessage(errorMessage),
-      });
-    } finally {
-      setRefreshingPropertyId(null);
-      setRefreshingSource(null);
-    }
+  // UNIFIED: Single cell refresh (one platform, one hotel)
+  const handleRefreshSingleCell = async (property: Property, platform: Platform) => {
+    setIsRefreshDialogOpen(true);
+    setDialogOpen(true);
+    refreshSingleCell(property, platform);
   };
 
-  const handleRefreshOTA = async (property: Property, source: OTASource) => {
-    setRefreshingPropertyId(property.id);
-    setRefreshingSource(source);
-    
-    try {
-      const result = await fetchOTARating.mutateAsync({ property, source });
-      toast({
-        title: `${source.charAt(0).toUpperCase() + source.slice(1)} rating updated`,
-        description: `${property.name}: ${result.rating?.toFixed(1) || 'N/A'}`,
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'API_ERROR';
-      toast({
-        variant: 'destructive',
-        title: 'Refresh failed',
-        description: getOTARatingErrorMessage(errorMessage, source),
-      });
-    } finally {
-      setRefreshingPropertyId(null);
-      setRefreshingSource(null);
-    }
+  // UNIFIED: Single row refresh (all platforms, one hotel)
+  const handleRefreshSingleRow = (property: Property) => {
+    setIsRefreshDialogOpen(true);
+    setDialogOpen(true);
+    refreshSingleRow(property);
   };
 
-  const handleRefreshAllPlatforms = () => {
-    setIsAllPlatformsDialogOpen(true);
-    setAllPlatformsDialogOpen(true);
-    startAllPlatformsRefresh(properties);
+  // UNIFIED: Refresh all (all platforms, all hotels)
+  const handleRefreshAll = () => {
+    setIsRefreshDialogOpen(true);
+    setDialogOpen(true);
+    refreshAll(properties);
   };
 
-  const handleRefreshSingleProperty = (property: Property) => {
-    setIsAllPlatformsDialogOpen(true);
-    setAllPlatformsDialogOpen(true);
-    startAllPlatformsRefresh([property]);
+  // UNIFIED: Refresh single platform column
+  const handleRefreshColumn = (platform: Platform) => {
+    setIsRefreshDialogOpen(true);
+    setDialogOpen(true);
+    refreshAll(properties, [platform]);
   };
 
-  const handleRefreshSinglePlatform = (platform: Platform) => {
-    setIsAllPlatformsDialogOpen(true);
-    setAllPlatformsDialogOpen(true);
-    startAllPlatformsRefresh(properties, [platform]);
-  };
-
-  const handleAllPlatformsDialogChange = (open: boolean) => {
-    setIsAllPlatformsDialogOpen(open);
-    setAllPlatformsDialogOpen(open);
+  const handleRefreshDialogChange = (open: boolean) => {
+    setIsRefreshDialogOpen(open);
+    setDialogOpen(open);
   };
 
   const handleExportCSV = () => {
@@ -300,30 +252,10 @@ export default function Properties() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setIsResolveDialogOpen(true);
-                    resolveAllProperties(properties);
-                  }}
-                  disabled={isResolving}
+                  onClick={handleRefreshAll}
+                  disabled={isRunning}
                 >
-                  {isResolving ? (
-                    <>
-                      <Globe className="mr-2 h-4 w-4 animate-pulse" />
-                      Resolving...
-                    </>
-                  ) : (
-                    <>
-                      <Globe className="mr-2 h-4 w-4" />
-                      Resolve URLs
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleRefreshAllPlatforms}
-                  disabled={isAllPlatformsRunning}
-                >
-                  {isAllPlatformsRunning ? (
+                  {isRunning ? (
                     <>
                       <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                       Refreshing...
@@ -470,14 +402,14 @@ export default function Properties() {
                   >
                     <div className="relative flex flex-col items-center gap-1">
                       <img src={googleLogo} alt="Google" className="h-4 w-4" />
-                      <span className="text-blue-500">Google</span>
+                      <span className="text-primary">Google</span>
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('google'); }}
-                        disabled={isAllPlatformsRunning}
+                        onClick={(e) => { e.stopPropagation(); handleRefreshColumn('google'); }}
+                        disabled={isRunning}
                         className="absolute -right-2 top-0 p-0.5 rounded hover:bg-muted/50"
                         title="Refresh all Google"
                       >
-                        <RefreshCw className={`h-3 w-3 text-gray-300 hover:text-gray-500 ${isAllPlatformsRunning && currentPlatform === 'google' ? 'animate-spin text-gray-500' : ''}`} />
+                        <RefreshCw className={`h-3 w-3 text-muted-foreground/50 hover:text-muted-foreground ${isRunning && currentPlatform === 'google' ? 'animate-spin text-muted-foreground' : ''}`} />
                       </button>
                     </div>
                   </SortableTableHead>
@@ -490,14 +422,14 @@ export default function Properties() {
                   >
                     <div className="relative flex flex-col items-center gap-1">
                       <img src={tripadvisorLogo} alt="TripAdvisor" className="h-4 w-auto max-w-[60px] mix-blend-multiply" />
-                      <span className="text-green-600">TripAdvisor</span>
+                      <span className="text-primary">TripAdvisor</span>
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('tripadvisor'); }}
-                        disabled={isAllPlatformsRunning}
+                        onClick={(e) => { e.stopPropagation(); handleRefreshColumn('tripadvisor'); }}
+                        disabled={isRunning}
                         className="absolute -right-2 top-0 p-0.5 rounded hover:bg-muted/50"
                         title="Refresh all TripAdvisor"
                       >
-                        <RefreshCw className={`h-3 w-3 text-gray-300 hover:text-gray-500 ${isAllPlatformsRunning && currentPlatform === 'tripadvisor' ? 'animate-spin text-gray-500' : ''}`} />
+                        <RefreshCw className={`h-3 w-3 text-muted-foreground/50 hover:text-muted-foreground ${isRunning && currentPlatform === 'tripadvisor' ? 'animate-spin text-muted-foreground' : ''}`} />
                       </button>
                     </div>
                   </SortableTableHead>
@@ -510,14 +442,14 @@ export default function Properties() {
                   >
                     <div className="relative flex flex-col items-center gap-1">
                       <img src={bookingLogo} alt="Booking" className="h-4 w-auto mix-blend-multiply" />
-                      <span className="text-blue-800">Booking</span>
+                      <span className="text-primary">Booking</span>
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('booking'); }}
-                        disabled={isAllPlatformsRunning}
+                        onClick={(e) => { e.stopPropagation(); handleRefreshColumn('booking'); }}
+                        disabled={isRunning}
                         className="absolute -right-2 top-0 p-0.5 rounded hover:bg-muted/50"
                         title="Refresh all Booking"
                       >
-                        <RefreshCw className={`h-3 w-3 text-gray-300 hover:text-gray-500 ${isAllPlatformsRunning && currentPlatform === 'booking' ? 'animate-spin text-gray-500' : ''}`} />
+                        <RefreshCw className={`h-3 w-3 text-muted-foreground/50 hover:text-muted-foreground ${isRunning && currentPlatform === 'booking' ? 'animate-spin text-muted-foreground' : ''}`} />
                       </button>
                     </div>
                   </SortableTableHead>
@@ -530,14 +462,14 @@ export default function Properties() {
                   >
                     <div className="relative flex flex-col items-center gap-1">
                       <img src={expediaLogo} alt="Expedia" className="h-4 w-4 mix-blend-multiply" />
-                      <span className="text-yellow-500">Expedia</span>
+                      <span className="text-primary">Expedia</span>
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleRefreshSinglePlatform('expedia'); }}
-                        disabled={isAllPlatformsRunning}
+                        onClick={(e) => { e.stopPropagation(); handleRefreshColumn('expedia'); }}
+                        disabled={isRunning}
                         className="absolute -right-2 top-0 p-0.5 rounded hover:bg-muted/50"
                         title="Refresh all Expedia"
                       >
-                        <RefreshCw className={`h-3 w-3 text-gray-300 hover:text-gray-500 ${isAllPlatformsRunning && currentPlatform === 'expedia' ? 'animate-spin text-gray-500' : ''}`} />
+                        <RefreshCw className={`h-3 w-3 text-muted-foreground/50 hover:text-muted-foreground ${isRunning && currentPlatform === 'expedia' ? 'animate-spin text-muted-foreground' : ''}`} />
                       </button>
                     </div>
                   </SortableTableHead>
@@ -551,14 +483,12 @@ export default function Properties() {
                     property={property}
                     scores={scores[property.id]}
                     onDelete={handleDelete}
-                    onRefreshGoogle={handleRefreshGoogle}
-                    onRefreshOTA={handleRefreshOTA}
-                    onRefreshAllPlatforms={handleRefreshSingleProperty}
+                    onRefreshPlatform={(p, platform) => handleRefreshSingleCell(p, platform as Platform)}
+                    onRefreshAllPlatforms={handleRefreshSingleRow}
                     onViewHistory={setHistoryProperty}
                     onAnalyzeReviews={setInsightsProperty}
-                    isRefreshing={refreshingPropertyId === property.id}
-                    refreshingSource={refreshingSource}
-                    isRefreshingAll={isAllPlatformsRunning && propertyStates[property.id]?.status === 'in_progress'}
+                    isRefreshing={isRunning}
+                    currentPlatform={currentPlatform}
                   />
                 ))}
               </TableBody>
@@ -567,28 +497,18 @@ export default function Properties() {
           </div>
         )}
 
-        {/* All platforms refresh dialog */}
-        <AllPlatformsRefreshDialog
-          open={isAllPlatformsDialogOpen}
-          onOpenChange={handleAllPlatformsDialogChange}
+        {/* Unified refresh dialog */}
+        <UnifiedRefreshDialog
+          open={isRefreshDialogOpen}
+          onOpenChange={handleRefreshDialogChange}
           propertyStates={propertyStates}
+          currentPhase={currentPhase}
           currentPlatform={currentPlatform}
           onRetry={retryPlatform}
           onRetryAllFailed={retryAllFailed}
           failedCount={getFailedCount()}
-          isComplete={isAllPlatformsComplete}
-          isRunning={isAllPlatformsRunning}
-        />
-
-        {/* Resolve URLs dialog */}
-        <ResolveUrlsDialog
-          open={isResolveDialogOpen}
-          onOpenChange={(open) => {
-            setIsResolveDialogOpen(open);
-            if (!open) clearProgress();
-          }}
-          progress={bulkProgress}
-          isComplete={isResolveComplete}
+          isComplete={isComplete}
+          isRunning={isRunning}
         />
 
         {/* Property history dialog */}
