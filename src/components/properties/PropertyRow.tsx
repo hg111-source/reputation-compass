@@ -176,18 +176,19 @@ export function PropertyRow({
       <TableCell>
         <div className="flex items-center justify-end gap-1">
           <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 text-xs"
             onClick={() => onViewHistory(property)}
-            title="View history"
+            title="View score history"
           >
             <History className="h-3.5 w-3.5" />
+            History
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
             onClick={() => onDelete(property.id, property.name)}
             title="Delete property"
           >
