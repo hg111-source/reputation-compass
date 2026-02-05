@@ -1,4 +1,4 @@
-import { MapPin, Trash2, RefreshCw, ExternalLink, Link2 } from 'lucide-react';
+import { MapPin, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -106,20 +106,10 @@ export function PropertyRow({
           className="inline-flex items-center gap-1.5 hover:text-primary hover:underline transition-colors"
         >
           {property.name}
-          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+          {property.website_url && (
+            <ExternalLink className="h-3 w-3 text-muted-foreground/50" />
+          )}
         </a>
-        {property.website_url && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link2 className="ml-1.5 h-3 w-3 text-muted-foreground/60" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">Website linked</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
       </TableCell>
 
       {/* Location */}
