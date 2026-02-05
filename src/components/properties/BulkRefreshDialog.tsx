@@ -37,16 +37,13 @@ export function BulkRefreshDialog({
 }: BulkRefreshDialogProps) {
   const completedCount = properties.filter(p => p.status === 'complete').length;
   const failedCount = properties.filter(p => p.status === 'failed').length;
+  const inProgressCount = properties.filter(p => p.status === 'in_progress').length;
   const totalCount = properties.length;
   const processedCount = completedCount + failedCount;
-  const progress = totalCount > 0 ? (processedCount / totalCount) * 100 : 0;
+  const startedCount = processedCount + inProgressCount;
+  const progress = totalCount > 0 ? (startedCount / totalCount) * 100 : 0;
   
-  const inProgressProperty = properties.find(p => p.status === 'in_progress');
-  const queuedCount = properties.filter(p => p.status === 'queued').length;
   const failedProperties = properties.filter(p => p.status === 'failed');
-  
-  // Estimate ~2.5 seconds per property (2s delay + API call time)
-  const estimatedSeconds = queuedCount * 2.5 + (inProgressProperty ? 1 : 0);
 
   const getStatusIcon = (status: RefreshStatus) => {
     switch (status) {
@@ -91,12 +88,9 @@ export function BulkRefreshDialog({
               {/* Progress bar */}
               <div className="space-y-2">
                 <Progress value={progress} className="h-2" />
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>{processedCount} of {totalCount} complete</span>
-                  {estimatedSeconds > 0 && (
-                    <span>~{Math.ceil(estimatedSeconds)}s remaining</span>
-                  )}
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  {processedCount} of {totalCount} complete
+                </p>
               </div>
 
               {/* Property list */}

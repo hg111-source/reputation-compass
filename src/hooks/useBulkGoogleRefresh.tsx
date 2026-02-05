@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/lib/types';
 import { PropertyRefreshState, RefreshStatus } from '@/components/properties/BulkRefreshDialog';
 import { useToast } from '@/hooks/use-toast';
-import { getGoogleRatingErrorMessage } from '@/hooks/useGoogleRatings';
 
 const DELAY_BETWEEN_CALLS_MS = 2000;
 
@@ -44,24 +43,20 @@ export function useBulkGoogleRefresh() {
       });
 
       if (error) {
-        if (error.message?.includes('rate limit') || error.message?.includes('429')) {
-          return { success: false, error: 'Rate limit reached' };
-        }
-        return { success: false, error: 'API error' };
+        const msg = error.message?.includes('rate limit') || error.message?.includes('429')
+          ? 'Rate limit reached'
+          : 'API error';
+        return { success: false, error: msg };
       }
 
       if (data.error) {
-        if (data.error.includes('GOOGLE_PLACES_API_KEY')) {
-          return { success: false, error: 'API key not configured' };
-        }
-        return { success: false, error: 'API error' };
+        return { success: false, error: data.error };
       }
 
       if (!data.found) {
         return { success: false, error: 'Hotel not found on Google' };
       }
 
-      // Store the result
       if (data.rating !== null && data.rating !== undefined) {
         const normalizedScore = (data.rating / 5) * 10;
 
@@ -118,8 +113,7 @@ export function useBulkGoogleRefresh() {
         updatePropertyStatus(property.id, 'failed', result.error);
       }
 
-      // Invalidate queries to update the table in real-time
-      queryClient.invalidateQueries({ queryKey: ['property-snapshots'] });
+      // Update scores in real-time
       queryClient.invalidateQueries({ queryKey: ['latest-scores'] });
 
       // Delay before next call (unless it's the last one)
@@ -130,6 +124,9 @@ export function useBulkGoogleRefresh() {
 
     setIsRunning(false);
     setIsComplete(true);
+
+    // Invalidate snapshots once at the end
+    queryClient.invalidateQueries({ queryKey: ['property-snapshots'] });
 
     // Show toast if dialog was closed during execution
     if (!dialogOpenRef.current) {
@@ -156,7 +153,7 @@ export function useBulkGoogleRefresh() {
       toast({
         variant: 'destructive',
         title: 'Retry failed',
-        description: getGoogleRatingErrorMessage(result.error || 'API_ERROR'),
+        description: result.error || 'Unknown error',
       });
     }
 
