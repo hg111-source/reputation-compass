@@ -48,28 +48,34 @@ interface SearchResult {
 
 // Extract Expedia hotel_id from URL
 function extractExpediaHotelId(url: string): string | undefined {
-  try {
-    const urlObj = new URL(url);
-    // Primary: "selected=" parameter (e.g., ?selected=5075)
-    const selected = urlObj.searchParams.get('selected');
-    if (selected) {
-      console.log(`  Extracted hotel_id from selected param: ${selected}`);
-      return selected;
-    }
-    
-    // Fallback: "hotelId=" parameter
-    const hotelId = urlObj.searchParams.get('hotelId');
-    if (hotelId) {
-      console.log(`  Extracted hotel_id from hotelId param: ${hotelId}`);
-      return hotelId;
-    }
-  } catch {
-    // URL parsing failed, try regex
-    const selectedMatch = url.match(/[?&]selected=(\d+)/);
-    if (selectedMatch) {
-      console.log(`  Extracted hotel_id via regex: ${selectedMatch[1]}`);
-      return selectedMatch[1];
-    }
+  // Try multiple patterns for Expedia URLs
+  
+  // Pattern 1: /pinned/5075/ (from go/hotel/search/pinned/ID/...)
+  const pinnedMatch = url.match(/\/pinned\/(\d+)/);
+  if (pinnedMatch) {
+    console.log(`  Extracted hotel_id from /pinned/ path: ${pinnedMatch[1]}`);
+    return pinnedMatch[1];
+  }
+  
+  // Pattern 2: selected=5075 query param
+  const selectedMatch = url.match(/[?&]selected=(\d+)/);
+  if (selectedMatch) {
+    console.log(`  Extracted hotel_id from selected param: ${selectedMatch[1]}`);
+    return selectedMatch[1];
+  }
+  
+  // Pattern 3: hotelId=5075 query param
+  const hotelIdMatch = url.match(/[?&]hotelId=(\d+)/);
+  if (hotelIdMatch) {
+    console.log(`  Extracted hotel_id from hotelId param: ${hotelIdMatch[1]}`);
+    return hotelIdMatch[1];
+  }
+  
+  // Pattern 4: .h5075. in URL path
+  const hMatch = url.match(/\.h(\d+)\./);
+  if (hMatch) {
+    console.log(`  Extracted hotel_id from .hXXX. pattern: ${hMatch[1]}`);
+    return hMatch[1];
   }
   
   console.log(`  Could not extract hotel_id from URL: ${url}`);
@@ -125,20 +131,32 @@ async function searchSerpApiWithValidation(
           console.log(`    Result: ${result.title.substring(0, 50)}...`);
           console.log(`      Match: ${matchAnalysis.isMatch} - ${matchAnalysis.reason}`);
           
-          if (matchAnalysis.isMatch && !bestResult) {
-            const extractedHotelId = platform === 'expedia' ? extractExpediaHotelId(result.link) : undefined;
+          // For Expedia: if we can extract a hotel_id from URL, accept it even if title doesn't match
+          // The URL structure (/pinned/XXX or selected=XXX) is strong evidence it's a valid hotel page
+          if (platform === 'expedia') {
+            const extractedHotelId = extractExpediaHotelId(result.link);
+            if (extractedHotelId && !bestResult) {
+              bestResult = {
+                link: result.link,
+                title: result.title,
+                isMatch: true,
+                reason: `Expedia hotel_id ${extractedHotelId} extracted from URL`,
+                hotelId: extractedHotelId,
+              };
+              console.log(`  ✓ Expedia match found via hotel_id: ${extractedHotelId}`);
+              console.log(`    URL: ${bestResult.link}`);
+              break;
+            }
+          } else if (matchAnalysis.isMatch && !bestResult) {
+            // For other platforms, use name matching
             bestResult = {
               link: result.link,
               title: result.title,
               isMatch: true,
               reason: matchAnalysis.reason,
-              hotelId: extractedHotelId,
             };
             console.log(`  ✓ Match found: ${bestResult.link}`);
-            if (extractedHotelId) {
-              console.log(`  ✓ Expedia hotel_id: ${extractedHotelId}`);
-            }
-            break; // First valid match wins
+            break;
           }
         }
         
