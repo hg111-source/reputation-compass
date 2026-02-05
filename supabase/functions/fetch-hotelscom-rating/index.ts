@@ -110,9 +110,17 @@ serve(async (req) => {
       // If no platform_id, try to extract from URL
       if (!targetHotelId && alias.platform_url) {
         // Hotels.com URLs: https://www.hotels.com/ho123456/
-        const urlMatch = alias.platform_url.match(/\/ho(\d+)/);
+        let urlMatch = alias.platform_url.match(/\/ho(\d+)/);
         if (urlMatch) {
           targetHotelId = urlMatch[1];
+        }
+        
+        // Expedia URLs: https://www.expedia.com/...-Hotels-Name.h123456.Hotel-Information
+        if (!targetHotelId) {
+          urlMatch = alias.platform_url.match(/\.h(\d+)\./);
+          if (urlMatch) {
+            targetHotelId = urlMatch[1];
+          }
         }
       }
 
@@ -128,10 +136,9 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Fetching Hotels.com rating for hotel_id: ${targetHotelId} using domain=US`);
+    console.log(`Fetching Hotels.com rating for hotel_id: ${targetHotelId}`);
 
-    // Try /v2/hotels/details endpoint which includes ratings
-    // Domain must be a valid country code: US, GB, DE, FR, etc.
+    // Use /v2/hotels/details endpoint which includes reviewInfo
     const detailsUrl = `https://hotels-com-provider.p.rapidapi.com/v2/hotels/details?hotel_id=${targetHotelId}&domain=US&locale=en_US`;
     
     console.log(`API URL: ${detailsUrl}`);
@@ -160,12 +167,13 @@ serve(async (req) => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = await response.json();
-    console.log('API response:', JSON.stringify(data).substring(0, 1000));
     console.log('API response keys:', Object.keys(data || {}));
     
-    // Log reviewInfo specifically since that's where ratings usually are
+    // Log reviewInfo in full to understand its structure
     if (data.reviewInfo) {
-      console.log('reviewInfo:', JSON.stringify(data.reviewInfo).substring(0, 500));
+      console.log('FULL reviewInfo:', JSON.stringify(data.reviewInfo));
+    } else {
+      console.log('No reviewInfo in response');
     }
 
     // Try multiple locations for rating data
@@ -175,14 +183,15 @@ serve(async (req) => {
     // Method 1: reviewInfo.summary format (GraphQL style)
     if (data.reviewInfo?.summary) {
       console.log('reviewInfo.summary:', JSON.stringify(data.reviewInfo.summary));
-      // Extract overall guest rating
+      // Extract overall guest rating from overallScoreWithDescriptionA11y
       if (data.reviewInfo.summary.overallScoreWithDescriptionA11y?.value) {
         // Format: "9.0/10 Wonderful"
         rating = parseRating(data.reviewInfo.summary.overallScoreWithDescriptionA11y.value);
       }
-      if (data.reviewInfo.summary.propertyReviewCountSecondary?.value) {
-        // Format: "See all 1,111 reviews"
-        reviewCount = parseReviewCount(data.reviewInfo.summary.propertyReviewCountSecondary.value);
+      // Extract review count from propertyReviewCountDetails.shortDescription
+      if (data.reviewInfo.summary.propertyReviewCountDetails?.shortDescription) {
+        // Format: "See all 864 reviews" or "See all 1,111 reviews"
+        reviewCount = parseReviewCount(data.reviewInfo.summary.propertyReviewCountDetails.shortDescription);
       }
     }
     
