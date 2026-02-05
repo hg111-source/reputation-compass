@@ -154,6 +154,85 @@ export type Database = {
         }
         Relationships: []
       }
+      review_analysis: {
+        Row: {
+          analyzed_at: string
+          id: string
+          negative_themes: Json
+          positive_themes: Json
+          property_id: string
+          review_count: number
+          summary: string | null
+        }
+        Insert: {
+          analyzed_at?: string
+          id?: string
+          negative_themes?: Json
+          positive_themes?: Json
+          property_id: string
+          review_count?: number
+          summary?: string | null
+        }
+        Update: {
+          analyzed_at?: string
+          id?: string
+          negative_themes?: Json
+          positive_themes?: Json
+          property_id?: string
+          review_count?: number
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_analysis_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_texts: {
+        Row: {
+          collected_at: string
+          id: string
+          platform: Database["public"]["Enums"]["review_source"]
+          property_id: string
+          review_date: string | null
+          review_rating: number | null
+          review_text: string
+          reviewer_name: string | null
+        }
+        Insert: {
+          collected_at?: string
+          id?: string
+          platform: Database["public"]["Enums"]["review_source"]
+          property_id: string
+          review_date?: string | null
+          review_rating?: number | null
+          review_text: string
+          reviewer_name?: string | null
+        }
+        Update: {
+          collected_at?: string
+          id?: string
+          platform?: Database["public"]["Enums"]["review_source"]
+          property_id?: string
+          review_date?: string | null
+          review_rating?: number | null
+          review_text?: string
+          reviewer_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_texts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       source_snapshots: {
         Row: {
           collected_at: string

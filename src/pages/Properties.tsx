@@ -35,6 +35,7 @@ import { Property, ReviewSource } from '@/lib/types';
 import { PropertyRow } from '@/components/properties/PropertyRow';
 import { AllPlatformsRefreshDialog } from '@/components/properties/AllPlatformsRefreshDialog';
 import { PropertyHistoryDialog } from '@/components/properties/PropertyHistoryDialog';
+import { ReviewInsightsDialog } from '@/components/properties/ReviewInsightsDialog';
 import { exportPropertiesToCSV } from '@/lib/csv';
 import { calculatePropertyMetrics } from '@/lib/scoring';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
@@ -54,6 +55,7 @@ export default function Properties() {
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [historyProperty, setHistoryProperty] = useState<Property | null>(null);
+  const [insightsProperty, setInsightsProperty] = useState<Property | null>(null);
   
   // Form state for controlled inputs
   const [formName, setFormName] = useState('');
@@ -520,6 +522,7 @@ export default function Properties() {
                     onRefreshOTA={handleRefreshOTA}
                     onRefreshAllPlatforms={handleRefreshSingleProperty}
                     onViewHistory={setHistoryProperty}
+                    onAnalyzeReviews={setInsightsProperty}
                     isRefreshing={refreshingPropertyId === property.id}
                     refreshingSource={refreshingSource}
                     isRefreshingAll={isAllPlatformsRunning && propertyStates[property.id]?.status === 'in_progress'}
@@ -546,6 +549,13 @@ export default function Properties() {
           property={historyProperty}
           open={!!historyProperty}
           onOpenChange={(open) => !open && setHistoryProperty(null)}
+        />
+
+        {/* Review insights dialog */}
+        <ReviewInsightsDialog
+          property={insightsProperty}
+          open={!!insightsProperty}
+          onOpenChange={(open) => !open && setInsightsProperty(null)}
         />
       </div>
     </DashboardLayout>

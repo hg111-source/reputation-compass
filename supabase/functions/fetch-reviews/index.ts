@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,7 +7,7 @@ const corsHeaders = {
 };
 
 const APIFY_BASE_URL = 'https://api.apify.com/v2';
-const TRIPADVISOR_ACTOR_ID = 'dbEyMBriog95Fv8CW'; // maxcopell/tripadvisor
+const TRIPADVISOR_ACTOR_ID = 'dbEyMBriog95Fv8CW';
 
 interface ApifyRunResponse {
   data: {
@@ -16,26 +17,7 @@ interface ApifyRunResponse {
   };
 }
 
-interface TripAdvisorReview {
-  text?: string;
-  rating?: number;
-  publishedDate?: string;
-  user?: {
-    username?: string;
-  };
-}
-
-interface TripAdvisorResult {
-  name?: string;
-  rating?: number;
-  reviewsCount?: number;
-  numberOfReviews?: number;
-  reviewCount?: number;
-  url?: string;
-  reviews?: TripAdvisorReview[];
-}
-
-async function waitForRun(runId: string, token: string, maxWaitMs = 120000): Promise<string> {
+async function waitForRun(runId: string, token: string, maxWaitMs = 180000): Promise<string> {
   const startTime = Date.now();
   
   while (Date.now() - startTime < maxWaitMs) {
@@ -52,11 +34,10 @@ async function waitForRun(runId: string, token: string, maxWaitMs = 120000): Pro
       throw new Error(`Apify run ${data.data.status}`);
     }
     
-    // Poll every 5 seconds
     await new Promise(resolve => setTimeout(resolve, 5000));
   }
   
-  throw new Error('Apify run timeout - try again later');
+  throw new Error('Apify run timeout');
 }
 
 serve(async (req) => {
@@ -69,23 +50,32 @@ serve(async (req) => {
     if (!apiToken) {
       throw new Error('APIFY_API_TOKEN is not configured');
     }
-    
-    // Debug: log token format (masked)
-    console.log(`Token starts with: ${apiToken.substring(0, 10)}..., length: ${apiToken.length}`);
 
-    const { hotelName, city, includeReviews = false, maxReviews = 50 } = await req.json();
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { propertyId, hotelName, city, platform = 'tripadvisor', maxReviews = 50 } = await req.json();
     
-    if (!hotelName || !city) {
+    if (!propertyId || !hotelName || !city) {
       return new Response(
-        JSON.stringify({ error: 'hotelName and city are required' }),
+        JSON.stringify({ error: 'propertyId, hotelName, and city are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Fetching ${platform} reviews for: ${hotelName}, ${city}`);
+
+    if (platform !== 'tripadvisor') {
+      return new Response(
+        JSON.stringify({ error: 'Currently only TripAdvisor reviews are supported' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const searchQuery = `${hotelName} ${city}`;
-    console.log(`TripAdvisor search: ${searchQuery}, includeReviews: ${includeReviews}`);
 
-    // Start the Apify actor run with correct input format
+    // Start Apify run with reviews enabled
     const runResponse = await fetch(
       `${APIFY_BASE_URL}/acts/${TRIPADVISOR_ACTOR_ID}/runs?token=${apiToken}`,
       {
@@ -95,8 +85,8 @@ serve(async (req) => {
           query: searchQuery,
           maxItems: 1,
           language: 'en',
-          includeReviews: includeReviews,
-          maxReviews: includeReviews ? maxReviews : 0,
+          includeReviews: true,
+          maxReviews: maxReviews,
         }),
       }
     );
@@ -110,12 +100,10 @@ serve(async (req) => {
     const runData: ApifyRunResponse = await runResponse.json();
     const runId = runData.data.id;
     
-    console.log(`Apify TripAdvisor run started: ${runId}`);
+    console.log(`Apify run started: ${runId}`);
 
-    // Wait for the run to complete (polls every 5 seconds, timeout 120 seconds)
     const datasetId = await waitForRun(runId, apiToken);
     
-    // Get the results
     const resultsResponse = await fetch(
       `${APIFY_BASE_URL}/datasets/${datasetId}/items?token=${apiToken}`
     );
@@ -124,49 +112,63 @@ serve(async (req) => {
       throw new Error('Failed to fetch Apify results');
     }
 
-    const results: TripAdvisorResult[] = await resultsResponse.json();
-    
-    console.log(`TripAdvisor results:`, JSON.stringify(results[0] || {}, null, 2));
+    const results = await resultsResponse.json();
     
     if (!results || results.length === 0) {
       return new Response(
-        JSON.stringify({ 
-          found: false, 
-          message: 'No matching hotel found on TripAdvisor' 
-        }),
+        JSON.stringify({ found: false, message: 'No hotel found' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const hotel = results[0];
-    // TripAdvisor uses 0-5 scale
-    const rating = hotel.rating ?? null;
-    const reviewCount = hotel.reviewsCount || hotel.numberOfReviews || hotel.reviewCount || 0;
+    const reviews = hotel.reviews || [];
 
-    // Process reviews if requested and available
-    const reviews = includeReviews && hotel.reviews 
-      ? hotel.reviews.map((r: TripAdvisorReview) => ({
-          text: r.text || '',
-          rating: r.rating,
-          date: r.publishedDate,
-          reviewer: r.user?.username,
-        })).filter((r: { text: string }) => r.text.length > 0)
-      : [];
+    console.log(`Found ${reviews.length} reviews`);
+
+    // Delete existing reviews for this property/platform
+    await supabase
+      .from('review_texts')
+      .delete()
+      .eq('property_id', propertyId)
+      .eq('platform', platform);
+
+    // Insert new reviews
+    if (reviews.length > 0) {
+      const reviewsToInsert = reviews
+        .filter((r: { text?: string }) => r.text && r.text.length > 0)
+        .map((r: { text?: string; rating?: number; publishedDate?: string; user?: { username?: string } }) => ({
+          property_id: propertyId,
+          platform: platform,
+          review_text: r.text || '',
+          review_rating: r.rating || null,
+          review_date: r.publishedDate || null,
+          reviewer_name: r.user?.username || null,
+        }));
+
+      if (reviewsToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('review_texts')
+          .insert(reviewsToInsert);
+
+        if (insertError) {
+          console.error('Failed to insert reviews:', insertError);
+          throw new Error(`Failed to store reviews: ${insertError.message}`);
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({
-        found: true,
-        name: hotel.name,
-        rating: rating,
-        reviewCount: reviewCount,
-        scale: 5, // TripAdvisor uses 0-5 scale
-        reviews: reviews,
+        success: true,
+        reviewCount: reviews.length,
+        hotelName: hotel.name,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: unknown) {
-    console.error('Error fetching TripAdvisor rating:', error);
+    console.error('Error fetching reviews:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: errorMessage }),

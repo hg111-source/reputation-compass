@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.fetch-expedia-rating]
 verify_jwt = false
+
+[functions.analyze-reviews]
+verify_jwt = false
+
+[functions.fetch-reviews]
+verify_jwt = false
