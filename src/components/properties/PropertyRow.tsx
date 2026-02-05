@@ -81,7 +81,7 @@ export function PropertyRow({
             onClick={() => handleRefresh(platform)}
             disabled={isRefreshing}
             className={cn(
-              'absolute -right-1 -top-1 rounded-full p-0.5 opacity-0 transition-opacity',
+              'absolute -right-1 top-1/2 -translate-y-1/2 rounded-full p-0.5 opacity-0 transition-opacity',
               'bg-background shadow-sm border border-border',
               'hover:bg-muted group-hover/cell:opacity-100',
               isRefreshingThis && 'opacity-100'
