@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useGroups, useGroupProperties } from '@/hooks/useGroups';
 import { useProperties } from '@/hooks/useProperties';
 import { useGroupMetrics } from '@/hooks/useGroupMetrics';
+import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,23 +15,60 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Trash2, FolderOpen, Settings, CheckSquare, XSquare, Search, Building2, MessageSquare } from 'lucide-react';
+import { 
+  Plus, Trash2, FolderOpen, Settings, CheckSquare, XSquare, Search, 
+  Building2, MessageSquare, Wand2, MoreVertical, Pencil, Download, RefreshCw,
+  Globe
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { getScoreColor, formatScore } from '@/lib/scoring';
+import { getScoreColor, formatScore, calculatePropertyMetrics } from '@/lib/scoring';
 import { cn } from '@/lib/utils';
+import { AutoGroupDialog } from '@/components/groups/AutoGroupDialog';
+import { ReviewSource } from '@/lib/types';
+import { exportGroupToCSV } from '@/lib/csv';
 
 export default function Groups() {
   const { user, loading } = useAuth();
-  const { groups, isLoading, createGroup, deleteGroup } = useGroups();
+  const { groups, isLoading, createGroup, deleteGroup, updateGroup } = useGroups();
   const { properties } = useProperties();
+  const propertyIds = properties.map(p => p.id);
+  const { data: scores = {} } = useLatestPropertyScores(propertyIds);
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isAutoGroupOpen, setIsAutoGroupOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+
+  // Calculate "All Properties" metrics
+  const allPropertiesMetrics = useMemo(() => {
+    let totalReviews = 0;
+    let totalPoints = 0;
+
+    for (const property of properties) {
+      const { avgScore, totalReviews: propReviews } = calculatePropertyMetrics(scores[property.id]);
+      if (avgScore !== null && propReviews > 0) {
+        totalPoints += avgScore * propReviews;
+        totalReviews += propReviews;
+      }
+    }
+
+    return {
+      avgScore: totalReviews > 0 ? totalPoints / totalReviews : null,
+      totalReviews,
+      totalProperties: properties.length,
+    };
+  }, [properties, scores]);
 
   if (loading) {
     return (
@@ -82,39 +120,50 @@ export default function Groups() {
             </p>
           </div>
 
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button variant="secondary">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Group
+          <div className="flex items-center gap-2">
+            {properties.length > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={() => setIsAutoGroupOpen(true)}
+              >
+                <Wand2 className="mr-2 h-4 w-4" />
+                Auto-Group
               </Button>
-            </DialogTrigger>
-            <DialogContent className="rounded-xl sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-xl">Create Group</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-5 pt-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Group Name</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    placeholder="e.g., NYC Competitive Set"
-                    className="h-12 rounded-md"
-                    required
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  variant="secondary"
-                  className="h-12 w-full" 
-                  disabled={createGroup.isPending}
-                >
-                  {createGroup.isPending ? 'Creating...' : 'Create Group'}
+            )}
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button variant="secondary">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Group
                 </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="rounded-xl sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-xl">Create Group</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreate} className="space-y-5 pt-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Group Name</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      placeholder="e.g., NYC Competitive Set"
+                      className="h-12 rounded-md"
+                      required
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    variant="secondary"
+                    className="h-12 w-full" 
+                    disabled={createGroup.isPending}
+                  >
+                    {createGroup.isPending ? 'Creating...' : 'Create Group'}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {isLoading ? (
@@ -122,18 +171,76 @@ export default function Groups() {
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
             <span>Loading groups...</span>
           </div>
-        ) : groups.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-card p-20 text-center shadow-kasa">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
-              <FolderOpen className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="mt-8 text-2xl font-semibold">No groups yet</h3>
-            <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-              Create groups to organize and compare properties.
-            </p>
-          </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {/* All Properties Card */}
+            <Card className="shadow-kasa transition-all hover:shadow-kasa-hover border-2 border-dashed border-accent/30">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="flex items-center gap-2 text-xl font-semibold">
+                  <Globe className="h-5 w-5 text-accent" />
+                  All Properties
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="mb-5 flex items-center justify-center rounded-xl bg-muted/50 py-4 cursor-help">
+                        {allPropertiesMetrics.avgScore !== null ? (
+                          <div className="text-center">
+                            <div className={cn('text-4xl font-bold', getScoreColor(allPropertiesMetrics.avgScore))}>
+                              {formatScore(allPropertiesMetrics.avgScore)}
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">Weighted Avg</p>
+                          </div>
+                        ) : (
+                          <div className="text-center">
+                            <div className="text-4xl font-bold text-muted-foreground">—</div>
+                            <p className="mt-1 text-xs text-muted-foreground">No data</p>
+                          </div>
+                        )}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="font-semibold">Portfolio Weighted Average</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Combined score across all properties
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                      <Building2 className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <div className="text-xl font-bold">{allPropertiesMetrics.totalProperties}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {allPropertiesMetrics.totalProperties === 1 ? 'property' : 'properties'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                      <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <div className="text-xl font-bold">{allPropertiesMetrics.totalReviews.toLocaleString()}</div>
+                      <p className="text-xs text-muted-foreground">reviews</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Link to="/properties" className="mt-5 block">
+                  <Button variant="outline" size="sm" className="w-full">
+                    View All Properties
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
             {groups.map(group => (
               <GroupCard
                 key={group.id}
@@ -153,6 +260,13 @@ export default function Groups() {
             onClose={() => setSelectedGroupId(null)}
           />
         )}
+
+        <AutoGroupDialog
+          open={isAutoGroupOpen}
+          onOpenChange={setIsAutoGroupOpen}
+          properties={properties}
+          scores={scores}
+        />
       </div>
     </DashboardLayout>
   );
@@ -169,30 +283,77 @@ function GroupCard({
   onManage: () => void;
   isSelected: boolean;
 }) {
-  const { avgScore, totalProperties, totalReviews, isLoading } = useGroupMetrics(group.id);
+  const { avgScore, totalProperties, totalReviews, isLoading, properties, scores } = useGroupMetrics(group.id);
+  const { updateGroup } = useGroups();
+  const { toast } = useToast();
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newName, setNewName] = useState(group.name);
+
+  const handleRename = async () => {
+    if (!newName.trim() || newName === group.name) {
+      setIsRenaming(false);
+      return;
+    }
+    try {
+      await updateGroup.mutateAsync({ id: group.id, name: newName.trim() });
+      toast({ title: 'Group renamed', description: `Group renamed to "${newName.trim()}"` });
+      setIsRenaming(false);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to rename group.' });
+    }
+  };
+
+  const handleExport = () => {
+    exportGroupToCSV(group.name, properties, scores as Record<string, Record<ReviewSource, { score: number; count: number; updated: string }>>);
+    toast({ title: 'Export complete', description: 'Group exported to CSV.' });
+  };
 
   return (
     <Card className={`shadow-kasa transition-all hover:shadow-kasa-hover ${isSelected ? 'ring-2 ring-accent' : ''}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-xl font-semibold">{group.name}</CardTitle>
-        <div className="flex gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-9 w-9 text-muted-foreground hover:text-foreground" 
-            onClick={onManage}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-destructive"
-            onClick={onDelete}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        {isRenaming ? (
+          <div className="flex items-center gap-2 flex-1 mr-2">
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="h-8"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRename();
+                if (e.key === 'Escape') setIsRenaming(false);
+              }}
+            />
+            <Button size="sm" variant="ghost" onClick={handleRename}>Save</Button>
+          </div>
+        ) : (
+          <CardTitle className="text-xl font-semibold">{group.name}</CardTitle>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onManage}>
+              <Settings className="mr-2 h-4 w-4" />
+              Manage Properties
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setNewName(group.name); setIsRenaming(true); }}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExport} disabled={totalProperties === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete} className="text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </CardHeader>
       <CardContent>
         {/* Group Weighted Average Score - Primary metric */}
