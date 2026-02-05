@@ -43,6 +43,19 @@ interface SearchResult {
   title: string;
   isMatch: boolean;
   reason: string;
+  hotelId?: string; // Hotels.com hotel_id extracted from URL
+}
+
+// Extract Hotels.com hotel_id from URL
+function extractHotelsComId(url: string): string | undefined {
+  // Hotels.com URLs: https://www.hotels.com/ho123456/ or /ho123456?
+  const match = url.match(/\/ho(\d+)/);
+  return match ? match[1] : undefined;
+}
+
+interface SearchReturn {
+  url: string;
+  hotelId?: string;
 }
 
 async function searchSerpApiWithValidation(
@@ -51,7 +64,7 @@ async function searchSerpApiWithValidation(
   city: string,
   state: string | undefined,
   platform: string
-): Promise<string | null> {
+): Promise<SearchReturn | null> {
   const siteFilter = PLATFORM_FILTERS[platform];
   const queryVariations = generateQueryVariations(hotelName, city, state);
   
@@ -95,8 +108,9 @@ async function searchSerpApiWithValidation(
               title: result.title,
               isMatch: true,
               reason: matchAnalysis.reason,
+              hotelId: platform === 'expedia' ? extractHotelsComId(result.link) : undefined,
             };
-            console.log(`  ✓ Match found: ${bestResult.link}`);
+            console.log(`  ✓ Match found: ${bestResult.link}${bestResult.hotelId ? ` (hotel_id: ${bestResult.hotelId})` : ''}`);
             break; // First valid match wins
           }
         }
@@ -114,7 +128,7 @@ async function searchSerpApiWithValidation(
   
   if (bestResult) {
     console.log(`  Best ${platform} match: ${bestResult.link} (${bestResult.reason})`);
-    return bestResult.link;
+    return { url: bestResult.link, hotelId: bestResult.hotelId };
   }
   
   console.log(`  No valid ${platform} URL found for ${hotelName}`);
@@ -155,15 +169,25 @@ serve(async (req) => {
       expedia_url: null,
     };
 
+    const hotelIds: Record<string, string | null> = {
+      expedia_hotel_id: null,
+    };
+
     const foundPlatforms: string[] = [];
     const notFoundPlatforms: string[] = [];
 
     for (const platform of platforms) {
-      const url = await searchSerpApiWithValidation(apiKey, hotelName, city, state, platform);
+      const result = await searchSerpApiWithValidation(apiKey, hotelName, city, state, platform);
       
-      if (url) {
-        results[`${platform}_url`] = url;
+      if (result) {
+        results[`${platform}_url`] = result.url;
         foundPlatforms.push(platform);
+        
+        // Store Hotels.com hotel_id for expedia platform
+        if (platform === 'expedia' && result.hotelId) {
+          hotelIds.expedia_hotel_id = result.hotelId;
+          console.log(`  Hotels.com hotel_id: ${result.hotelId}`);
+        }
       } else {
         notFoundPlatforms.push(platform);
       }
@@ -178,12 +202,16 @@ serve(async (req) => {
     console.log(`RESULTS for ${hotelName}:`);
     console.log(`  Found: ${foundPlatforms.join(', ') || 'none'}`);
     console.log(`  Not found: ${notFoundPlatforms.join(', ') || 'none'}`);
+    if (hotelIds.expedia_hotel_id) {
+      console.log(`  Hotels.com hotel_id: ${hotelIds.expedia_hotel_id}`);
+    }
     console.log(`========================================\n`);
 
     return new Response(
       JSON.stringify({
         success: true,
         urls: results,
+        hotelIds,
         found: foundPlatforms,
         notFound: notFoundPlatforms,
       }),
