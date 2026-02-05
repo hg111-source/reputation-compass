@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const APIFY_BASE_URL = 'https://api.apify.com/v2';
-const EXPEDIA_ACTOR_ID = 'epctex~expedia-scraper';
+const EXPEDIA_ACTOR_ID = 'pK2iIKVVxERtpwXMy'; // jupri/expedia-hotels
 
 interface ApifyRunResponse {
   data: {
@@ -21,8 +21,10 @@ interface ExpediaResult {
   rating?: number;
   guestRating?: number;
   reviewScore?: number;
+  starRating?: number;
   reviewCount?: number;
   numberOfReviews?: number;
+  reviews?: number;
   url?: string;
 }
 
@@ -33,18 +35,21 @@ async function waitForRun(runId: string, token: string, maxWaitMs = 120000): Pro
     const response = await fetch(`${APIFY_BASE_URL}/actor-runs/${runId}?token=${token}`);
     const data = await response.json();
     
+    console.log(`Run ${runId} status: ${data.data.status}`);
+    
     if (data.data.status === 'SUCCEEDED') {
       return data.data.defaultDatasetId;
     }
     
-    if (data.data.status === 'FAILED' || data.data.status === 'ABORTED') {
+    if (data.data.status === 'FAILED' || data.data.status === 'ABORTED' || data.data.status === 'TIMED-OUT') {
       throw new Error(`Apify run ${data.data.status}`);
     }
     
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Poll every 5 seconds
+    await new Promise(resolve => setTimeout(resolve, 5000));
   }
   
-  throw new Error('Apify run timeout');
+  throw new Error('Apify run timeout - try again later');
 }
 
 serve(async (req) => {
@@ -70,16 +75,15 @@ serve(async (req) => {
     const searchQuery = `${hotelName} ${city}`;
     console.log(`Expedia search: ${searchQuery}`);
 
-    // Start the Apify actor run
+    // Start the Apify actor run with correct input format
     const runResponse = await fetch(
       `${APIFY_BASE_URL}/acts/${EXPEDIA_ACTOR_ID}/runs?token=${apiToken}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          search: searchQuery,
+          query: searchQuery,
           maxItems: 1,
-          language: 'en_US',
         }),
       }
     );
@@ -93,9 +97,9 @@ serve(async (req) => {
     const runData: ApifyRunResponse = await runResponse.json();
     const runId = runData.data.id;
     
-    console.log(`Apify run started: ${runId}`);
+    console.log(`Apify Expedia run started: ${runId}`);
 
-    // Wait for the run to complete
+    // Wait for the run to complete (polls every 5 seconds, timeout 120 seconds)
     const datasetId = await waitForRun(runId, apiToken);
     
     // Get the results
@@ -109,6 +113,8 @@ serve(async (req) => {
 
     const results: ExpediaResult[] = await resultsResponse.json();
     
+    console.log(`Expedia results:`, JSON.stringify(results[0] || {}, null, 2));
+    
     if (!results || results.length === 0) {
       return new Response(
         JSON.stringify({ 
@@ -120,18 +126,18 @@ serve(async (req) => {
     }
 
     const hotel = results[0];
-    // Expedia typically uses 0-10 scale or 0-5 scale
-    const rating = hotel.guestRating || hotel.reviewScore || hotel.rating || null;
-    const reviewCount = hotel.reviewCount || hotel.numberOfReviews || 0;
+    // Expedia can use different scales - detect based on value
+    const rawRating = hotel.guestRating || hotel.reviewScore || hotel.rating || null;
+    const reviewCount = hotel.reviewCount || hotel.numberOfReviews || hotel.reviews || 0;
     
-    // Determine scale based on rating value
-    const scale = rating !== null && rating <= 5 ? 5 : 10;
+    // Determine scale: if rating <= 5, assume 5-scale; otherwise 10-scale
+    const scale = rawRating !== null && rawRating <= 5 ? 5 : 10;
 
     return new Response(
       JSON.stringify({
         found: true,
         name: hotel.name,
-        rating: rating,
+        rating: rawRating,
         reviewCount: reviewCount,
         scale: scale,
       }),
