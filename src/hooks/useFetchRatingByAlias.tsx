@@ -98,10 +98,12 @@ async function getPropertyAliases(propertyId: string): Promise<HotelAlias[]> {
 
   if (error) throw error;
   
+  // Map DB columns to interface (handle renamed columns)
   return (data || []).map(alias => ({
     ...alias,
+    source_name_raw: alias.source_name_raw,
     candidate_options: (alias.candidate_options || []) as unknown as HotelAlias['candidate_options'],
-  })) as HotelAlias[];
+  })) as unknown as HotelAlias[];
 }
 
 /**

@@ -108,12 +108,14 @@ export type Database = {
           id: string
           last_error: string | null
           last_resolved_at: string | null
+          last_verified_at: string | null
           platform_id: string | null
-          platform_name: string | null
           platform_url: string | null
           property_id: string
           resolution_status: string
           source: Database["public"]["Enums"]["review_source"]
+          source_id_or_url: string | null
+          source_name_raw: string | null
           updated_at: string
         }
         Insert: {
@@ -123,12 +125,14 @@ export type Database = {
           id?: string
           last_error?: string | null
           last_resolved_at?: string | null
+          last_verified_at?: string | null
           platform_id?: string | null
-          platform_name?: string | null
           platform_url?: string | null
           property_id: string
           resolution_status?: string
           source: Database["public"]["Enums"]["review_source"]
+          source_id_or_url?: string | null
+          source_name_raw?: string | null
           updated_at?: string
         }
         Update: {
@@ -138,12 +142,14 @@ export type Database = {
           id?: string
           last_error?: string | null
           last_resolved_at?: string | null
+          last_verified_at?: string | null
           platform_id?: string | null
-          platform_name?: string | null
           platform_url?: string | null
           property_id?: string
           resolution_status?: string
           source?: Database["public"]["Enums"]["review_source"]
+          source_id_or_url?: string | null
+          source_name_raw?: string | null
           updated_at?: string
         }
         Relationships: [

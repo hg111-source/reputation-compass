@@ -17,13 +17,15 @@ export interface HotelAlias {
   id: string;
   property_id: string;
   source: ReviewSource;
-  platform_id: string | null;
-  platform_url: string | null;
-  platform_name: string | null;
+  source_id_or_url: string | null;
+  source_name_raw: string | null;
+  platform_id: string | null; // legacy, use source_id_or_url
+  platform_url: string | null; // legacy, use source_id_or_url
   resolution_status: ResolutionStatus;
   confidence_score: number | null;
   candidate_options: Candidate[];
   last_resolved_at: string | null;
+  last_verified_at: string | null;
   last_error: string | null;
 }
 
@@ -72,11 +74,12 @@ export function useHotelAliases(propertyId?: string) {
 
       if (error) throw error;
       
-      // Transform the data to match our interface (handle Json type for candidate_options)
+      // Transform the data to match our interface (handle renamed columns)
       return (data || []).map(alias => ({
         ...alias,
+        source_name_raw: alias.source_name_raw,
         candidate_options: (alias.candidate_options || []) as unknown as Candidate[],
-      })) as HotelAlias[];
+      })) as unknown as HotelAlias[];
     },
     enabled: !!propertyId,
   });
@@ -137,10 +140,12 @@ export function useUpdateAlias() {
         .update({
           platform_id: platformId || null,
           platform_url: platformUrl || null,
-          platform_name: platformName || null,
+          source_id_or_url: platformUrl || platformId || null,
+          source_name_raw: platformName || null,
           resolution_status: 'resolved',
           confidence_score: 1.0, // Manual selection = full confidence
           last_resolved_at: new Date().toISOString(),
+          last_verified_at: new Date().toISOString(),
           candidate_options: [],
         })
         .eq('property_id', propertyId)
