@@ -69,7 +69,7 @@ export function PlatformScoreCell({ data, platform, showIcon = false }: Platform
           <div className="flex items-center justify-center gap-1 cursor-help">
             {showIcon && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
             <span className={cn('font-semibold', scoreColor)}>
-              {data.score.toFixed(1)}
+              {data.score.toFixed(2)}
             </span>
           </div>
         </TooltipTrigger>

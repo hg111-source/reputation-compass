@@ -200,5 +200,5 @@ export function getScoreColor(score: number | null): string {
 
 export function formatScore(score: number | null | undefined): string {
   if (score === null || score === undefined) return '—';
-  return score.toFixed(1);
+  return score.toFixed(2);
 }
