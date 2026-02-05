@@ -127,6 +127,30 @@ export type Database = {
         }
         Relationships: []
       }
+      refresh_logs: {
+        Row: {
+          failures: number
+          id: string
+          run_at: string
+          successes: number
+          total_properties: number
+        }
+        Insert: {
+          failures?: number
+          id?: string
+          run_at?: string
+          successes?: number
+          total_properties?: number
+        }
+        Update: {
+          failures?: number
+          id?: string
+          run_at?: string
+          successes?: number
+          total_properties?: number
+        }
+        Relationships: []
+      }
       source_snapshots: {
         Row: {
           collected_at: string

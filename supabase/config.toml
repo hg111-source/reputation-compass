@@ -2,3 +2,6 @@ project_id = "hmshfuvjzixoinblmagv"
 
 [functions.fetch-place-rating]
 verify_jwt = false
+
+[functions.daily-google-refresh]
+verify_jwt = false
