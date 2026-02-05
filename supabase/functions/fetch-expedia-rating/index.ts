@@ -156,16 +156,8 @@ serve(async (req) => {
 
     console.log(`Fetching Expedia rating for hotel_id: ${hotelId}`);
 
-    // Step 2: Call RapidAPI details endpoint (has reviewInfo with rating data)
-    // Add check-in/check-out dates as some APIs require them
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 2);
-    const chkin = tomorrow.toISOString().split('T')[0];
-    const chkout = dayAfter.toISOString().split('T')[0];
-    
-    const apiUrl = `https://hotels-com-provider.p.rapidapi.com/v2/hotels/details?hotel_id=${hotelId}&locale=en_US&domain=US&checkin_date=${chkin}&checkout_date=${chkout}`;
+    // Step 2: Call RapidAPI reviews/scores endpoint
+    const apiUrl = `https://hotels-com-provider.p.rapidapi.com/v2/hotels/reviews/scores?hotel_id=${hotelId}&locale=en_US&domain=US`;
     
     console.log(`RapidAPI URL: ${apiUrl}`);
 
@@ -194,46 +186,37 @@ serve(async (req) => {
     const data = await response.json();
     
     // Log the response structure for debugging
-    console.log(`RapidAPI response keys: ${JSON.stringify(Object.keys(data || {}))}`);
-    if (data.reviewInfo) {
-      console.log(`RapidAPI reviewInfo keys: ${JSON.stringify(Object.keys(data.reviewInfo || {}))}`);
-      console.log(`RapidAPI reviewInfo.summary: ${JSON.stringify(data.reviewInfo?.summary || {})}`);
-    }
+    console.log(`RapidAPI response: ${JSON.stringify(data).substring(0, 1000)}`);
     
-    // Step 3: Parse the response - details endpoint uses reviewInfo.summary structure
+    // Step 3: Parse the response from reviews/scores endpoint
     let rating: number | null = null;
     let reviewCount = 0;
 
-    // Path 1: reviewInfo.summary.overallScoreWithDescriptionA11y (e.g., "8.8/10 Excellent")
-    if (data.reviewInfo?.summary?.overallScoreWithDescriptionA11y?.value) {
-      rating = parseRating(data.reviewInfo.summary.overallScoreWithDescriptionA11y.value);
-      console.log(`Found reviewInfo.summary.overallScoreWithDescriptionA11y: ${data.reviewInfo.summary.overallScoreWithDescriptionA11y.value} -> ${rating}`);
+    // The reviews/scores endpoint returns overallScoreWithDescriptionA11y at root
+    // Format: "8,8/10 Excellent" (European comma) or "8.8/10 Excellent"
+    if (data.overallScoreWithDescriptionA11y?.value) {
+      rating = parseRating(data.overallScoreWithDescriptionA11y.value);
+      console.log(`Found overallScoreWithDescriptionA11y: ${data.overallScoreWithDescriptionA11y.value} -> ${rating}`);
     }
     
-    // Path 2: summary.overallScoreWithDescriptionA11y (flat structure)
-    if (rating === null && data.summary?.overallScoreWithDescriptionA11y?.value) {
-      rating = parseRating(data.summary.overallScoreWithDescriptionA11y.value);
-      console.log(`Found summary.overallScoreWithDescriptionA11y: ${data.summary.overallScoreWithDescriptionA11y.value} -> ${rating}`);
+    // Fallback paths
+    if (rating === null && data.overallScore) {
+      rating = parseRating(data.overallScore);
+      console.log(`Found overallScore: ${data.overallScore} -> ${rating}`);
     }
     
-    // Path 3: Direct score fields
-    if (rating === null && data.reviewInfo?.summary?.score) {
-      rating = parseFloat(data.reviewInfo.summary.score);
-      console.log(`Found reviewInfo.summary.score: ${data.reviewInfo.summary.score} -> ${rating}`);
-    }
-    
-    if (rating === null && data.reviewInfo?.summary?.averageOverallRating?.raw) {
-      rating = parseFloat(data.reviewInfo.summary.averageOverallRating.raw);
-      console.log(`Found reviewInfo.summary.averageOverallRating.raw: ${data.reviewInfo.summary.averageOverallRating.raw} -> ${rating}`);
+    if (rating === null && data.score !== undefined) {
+      rating = parseFloat(data.score);
+      console.log(`Found score: ${data.score} -> ${rating}`);
     }
 
-    // Find review count from reviewInfo.summary
-    if (data.reviewInfo?.summary?.propertyReviewCountDetails?.shortDescription) {
-      reviewCount = parseReviewCount(data.reviewInfo.summary.propertyReviewCountDetails.shortDescription);
-    } else if (data.reviewInfo?.summary?.reviewCount) {
-      reviewCount = parseInt(data.reviewInfo.summary.reviewCount);
-    } else if (data.reviewInfo?.summary?.totalCount?.raw) {
-      reviewCount = parseInt(data.reviewInfo.summary.totalCount.raw);
+    // Find review count - "901 reviews" format
+    if (data.propertyReviewCountDetails?.shortDescription) {
+      reviewCount = parseReviewCount(data.propertyReviewCountDetails.shortDescription);
+    } else if (data.totalCount !== undefined) {
+      reviewCount = parseInt(data.totalCount);
+    } else if (data.reviewCount !== undefined) {
+      reviewCount = parseInt(data.reviewCount);
     }
 
     console.log(`Parsed result: rating=${rating}, reviewCount=${reviewCount}`);
