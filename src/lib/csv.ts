@@ -58,41 +58,88 @@
    });
  }
  
- export function exportGroupToCSV(
-   groupName: string,
-   properties: Property[],
-   scores: Record<string, Record<ReviewSource, { score: number; count: number; updated: string }>>
- ): void {
-   const rows = properties.map(property => {
-     const propertyScores = scores[property.id] || {};
-     const row: Record<string, string | number> = {
-       'Property Name': property.name,
-       City: property.city,
-       State: property.state,
-     };
-     
-     let totalWeighted = 0;
-     let totalCount = 0;
-     
-     for (const source of REVIEW_SOURCES) {
-       const sourceScore = propertyScores[source];
-       row[`${SOURCE_LABELS[source]} Score`] = sourceScore ? formatScore(sourceScore.score) : '—';
-       row[`${SOURCE_LABELS[source]} Reviews`] = sourceScore?.count || 0;
-       
-       if (sourceScore && sourceScore.count > 0) {
-         totalWeighted += sourceScore.score * sourceScore.count;
-         totalCount += sourceScore.count;
-       }
-     }
-     
-     row['Weighted Score'] = totalCount > 0 ? formatScore(totalWeighted / totalCount) : '—';
-     return row;
-   });
-   
-   const csv = Papa.unparse(rows);
-   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-   const link = document.createElement('a');
-   link.href = URL.createObjectURL(blob);
-   link.download = `${groupName.replace(/\s+/g, '_')}_scores.csv`;
-   link.click();
- }
+export function exportGroupToCSV(
+  groupName: string,
+  properties: Property[],
+  scores: Record<string, Record<ReviewSource, { score: number; count: number; updated: string }>>
+): void {
+  const rows = properties.map(property => {
+    const propertyScores = scores[property.id] || {};
+    const row: Record<string, string | number> = {
+      'Property Name': property.name,
+      City: property.city,
+      State: property.state,
+    };
+    
+    let totalWeighted = 0;
+    let totalCount = 0;
+    
+    for (const source of REVIEW_SOURCES) {
+      const sourceScore = propertyScores[source];
+      row[`${SOURCE_LABELS[source]} Score`] = sourceScore ? formatScore(sourceScore.score) : '—';
+      row[`${SOURCE_LABELS[source]} Reviews`] = sourceScore?.count || 0;
+      
+      if (sourceScore && sourceScore.count > 0) {
+        totalWeighted += sourceScore.score * sourceScore.count;
+        totalCount += sourceScore.count;
+      }
+    }
+    
+    row['Weighted Score'] = totalCount > 0 ? formatScore(totalWeighted / totalCount) : '—';
+    return row;
+  });
+  
+  const csv = Papa.unparse(rows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `${groupName.replace(/\s+/g, '_')}_scores.csv`;
+  link.click();
+}
+
+export function exportPropertiesToCSV(
+  properties: Property[],
+  scores: Record<string, Record<ReviewSource, { score: number; count: number; updated: string }>>
+): void {
+  const rows = properties.map(property => {
+    const propertyScores = scores[property.id] || {};
+    
+    let totalWeighted = 0;
+    let totalCount = 0;
+    
+    for (const source of REVIEW_SOURCES) {
+      const sourceScore = propertyScores[source];
+      if (sourceScore && sourceScore.count > 0) {
+        totalWeighted += sourceScore.score * sourceScore.count;
+        totalCount += sourceScore.count;
+      }
+    }
+    
+    const avgScore = totalCount > 0 ? totalWeighted / totalCount : null;
+    
+    // Primary columns first
+    const row: Record<string, string | number> = {
+      'Hotel Name': property.name,
+      City: property.city,
+      State: property.state,
+      'Average Score': avgScore !== null ? formatScore(avgScore) : '—',
+      'Total Reviews': totalCount,
+    };
+    
+    // Platform details
+    for (const source of REVIEW_SOURCES) {
+      const sourceScore = propertyScores[source];
+      row[`${SOURCE_LABELS[source]} Score`] = sourceScore ? formatScore(sourceScore.score) : '—';
+      row[`${SOURCE_LABELS[source]} Reviews`] = sourceScore?.count || 0;
+    }
+    
+    return row;
+  });
+  
+  const csv = Papa.unparse(rows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `properties_export_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
+}
