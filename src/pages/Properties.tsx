@@ -57,6 +57,8 @@ export default function Properties() {
     retryPlatform,
     setDialogOpen: setAllPlatformsDialogOpen,
   } = useAllPlatformsRefresh();
+  
+  const [refreshingPlatform, setRefreshingPlatform] = useState<ReviewSource | null>(null);
 
   if (loading) {
     return (
@@ -155,6 +157,30 @@ export default function Properties() {
     setAllPlatformsDialogOpen(open);
   };
 
+  const handleRefreshSinglePlatform = async (platform: ReviewSource) => {
+    if (refreshingPlatform) return;
+    setRefreshingPlatform(platform);
+    
+    for (const property of properties) {
+      try {
+        if (platform === 'google') {
+          await fetchGoogleRating.mutateAsync({ property });
+        } else {
+          await fetchOTARating.mutateAsync({ property, source: platform });
+        }
+      } catch (error) {
+        // Continue with next property even if one fails
+        console.error(`Failed to refresh ${platform} for ${property.name}:`, error);
+      }
+    }
+    
+    setRefreshingPlatform(null);
+    toast({
+      title: `${platform.charAt(0).toUpperCase() + platform.slice(1)} refresh complete`,
+      description: `Updated ${properties.length} properties`,
+    });
+  };
+
   const getScore = (propertyId: string, source: ReviewSource) => {
     return scores[propertyId]?.[source];
   };
@@ -251,16 +277,60 @@ export default function Properties() {
                   <TableHead className="font-semibold">Name</TableHead>
                   <TableHead className="font-semibold">Location</TableHead>
                   <TableHead className="text-center font-semibold">
-                    <span className="text-amber-500">Google</span>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-amber-500 hover:bg-amber-500/10"
+                        onClick={() => handleRefreshSinglePlatform('google')}
+                        disabled={!!refreshingPlatform || isAllPlatformsRunning}
+                      >
+                        <RefreshCw className={cn('h-3 w-3', refreshingPlatform === 'google' && 'animate-spin')} />
+                      </Button>
+                      <span className="text-amber-500">Google</span>
+                    </div>
                   </TableHead>
                   <TableHead className="text-center font-semibold">
-                    <span className="text-orange-500">TripAdvisor</span>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-orange-500 hover:bg-orange-500/10"
+                        onClick={() => handleRefreshSinglePlatform('tripadvisor')}
+                        disabled={!!refreshingPlatform || isAllPlatformsRunning}
+                      >
+                        <RefreshCw className={cn('h-3 w-3', refreshingPlatform === 'tripadvisor' && 'animate-spin')} />
+                      </Button>
+                      <span className="text-orange-500">TripAdvisor</span>
+                    </div>
                   </TableHead>
                   <TableHead className="text-center font-semibold">
-                    <span className="text-blue-500">Booking</span>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-blue-500 hover:bg-blue-500/10"
+                        onClick={() => handleRefreshSinglePlatform('booking')}
+                        disabled={!!refreshingPlatform || isAllPlatformsRunning}
+                      >
+                        <RefreshCw className={cn('h-3 w-3', refreshingPlatform === 'booking' && 'animate-spin')} />
+                      </Button>
+                      <span className="text-blue-500">Booking</span>
+                    </div>
                   </TableHead>
                   <TableHead className="text-center font-semibold">
-                    <span className="text-purple-500">Expedia</span>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-purple-500 hover:bg-purple-500/10"
+                        onClick={() => handleRefreshSinglePlatform('expedia')}
+                        disabled={!!refreshingPlatform || isAllPlatformsRunning}
+                      >
+                        <RefreshCw className={cn('h-3 w-3', refreshingPlatform === 'expedia' && 'animate-spin')} />
+                      </Button>
+                      <span className="text-purple-500">Expedia</span>
+                    </div>
                   </TableHead>
                   <TableHead className="font-semibold">Last Updated</TableHead>
                   <TableHead className="w-[280px]">
