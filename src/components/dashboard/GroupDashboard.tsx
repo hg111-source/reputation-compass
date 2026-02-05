@@ -2,16 +2,20 @@ import { useState, useMemo } from 'react';
 import { Group, ReviewSource } from '@/lib/types';
 import { useGroupProperties } from '@/hooks/useGroups';
 import { useLatestPropertyScores, useGroupSnapshots, useRefreshScores } from '@/hooks/useSnapshots';
+import { useUnifiedRefresh } from '@/hooks/useUnifiedRefresh';
 import { GroupScoresTable } from './GroupScoresTable';
 import { GroupTrendChart } from './GroupTrendChart';
 import { SnapshotHistory } from './SnapshotHistory';
+import { PlatformBreakdown } from './PlatformBreakdown';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, Download, TrendingUp, Building2, Users } from 'lucide-react';
+import { RefreshCw, Download, TrendingUp, Building2, Users, Save, Clock } from 'lucide-react';
 import { exportGroupToCSV } from '@/lib/csv';
 import { useToast } from '@/hooks/use-toast';
 import { calculatePropertyMetrics, getScoreColor } from '@/lib/scoring';
 import { cn } from '@/lib/utils';
+import { UnifiedRefreshDialog } from '@/components/properties/UnifiedRefreshDialog';
+import { format } from 'date-fns';
 
 interface GroupDashboardProps {
   group: Group;
@@ -25,6 +29,21 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
   const { refreshProperty, refreshGroup } = useRefreshScores();
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRefreshDialogOpen, setIsRefreshDialogOpen] = useState(false);
+  
+  // Unified refresh hook for actually refreshing all hotels
+  const {
+    isRunning,
+    isComplete,
+    currentPhase,
+    currentPlatform,
+    propertyStates,
+    refreshAll,
+    retryPlatform,
+    retryAllFailed,
+    getFailedCount,
+    setDialogOpen,
+  } = useUnifiedRefresh();
 
   const handleRefreshProperty = async (propertyId: string) => {
     setIsRefreshing(true);
@@ -37,7 +56,8 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
     setIsRefreshing(false);
   };
 
-  const handleRefreshGroup = async () => {
+  // Save snapshot only (no refresh)
+  const handleSaveSnapshot = async () => {
     if (propertyIds.length === 0) return;
     setIsRefreshing(true);
     try {
@@ -52,6 +72,19 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to save group snapshot.' });
     }
     setIsRefreshing(false);
+  };
+
+  // Actually refresh all hotels in the group
+  const handleRefreshGroup = () => {
+    if (properties.length === 0) return;
+    setIsRefreshDialogOpen(true);
+    setDialogOpen(true);
+    refreshAll(properties);
+  };
+
+  const handleRefreshDialogChange = (open: boolean) => {
+    setIsRefreshDialogOpen(open);
+    setDialogOpen(open);
   };
 
   const handleRemoveProperty = async (propertyId: string) => {
@@ -124,22 +157,30 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
             </p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={handleExport}
             disabled={properties.length === 0}
           >
             <Download className="mr-2 h-4 w-4" />
-            Export CSV
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleSaveSnapshot}
+            disabled={isRefreshing || properties.length === 0}
+          >
+            <Save className={cn('mr-2 h-4 w-4', isRefreshing && 'animate-spin')} />
+            Save Snapshot
           </Button>
           <Button
             variant="secondary"
             onClick={handleRefreshGroup}
-            disabled={isRefreshing || properties.length === 0}
+            disabled={isRunning || properties.length === 0}
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Save Snapshot
+            <RefreshCw className={cn('mr-2 h-4 w-4', isRunning && 'animate-spin')} />
+            Refresh Group
           </Button>
         </div>
       </div>
@@ -225,6 +266,12 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
         </Card>
       </div>
 
+      {/* Platform Breakdown */}
+      <PlatformBreakdown 
+        properties={properties} 
+        scores={scores as Record<string, Record<ReviewSource, { score: number; count: number; updated: string }>>} 
+      />
+
       {/* Group Trend Chart */}
       <GroupTrendChart snapshots={groupSnapshots} />
 
@@ -237,6 +284,20 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
       />
 
       <SnapshotHistory snapshots={groupSnapshots} type="group" />
+
+      {/* Refresh Dialog */}
+      <UnifiedRefreshDialog
+        open={isRefreshDialogOpen}
+        onOpenChange={handleRefreshDialogChange}
+        propertyStates={propertyStates}
+        currentPhase={currentPhase}
+        currentPlatform={currentPlatform}
+        onRetry={retryPlatform}
+        onRetryAllFailed={retryAllFailed}
+        failedCount={getFailedCount()}
+        isComplete={isComplete}
+        isRunning={isRunning}
+      />
     </div>
   );
 }
