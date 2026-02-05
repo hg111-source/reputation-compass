@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 const APIFY_BASE_URL = 'https://api.apify.com/v2';
-const EXPEDIA_ACTOR_ID = 'pK2iIKVVxERtpwXMy'; // jupri/expedia-hotels
+const EXPEDIA_SEARCH_ACTOR_ID = 'pK2iIKVVxERtpwXMy'; // jupri/expedia-hotels (search-based)
+const EXPEDIA_URL_ACTOR_ID = '4zyibEJ79jE7VXIpA'; // tri_angle/expedia-hotels-com-reviews-scraper (URL-based)
 
 interface ApifyRunResponse {
   data: {
@@ -29,6 +30,9 @@ interface ExpediaResult {
   reviews?: number;
   totalReviews?: number;
   url?: string;
+  // Fields from tri_angle actor
+  hotelOverallRating?: number;
+  hotelReviewCount?: number;
 }
 
 async function waitForRun(runId: string, token: string, maxWaitMs = 120000): Promise<string> {
@@ -60,7 +64,7 @@ async function trySearch(searchQuery: string, apiToken: string): Promise<Expedia
   
   try {
     const runResponse = await fetch(
-      `${APIFY_BASE_URL}/acts/${EXPEDIA_ACTOR_ID}/runs?token=${apiToken}`,
+      `${APIFY_BASE_URL}/acts/${EXPEDIA_SEARCH_ACTOR_ID}/runs?token=${apiToken}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -125,19 +129,19 @@ function findBestMatch(results: ExpediaResult[], hotelName: string): ExpediaResu
   return results[0];
 }
 
-// Try direct URL scraping
+// Try direct URL scraping using the tri_angle reviews scraper actor
 async function tryDirectUrl(startUrl: string, apiToken: string): Promise<ExpediaResult | null> {
-  console.log(`Expedia trying direct URL: "${startUrl}"`);
+  console.log(`Expedia trying direct URL with reviews scraper: "${startUrl}"`);
   
   try {
+    // Use the tri_angle actor which supports direct URL scraping
     const runResponse = await fetch(
-      `${APIFY_BASE_URL}/acts/${EXPEDIA_ACTOR_ID}/runs?token=${apiToken}`,
+      `${APIFY_BASE_URL}/acts/${EXPEDIA_URL_ACTOR_ID}/runs?token=${apiToken}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startUrls: [{ url: startUrl }],
-          maxItems: 1,
+          startUrls: [{ url: startUrl, method: 'GET' }],
         }),
       }
     );
@@ -164,6 +168,7 @@ async function tryDirectUrl(startUrl: string, apiToken: string): Promise<Expedia
     }
 
     const results: ExpediaResult[] = await resultsResponse.json();
+    console.log(`Direct URL results:`, JSON.stringify(results, null, 2));
     return results && results.length > 0 ? results[0] : null;
   } catch (error) {
     console.error(`Direct URL fetch failed:`, error);
@@ -239,8 +244,9 @@ serve(async (req) => {
     console.log(`Expedia final result:`, JSON.stringify(bestMatch, null, 2));
 
     // Expedia can use different scales - detect based on value
-    const rawRating = bestMatch.guestRating || bestMatch.reviewScore || bestMatch.rating || null;
-    const reviewCount = bestMatch.reviewCount || bestMatch.numberOfReviews || bestMatch.reviews || bestMatch.totalReviews || 0;
+    // tri_angle actor uses hotelOverallRating (0-10 scale)
+    const rawRating = bestMatch.hotelOverallRating || bestMatch.guestRating || bestMatch.reviewScore || bestMatch.rating || null;
+    const reviewCount = bestMatch.hotelReviewCount || bestMatch.reviewCount || bestMatch.numberOfReviews || bestMatch.reviews || bestMatch.totalReviews || 0;
     
     // Determine scale: if rating <= 5, assume 5-scale; otherwise 10-scale
     const scale = rawRating !== null && rawRating <= 5 ? 5 : 10;
