@@ -38,6 +38,7 @@ import { exportPropertiesToCSV } from '@/lib/csv';
 import { calculatePropertyMetrics } from '@/lib/scoring';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
+import { HotelAutocomplete } from '@/components/properties/HotelAutocomplete';
 
 type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 
@@ -51,6 +52,11 @@ export default function Properties() {
   const [refreshingSource, setRefreshingSource] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  
+  // Form state for controlled inputs
+  const [formName, setFormName] = useState('');
+  const [formCity, setFormCity] = useState('');
+  const [formState, setFormState] = useState('');
   
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
@@ -141,15 +147,25 @@ export default function Properties() {
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const name = formData.get('name') as string;
-    const city = formData.get('city') as string;
-    const state = formData.get('state') as string;
+
+    if (!formName.trim() || !formCity.trim() || !formState.trim()) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Please fill in all fields.' });
+      return;
+    }
 
     try {
-      const newProperty = await createProperty.mutateAsync({ name, city, state });
-      toast({ title: 'Property created', description: `${name} has been added. Fetching ratings...` });
+      const newProperty = await createProperty.mutateAsync({ 
+        name: formName.trim(), 
+        city: formCity.trim(), 
+        state: formState.trim() 
+      });
+      toast({ title: 'Property created', description: `${formName} has been added. Fetching ratings...` });
       setIsDialogOpen(false);
+      
+      // Reset form
+      setFormName('');
+      setFormCity('');
+      setFormState('');
       
       // Auto-refresh all platforms for the new property
       setIsAllPlatformsDialogOpen(true);
@@ -292,33 +308,39 @@ export default function Properties() {
                 <form onSubmit={handleCreate} className="space-y-5 pt-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Hotel Name</Label>
-                    <Input 
-                      id="name" 
-                      name="name" 
-                      placeholder="The Grand Hotel" 
-                      className="h-12 rounded-md"
-                      required 
+                    <HotelAutocomplete
+                      value={formName}
+                      onChange={setFormName}
+                      onSelect={(details) => {
+                        setFormName(details.name);
+                        if (details.city) setFormCity(details.city);
+                        if (details.state) setFormState(details.state);
+                      }}
+                      placeholder="Search for a hotel..."
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Start typing to search or enter manually
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="city">City</Label>
                       <Input 
                         id="city" 
-                        name="city" 
+                        value={formCity}
+                        onChange={(e) => setFormCity(e.target.value)}
                         placeholder="New York" 
                         className="h-12 rounded-md"
-                        required 
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="state">State</Label>
                       <Input 
                         id="state" 
-                        name="state" 
+                        value={formState}
+                        onChange={(e) => setFormState(e.target.value)}
                         placeholder="NY" 
                         className="h-12 rounded-md"
-                        required 
                       />
                     </div>
                   </div>
@@ -326,7 +348,7 @@ export default function Properties() {
                     type="submit" 
                     variant="secondary"
                     className="h-12 w-full" 
-                    disabled={createProperty.isPending}
+                    disabled={createProperty.isPending || !formName.trim()}
                   >
                     {createProperty.isPending ? 'Adding...' : 'Add Property'}
                   </Button>
