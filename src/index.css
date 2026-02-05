@@ -4,120 +4,121 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Kasa-inspired Design System
-   Premium hospitality aesthetic with deep navy, warm neutrals, and teal accents
-   All colors in HSL format
+/* Kasa-Exact Design System
+   Premium hospitality aesthetic with exact Kasa values
+   All colors in HSL format (converted from Kasa hex)
 */
 
 @layer base {
   :root {
-    /* Core Palette - Kasa-inspired */
-    --background: 40 20% 98%;
-    --foreground: 210 50% 15%;
+    /* Core Palette - Kasa Exact Colors */
+    /* --primary-navy: #0A1F44 converted to HSL */
+    --background: 42 33% 97%; /* #FAF8F3 cream */
+    --foreground: 216 75% 15%; /* #0A1F44 navy */
 
     --card: 0 0% 100%;
-    --card-foreground: 210 50% 15%;
+    --card-foreground: 216 75% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 50% 15%;
+    --popover-foreground: 216 75% 15%;
 
-    /* Primary - Deep Navy */
-    --primary: 210 50% 20%;
+    /* Primary - Kasa Navy #0A1F44 */
+    --primary: 216 75% 15%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Warm Cream */
-    --secondary: 40 30% 95%;
-    --secondary-foreground: 210 50% 15%;
+    /* Secondary - Warm Cream #FAF8F3 */
+    --secondary: 42 33% 97%;
+    --secondary-foreground: 216 75% 15%;
 
-    /* Muted - Soft Gray */
-    --muted: 40 15% 94%;
-    --muted-foreground: 210 15% 45%;
+    /* Muted - Light Gray */
+    --muted: 220 13% 91%; /* #E5E7EB */
+    --muted-foreground: 220 9% 46%; /* #6B7280 */
 
-    /* Accent - Teal */
-    --accent: 180 50% 25%;
+    /* Accent - Kasa Coral #FF6B6B */
+    --accent: 0 100% 71%;
     --accent-foreground: 0 0% 100%;
 
     /* Destructive */
     --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders and Inputs */
-    --border: 40 20% 88%;
-    --input: 40 20% 88%;
-    --ring: 180 50% 25%;
+    /* Borders and Inputs - #E5E7EB */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 0 100% 71%;
 
     --radius: 0.75rem;
 
     /* Status Colors */
-    --success: 160 60% 40%;
+    --success: 160 84% 39%; /* #10B981 */
     --success-foreground: 0 0% 100%;
     --warning: 35 90% 55%;
-    --warning-foreground: 210 50% 15%;
+    --warning-foreground: 0 0% 0%;
 
-    /* Sidebar - Navy */
-    --sidebar-background: 210 50% 15%;
-    --sidebar-foreground: 210 20% 85%;
+    /* Sidebar - Navy #0A1F44 */
+    --sidebar-background: 216 75% 15%;
+    --sidebar-foreground: 220 13% 91%;
     --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 210 50% 15%;
-    --sidebar-accent: 210 40% 22%;
+    --sidebar-primary-foreground: 216 75% 15%;
+    --sidebar-accent: 216 60% 22%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 40% 25%;
-    --sidebar-ring: 180 50% 40%;
+    --sidebar-border: 216 50% 25%;
+    --sidebar-ring: 0 100% 71%;
 
-    /* Extended palette for hospitality feel */
-    --cream: 40 30% 96%;
-    --navy-light: 210 40% 30%;
-    --teal: 180 50% 25%;
-    --coral: 15 70% 55%;
+    /* Extended Kasa palette */
+    --cream: 42 33% 97%;
+    --navy: 216 75% 15%;
+    --navy-light: 216 50% 30%;
+    --coral: 0 100% 71%;
   }
 
   .dark {
-    --background: 210 50% 8%;
-    --foreground: 40 20% 95%;
+    --background: 216 75% 8%;
+    --foreground: 42 33% 95%;
 
-    --card: 210 45% 12%;
-    --card-foreground: 40 20% 95%;
+    --card: 216 60% 12%;
+    --card-foreground: 42 33% 95%;
 
-    --popover: 210 45% 12%;
-    --popover-foreground: 40 20% 95%;
+    --popover: 216 60% 12%;
+    --popover-foreground: 42 33% 95%;
 
-    --primary: 180 45% 45%;
-    --primary-foreground: 210 50% 8%;
+    --primary: 0 100% 71%;
+    --primary-foreground: 216 75% 8%;
 
-    --secondary: 210 40% 18%;
-    --secondary-foreground: 40 20% 95%;
+    --secondary: 216 50% 18%;
+    --secondary-foreground: 42 33% 95%;
 
-    --muted: 210 40% 18%;
-    --muted-foreground: 210 20% 60%;
+    --muted: 216 50% 18%;
+    --muted-foreground: 220 9% 60%;
 
-    --accent: 180 45% 45%;
-    --accent-foreground: 210 50% 8%;
+    --accent: 0 100% 71%;
+    --accent-foreground: 216 75% 8%;
 
     --destructive: 0 60% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 40% 20%;
-    --input: 210 40% 20%;
-    --ring: 180 45% 45%;
+    --border: 216 50% 20%;
+    --input: 216 50% 20%;
+    --ring: 0 100% 71%;
 
-    --success: 160 50% 45%;
+    --success: 160 70% 45%;
     --success-foreground: 0 0% 100%;
     --warning: 35 85% 50%;
     --warning-foreground: 0 0% 0%;
 
-    --sidebar-background: 210 50% 6%;
-    --sidebar-foreground: 210 20% 80%;
-    --sidebar-primary: 180 45% 50%;
-    --sidebar-primary-foreground: 210 50% 6%;
-    --sidebar-accent: 210 45% 15%;
-    --sidebar-accent-foreground: 40 20% 95%;
-    --sidebar-border: 210 40% 15%;
-    --sidebar-ring: 180 45% 50%;
+    --sidebar-background: 216 75% 6%;
+    --sidebar-foreground: 220 13% 80%;
+    --sidebar-primary: 0 100% 71%;
+    --sidebar-primary-foreground: 216 75% 6%;
+    --sidebar-accent: 216 60% 15%;
+    --sidebar-accent-foreground: 42 33% 95%;
+    --sidebar-border: 216 50% 15%;
+    --sidebar-ring: 0 100% 71%;
 
-    --cream: 40 15% 15%;
-    --navy-light: 210 35% 40%;
-    --teal: 180 45% 45%;
-    --coral: 15 65% 50%;
+    --cream: 42 20% 15%;
+    --navy: 216 75% 15%;
+    --navy-light: 216 40% 40%;
+    --coral: 0 100% 71%;
   }
 }
 
@@ -135,34 +136,43 @@
     font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
   }
 
-  /* Typography refinements */
+  /* Typography - Kasa exact values */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
+    @apply font-semibold;
     letter-spacing: -0.02em;
   }
 
   h1 {
-    @apply text-3xl md:text-4xl;
+    @apply text-5xl font-bold; /* 48px, 700 */
   }
 
   h2 {
-    @apply text-2xl md:text-3xl;
+    @apply text-4xl font-semibold; /* 36px, 600 */
   }
 
   h3 {
-    @apply text-xl md:text-2xl;
+    @apply text-2xl font-semibold; /* 24px, 600 */
+  }
+
+  p {
+    @apply text-base; /* 16px, 400, line-height 1.6 */
+  }
+
+  small {
+    @apply text-sm; /* 14px, 400 */
   }
 }
 
 @layer utilities {
   /* Score color utilities */
   .score-excellent {
-    @apply text-emerald-600;
+    color: hsl(var(--success));
   }
   .score-good {
-    @apply text-green-600;
+    color: hsl(160, 70%, 45%);
   }
   .score-average {
     @apply text-amber-500;
@@ -171,26 +181,26 @@
     @apply text-red-500;
   }
 
-  /* Premium shadow utilities */
-  .shadow-premium {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  /* Kasa-exact shadow utilities */
+  .shadow-kasa {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
   }
 
-  .shadow-premium-md {
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  .shadow-kasa-hover {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   }
 
-  .shadow-premium-lg {
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  .shadow-kasa-button {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
 
   /* Gradient utilities */
   .gradient-navy {
-    background: linear-gradient(135deg, hsl(210, 50%, 20%) 0%, hsl(210, 50%, 15%) 100%);
+    background: linear-gradient(135deg, hsl(216, 75%, 15%) 0%, hsl(216, 75%, 10%) 100%);
   }
 
-  .gradient-teal {
-    background: linear-gradient(135deg, hsl(180, 50%, 30%) 0%, hsl(180, 50%, 22%) 100%);
+  .gradient-coral {
+    background: linear-gradient(135deg, hsl(0, 100%, 71%) 0%, hsl(0, 100%, 65%) 100%);
   }
 }
 

@@ -63,7 +63,7 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
   if (propertiesLoading || scoresLoading) {
     return (
       <div className="flex items-center gap-3 text-muted-foreground">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         <span>Loading group data...</span>
       </div>
     );
@@ -73,21 +73,21 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
   const latestSnapshot = groupSnapshots[0];
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Group Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <TrendingUp className="h-6 w-6 text-primary-foreground" />
+        <div className="flex items-center gap-5">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
+            <TrendingUp className="h-7 w-7 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-2xl font-semibold">{group.name}</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-3xl font-bold">{group.name}</h2>
+            <p className="mt-1 text-muted-foreground">
               {properties.length} {properties.length === 1 ? 'property' : 'properties'}
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <Button
             variant="outline"
             onClick={handleExport}
@@ -97,7 +97,7 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
             Export CSV
           </Button>
           <Button
-            className="bg-accent hover:bg-accent/90"
+            variant="secondary"
             onClick={handleRefreshGroup}
             disabled={isRefreshing || properties.length === 0}
           >
@@ -109,48 +109,48 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
 
       {/* Stats Cards */}
       {latestSnapshot && (
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-0 shadow-card">
-            <CardHeader className="pb-2">
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card className="shadow-kasa">
+            <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Weighted Score
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-accent">
+              <div className="text-4xl font-bold text-accent">
                 {latestSnapshot.weighted_score_0_10.toFixed(1)}
               </div>
-              <p className="text-xs text-muted-foreground">out of 10</p>
+              <p className="mt-1 text-sm text-muted-foreground">out of 10</p>
             </CardContent>
           </Card>
-          <Card className="border-0 shadow-card">
-            <CardHeader className="pb-2">
+          <Card className="shadow-kasa">
+            <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Properties
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-3">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
-                <div className="text-3xl font-bold">{properties.length}</div>
+              <div className="flex items-center gap-4">
+                <Building2 className="h-6 w-6 text-muted-foreground" />
+                <div className="text-4xl font-bold">{properties.length}</div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-0 shadow-card">
-            <CardHeader className="pb-2">
+          <Card className="shadow-kasa">
+            <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Last Updated
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-lg font-semibold">
+              <div className="text-xl font-semibold">
                 {new Date(latestSnapshot.collected_at).toLocaleDateString('en-US', {
                   month: 'short',
                   day: 'numeric',
                   year: 'numeric'
                 })}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {new Date(latestSnapshot.collected_at).toLocaleTimeString('en-US', {
                   hour: 'numeric',
                   minute: '2-digit'

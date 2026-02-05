@@ -28,15 +28,15 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar">
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center gap-3 px-6">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
+          <div className="flex h-20 items-center gap-3 px-6">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
               <Building2 className="h-5 w-5 text-white" />
             </div>
             <span className="text-lg font-semibold text-white">Reputation</span>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-3 py-6">
+          <nav className="flex-1 space-y-1.5 px-4 py-6">
             {navItems.map(item => {
               const isActive = location.pathname === item.href;
               return (
@@ -44,14 +44,14 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                   key={item.href}
                   to={item.href}
                   className={cn(
-                    'group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    'group flex items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
                     isActive
                       ? 'bg-sidebar-accent text-white'
                       : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-white'
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <item.icon className="h-4 w-4" />
+                    <item.icon className="h-5 w-5" />
                     {item.label}
                   </div>
                   {isActive && (
@@ -63,14 +63,14 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </nav>
 
           {/* User section */}
-          <div className="border-t border-sidebar-border p-4">
-            <div className="mb-3 truncate text-sm text-sidebar-foreground/70">
+          <div className="border-t border-sidebar-border p-5">
+            <div className="mb-4 truncate text-sm text-sidebar-foreground/70">
               {user?.email}
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
+              className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
               onClick={handleSignOut}
             >
               <LogOut className="h-4 w-4" />
@@ -82,7 +82,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       {/* Main content */}
       <main className="ml-64 flex-1">
-        <div className="px-8 py-8">
+        <div className="px-10 py-10">
           {children}
         </div>
       </main>
