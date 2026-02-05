@@ -23,15 +23,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Plus, Trash2, Building2, MapPin, RefreshCw, Star, Layers } from 'lucide-react';
+import { Plus, Trash2, Building2, MapPin, RefreshCw, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -215,62 +209,40 @@ export default function Properties() {
           </div>
         ) : (
           <>
-            {/* Bulk actions */}
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleBulkRefresh}
-                disabled={isRunning || properties.length === 0}
-                className="gap-2"
-              >
-                {isRunning ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    Refreshing...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4" />
-                    Refresh All Google
-                  </>
-                )}
-              </Button>
-              
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button
-                        variant="outline"
-                        disabled
-                        className="gap-2"
-                      >
-                        <Layers className="h-4 w-4" />
-                        Refresh All Platforms
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Coming soon</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              
-              <span className="text-sm text-muted-foreground">
-                {properties.length} propert{properties.length === 1 ? 'y' : 'ies'}
-              </span>
-            </div>
-
             <Card className="overflow-hidden shadow-kasa">
               <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50 hover:bg-muted/50">
-                    <TableHead className="font-semibold">Name</TableHead>
-                    <TableHead className="font-semibold">Location</TableHead>
-                    <TableHead className="text-center font-semibold">Google Rating</TableHead>
-                    <TableHead className="text-center font-semibold">Reviews</TableHead>
-                    <TableHead className="font-semibold">Last Updated</TableHead>
-                    <TableHead className="w-[120px]"></TableHead>
-                  </TableRow>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="font-semibold">Name</TableHead>
+                  <TableHead className="font-semibold">Location</TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="font-semibold">Google Rating</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleBulkRefresh}
+                        disabled={isRunning || properties.length === 0}
+                        className="h-6 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {isRunning ? (
+                          <>
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                            Refreshing...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3 w-3" />
+                            Refresh All
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center font-semibold">Reviews</TableHead>
+                  <TableHead className="font-semibold">Last Updated</TableHead>
+                  <TableHead className="w-[120px]"></TableHead>
+                </TableRow>
                 </TableHeader>
                 <TableBody>
                   {properties.map(property => {
