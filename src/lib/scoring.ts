@@ -124,26 +124,36 @@ export function calculateWeightedScore(
  * @param platformScores - Record of platform scores keyed by ReviewSource
  * @returns { avgScore: number | null, totalReviews: number }
  */
+/**
+ * Calculates the weighted average score from platform score records.
+ * Only includes platforms with valid scores (excludes not_listed and null scores).
+ * 
+ * @param platformScores - Record of platform scores keyed by ReviewSource
+ * @returns { avgScore: number | null, totalReviews: number, platformsWithData: number }
+ */
 export function calculatePropertyMetrics(
-  platformScores: Partial<Record<ReviewSource, { score: number; count: number }>> | undefined
-): { avgScore: number | null; totalReviews: number } {
+  platformScores: Partial<Record<ReviewSource, { score: number | null; count: number; status?: string }>> | undefined
+): { avgScore: number | null; totalReviews: number; platformsWithData: number } {
   if (!platformScores) {
-    return { avgScore: null, totalReviews: 0 };
+    return { avgScore: null, totalReviews: 0, platformsWithData: 0 };
   }
 
   let totalPoints = 0;
   let totalReviews = 0;
+  let platformsWithData = 0;
 
   for (const platform of REVIEW_SOURCES) {
     const data = platformScores[platform];
-    if (data && data.score > 0 && data.count > 0) {
+    // Only include platforms with valid scores (not null, not "not_listed", score > 0)
+    if (data && data.score !== null && data.score > 0 && data.count > 0 && data.status !== 'not_listed') {
       totalPoints += data.score * data.count;
       totalReviews += data.count;
+      platformsWithData++;
     }
   }
 
   const avgScore = totalReviews > 0 ? totalPoints / totalReviews : null;
-  return { avgScore, totalReviews };
+  return { avgScore, totalReviews, platformsWithData };
 }
 
 export function generateSampleScores(): Array<{

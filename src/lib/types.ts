@@ -24,16 +24,17 @@ export interface Property {
  
  export type ReviewSource = 'google' | 'tripadvisor' | 'expedia' | 'booking';
  
- export interface SourceSnapshot {
-   id: string;
-   property_id: string;
-   source: ReviewSource;
-   score_raw: number;
-   score_scale: number;
-   review_count: number;
-   normalized_score_0_10: number;
-   collected_at: string;
- }
+export interface SourceSnapshot {
+  id: string;
+  property_id: string;
+  source: ReviewSource;
+  score_raw: number | null;
+  score_scale: number | null;
+  review_count: number;
+  normalized_score_0_10: number | null;
+  collected_at: string;
+  status?: 'found' | 'not_listed';
+}
  
  export interface GroupSnapshot {
    id: string;

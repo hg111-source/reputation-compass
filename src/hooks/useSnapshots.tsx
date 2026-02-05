@@ -20,45 +20,54 @@
    });
  }
  
- export function useLatestPropertyScores(propertyIds: string[]) {
-   return useQuery({
-     queryKey: ['latest-scores', propertyIds],
-     queryFn: async () => {
-       if (propertyIds.length === 0) return {};
-       
-       const results: Record<string, Record<ReviewSource, { score: number; count: number; updated: string }>> = {};
-       
-       for (const propertyId of propertyIds) {
-         const { data, error } = await supabase
-           .from('source_snapshots')
-           .select('*')
-           .eq('property_id', propertyId)
-           .order('collected_at', { ascending: false });
-         
-         if (error) throw error;
-         
-         const latestBySource: Record<string, SourceSnapshot> = {};
-         for (const snapshot of data || []) {
-           if (!latestBySource[snapshot.source]) {
-             latestBySource[snapshot.source] = snapshot;
-           }
-         }
-         
-         results[propertyId] = {} as Record<ReviewSource, { score: number; count: number; updated: string }>;
-         for (const [source, snapshot] of Object.entries(latestBySource)) {
-           results[propertyId][source as ReviewSource] = {
-             score: snapshot.normalized_score_0_10,
-             count: snapshot.review_count,
-             updated: snapshot.collected_at,
-           };
-         }
-       }
-       
-       return results;
-     },
-     enabled: propertyIds.length > 0,
-   });
- }
+export interface PlatformScore {
+  score: number | null;
+  count: number;
+  updated: string;
+  status?: 'found' | 'not_listed';
+}
+
+export function useLatestPropertyScores(propertyIds: string[]) {
+  return useQuery({
+    queryKey: ['latest-scores', propertyIds],
+    queryFn: async () => {
+      if (propertyIds.length === 0) return {};
+      
+      const results: Record<string, Record<ReviewSource, PlatformScore>> = {};
+      
+      for (const propertyId of propertyIds) {
+        const { data, error } = await supabase
+          .from('source_snapshots')
+          .select('*')
+          .eq('property_id', propertyId)
+          .order('collected_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        const latestBySource: Record<string, SourceSnapshot & { status?: string }> = {};
+        for (const snapshot of data || []) {
+          if (!latestBySource[snapshot.source]) {
+            latestBySource[snapshot.source] = snapshot as SourceSnapshot & { status?: string };
+          }
+        }
+        
+        results[propertyId] = {} as Record<ReviewSource, PlatformScore>;
+        for (const [source, snapshot] of Object.entries(latestBySource)) {
+          const snapshotWithStatus = snapshot as SourceSnapshot & { status?: string };
+          results[propertyId][source as ReviewSource] = {
+            score: snapshotWithStatus.normalized_score_0_10,
+            count: snapshotWithStatus.review_count,
+            updated: snapshotWithStatus.collected_at,
+            status: (snapshotWithStatus.status as 'found' | 'not_listed') || 'found',
+          };
+        }
+      }
+      
+      return results;
+    },
+    enabled: propertyIds.length > 0,
+  });
+}
  
  export function useGroupSnapshots(groupId: string | null) {
    return useQuery({

@@ -5,7 +5,7 @@ import { Property } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 export type Platform = 'google' | 'tripadvisor' | 'booking' | 'expedia';
-export type RefreshStatus = 'queued' | 'in_progress' | 'complete' | 'failed';
+export type RefreshStatus = 'queued' | 'in_progress' | 'complete' | 'failed' | 'not_listed';
 
 export interface PlatformRefreshState {
   platform: Platform;
@@ -65,7 +65,7 @@ export function useAllPlatformsRefresh() {
   const fetchSinglePlatform = useCallback(async (
     property: Property,
     platform: Platform
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; error?: string; notListed?: boolean }> => {
     const config = PLATFORM_CONFIG[platform];
     
     try {
@@ -89,8 +89,23 @@ export function useAllPlatformsRefresh() {
         return { success: false, error: data.error };
       }
 
+      // Handle "not listed" case - store it in database
       if (!data.found) {
-        return { success: false, error: `Not found on ${config.displayName}` };
+        const { error: insertError } = await supabase.from('source_snapshots').insert({
+          property_id: property.id,
+          source: platform,
+          score_raw: null,
+          score_scale: null,
+          review_count: 0,
+          normalized_score_0_10: null,
+          status: 'not_listed',
+        });
+
+        if (insertError) {
+          console.error('Error saving not_listed snapshot:', insertError);
+        }
+
+        return { success: true, notListed: true };
       }
 
       if (data.rating !== null && data.rating !== undefined) {
@@ -104,6 +119,7 @@ export function useAllPlatformsRefresh() {
           score_scale: scale,
           review_count: data.reviewCount || 0,
           normalized_score_0_10: parseFloat(normalizedScore.toFixed(2)),
+          status: 'found',
         });
 
         if (insertError) {
@@ -139,6 +155,7 @@ export function useAllPlatformsRefresh() {
 
     let totalSuccess = 0;
     let totalFailure = 0;
+    let totalNotListed = 0;
 
     // Process platform by platform
     for (const platform of platforms) {
@@ -151,7 +168,10 @@ export function useAllPlatformsRefresh() {
         
         const result = await fetchSinglePlatform(property, platform);
         
-        if (result.success) {
+        if (result.notListed) {
+          totalNotListed++;
+          updatePlatformStatus(property.id, platform, 'not_listed');
+        } else if (result.success) {
           totalSuccess++;
           updatePlatformStatus(property.id, platform, 'complete');
         } else {
@@ -180,7 +200,7 @@ export function useAllPlatformsRefresh() {
     if (!dialogOpenRef.current) {
       toast({
         title: 'All platforms refresh complete',
-        description: `${totalSuccess} succeeded, ${totalFailure} failed`,
+        description: `${totalSuccess} found, ${totalNotListed} not listed, ${totalFailure} failed`,
       });
     }
   }, [fetchSinglePlatform, queryClient, updatePlatformStatus, toast]);
@@ -190,7 +210,13 @@ export function useAllPlatformsRefresh() {
     
     const result = await fetchSinglePlatform(property, platform);
     
-    if (result.success) {
+    if (result.notListed) {
+      updatePlatformStatus(property.id, platform, 'not_listed');
+      toast({
+        title: 'Hotel not listed',
+        description: `${property.name} is not listed on ${PLATFORM_CONFIG[platform].displayName}`,
+      });
+    } else if (result.success) {
       updatePlatformStatus(property.id, platform, 'complete');
       toast({
         title: 'Retry successful',

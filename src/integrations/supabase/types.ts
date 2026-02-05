@@ -237,32 +237,35 @@ export type Database = {
         Row: {
           collected_at: string
           id: string
-          normalized_score_0_10: number
+          normalized_score_0_10: number | null
           property_id: string
           review_count: number
-          score_raw: number
-          score_scale: number
+          score_raw: number | null
+          score_scale: number | null
           source: Database["public"]["Enums"]["review_source"]
+          status: string
         }
         Insert: {
           collected_at?: string
           id?: string
-          normalized_score_0_10: number
+          normalized_score_0_10?: number | null
           property_id: string
           review_count?: number
-          score_raw: number
-          score_scale: number
+          score_raw?: number | null
+          score_scale?: number | null
           source: Database["public"]["Enums"]["review_source"]
+          status?: string
         }
         Update: {
           collected_at?: string
           id?: string
-          normalized_score_0_10?: number
+          normalized_score_0_10?: number | null
           property_id?: string
           review_count?: number
-          score_raw?: number
-          score_scale?: number
+          score_raw?: number | null
+          score_scale?: number | null
           source?: Database["public"]["Enums"]["review_source"]
+          status?: string
         }
         Relationships: [
           {
