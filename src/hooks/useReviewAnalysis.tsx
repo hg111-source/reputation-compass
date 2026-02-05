@@ -101,9 +101,9 @@ export function useAnalyzeReviews() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ propertyId }: { propertyId: string }) => {
+    mutationFn: async ({ propertyId, groupId }: { propertyId?: string; groupId?: string }) => {
       const { data, error } = await supabase.functions.invoke('analyze-reviews', {
-        body: { propertyId },
+        body: { propertyId, groupId },
       });
 
       if (error) throw error;
@@ -112,7 +112,26 @@ export function useAnalyzeReviews() {
       return data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['review-analysis', variables.propertyId] });
+      if (variables.propertyId) {
+        queryClient.invalidateQueries({ queryKey: ['review-analysis', variables.propertyId] });
+      }
+      if (variables.groupId) {
+        queryClient.invalidateQueries({ queryKey: ['group-review-analysis', variables.groupId] });
+      }
     },
   });
+}
+
+export function useGroupReviewAnalysis(groupId: string | null) {
+  const analyzeReviews = useAnalyzeReviews();
+  
+  const analyze = async () => {
+    if (!groupId) return null;
+    return analyzeReviews.mutateAsync({ groupId });
+  };
+
+  return {
+    analyze,
+    isAnalyzing: analyzeReviews.isPending,
+  };
 }

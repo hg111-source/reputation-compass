@@ -29,13 +29,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { 
   Plus, Trash2, FolderOpen, Settings, CheckSquare, XSquare, Search, 
   Building2, MessageSquare, Wand2, MoreVertical, Pencil, Download, RefreshCw,
-  Globe
+  Globe, Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { getScoreColor, formatScore, calculatePropertyMetrics } from '@/lib/scoring';
 import { cn } from '@/lib/utils';
 import { AutoGroupDialog } from '@/components/groups/AutoGroupDialog';
+import { GroupAnalysisDialog } from '@/components/groups/GroupAnalysisDialog';
 import { ReviewSource } from '@/lib/types';
 import { exportGroupToCSV } from '@/lib/csv';
 
@@ -288,6 +289,7 @@ function GroupCard({
   const { toast } = useToast();
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(group.name);
+  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
 
   const handleRename = async () => {
     if (!newName.trim() || newName === group.name) {
@@ -309,116 +311,130 @@ function GroupCard({
   };
 
   return (
-    <Card className={`shadow-kasa transition-all hover:shadow-kasa-hover ${isSelected ? 'ring-2 ring-accent' : ''}`}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        {isRenaming ? (
-          <div className="flex items-center gap-2 flex-1 mr-2">
-            <Input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className="h-8"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleRename();
-                if (e.key === 'Escape') setIsRenaming(false);
-              }}
-            />
-            <Button size="sm" variant="ghost" onClick={handleRename}>Save</Button>
-          </div>
-        ) : (
-          <CardTitle className="text-xl font-semibold">{group.name}</CardTitle>
-        )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onManage}>
-              <Settings className="mr-2 h-4 w-4" />
-              Manage Properties
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { setNewName(group.name); setIsRenaming(true); }}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Rename
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleExport} disabled={totalProperties === 0}>
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDelete} className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </CardHeader>
-      <CardContent>
-        {/* Group Weighted Average Score - Primary metric */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="mb-5 flex items-center justify-center rounded-xl bg-muted/50 py-4 cursor-help">
-                {isLoading ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-                ) : avgScore !== null ? (
-                  <div className="text-center">
-                    <div className={cn('text-4xl font-bold', getScoreColor(avgScore))}>
-                      {formatScore(avgScore)}
+    <>
+      <Card className={`shadow-kasa transition-all hover:shadow-kasa-hover ${isSelected ? 'ring-2 ring-accent' : ''}`}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          {isRenaming ? (
+            <div className="flex items-center gap-2 flex-1 mr-2">
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="h-8"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRename();
+                  if (e.key === 'Escape') setIsRenaming(false);
+                }}
+              />
+              <Button size="sm" variant="ghost" onClick={handleRename}>Save</Button>
+            </div>
+          ) : (
+            <CardTitle className="text-xl font-semibold">{group.name}</CardTitle>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsAnalysisOpen(true)}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Analyze Reviews
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onManage}>
+                <Settings className="mr-2 h-4 w-4" />
+                Manage Properties
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setNewName(group.name); setIsRenaming(true); }}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExport} disabled={totalProperties === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardHeader>
+        <CardContent>
+          {/* Group Weighted Average Score - Primary metric */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="mb-5 flex items-center justify-center rounded-xl bg-muted/50 py-4 cursor-help">
+                  {isLoading ? (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                  ) : avgScore !== null ? (
+                    <div className="text-center">
+                      <div className={cn('text-4xl font-bold', getScoreColor(avgScore))}>
+                        {formatScore(avgScore)}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">Weighted Avg</p>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">Weighted Avg</p>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <div className="text-4xl font-bold text-muted-foreground">—</div>
-                    <p className="mt-1 text-xs text-muted-foreground">No data</p>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-muted-foreground">—</div>
+                      <p className="mt-1 text-xs text-muted-foreground">No data</p>
+                    </div>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="font-semibold">Group Weighted Average</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Σ(hotel_avg × hotel_reviews) ÷ Σ(hotel_reviews)
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Hotels with more reviews have greater influence on this score.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                <Building2 className="h-5 w-5 text-muted-foreground" />
               </div>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              <p className="font-semibold">Group Weighted Average</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Σ(hotel_avg × hotel_reviews) ÷ Σ(hotel_reviews)
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Hotels with more reviews have greater influence on this score.
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-              <Building2 className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <div className="text-xl font-bold">{totalProperties}</div>
+                <p className="text-xs text-muted-foreground">
+                  {totalProperties === 1 ? 'property' : 'properties'}
+                </p>
+              </div>
             </div>
-            <div>
-              <div className="text-xl font-bold">{totalProperties}</div>
-              <p className="text-xs text-muted-foreground">
-                {totalProperties === 1 ? 'property' : 'properties'}
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                <MessageSquare className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">{totalReviews.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">reviews</p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-              <MessageSquare className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div>
-              <div className="text-xl font-bold">{totalReviews.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">reviews</p>
-            </div>
-          </div>
-        </div>
 
-        <p className="mt-5 text-xs text-muted-foreground">
-          Created {format(new Date(group.created_at), 'MMM d, yyyy')}
-        </p>
-      </CardContent>
-    </Card>
+          <p className="mt-5 text-xs text-muted-foreground">
+            Created {format(new Date(group.created_at), 'MMM d, yyyy')}
+          </p>
+        </CardContent>
+      </Card>
+
+      <GroupAnalysisDialog
+        open={isAnalysisOpen}
+        onOpenChange={setIsAnalysisOpen}
+        groupId={group.id}
+        groupName={group.name}
+      />
+    </>
   );
 }
 

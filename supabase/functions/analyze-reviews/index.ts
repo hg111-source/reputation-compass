@@ -10,6 +10,7 @@ interface ReviewText {
   review_text: string;
   review_rating: number | null;
   platform: string;
+  property_id?: string;
 }
 
 interface ThemeResult {
@@ -19,9 +20,42 @@ interface ThemeResult {
 }
 
 interface AnalysisResult {
-  positive: ThemeResult[];
-  negative: ThemeResult[];
+  positive_themes: ThemeResult[];
+  negative_themes: ThemeResult[];
   summary: string;
+}
+
+// Pre-processing: Filter and categorize reviews
+function preprocessReviews(reviews: ReviewText[]): { positive: ReviewText[]; negative: ReviewText[]; neutral: ReviewText[] } {
+  // Filter reviews with 10+ words
+  const filtered = reviews.filter(r => {
+    const wordCount = r.review_text.trim().split(/\s+/).length;
+    return wordCount >= 10;
+  });
+
+  // Split by rating
+  const positive = filtered
+    .filter(r => r.review_rating !== null && r.review_rating >= 4)
+    .slice(0, 50); // Most recent 50
+
+  const negative = filtered
+    .filter(r => r.review_rating !== null && r.review_rating <= 2)
+    .slice(0, 50);
+
+  // Include neutral/unrated for context
+  const neutral = filtered
+    .filter(r => r.review_rating === null || (r.review_rating > 2 && r.review_rating < 4))
+    .slice(0, 25);
+
+  return { positive, negative, neutral };
+}
+
+// Post-processing: Filter and sort themes
+function postprocessThemes(themes: ThemeResult[]): ThemeResult[] {
+  return themes
+    .filter(t => t.count >= 2) // Remove themes with < 2 mentions
+    .sort((a, b) => b.count - a.count) // Sort by count descending
+    .slice(0, 5); // Top 5
 }
 
 serve(async (req) => {
@@ -39,7 +73,6 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get auth token from request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -48,45 +81,102 @@ serve(async (req) => {
       );
     }
 
-    const { propertyId } = await req.json();
+    const { propertyId, groupId } = await req.json();
     
-    if (!propertyId) {
+    if (!propertyId && !groupId) {
       return new Response(
-        JSON.stringify({ error: 'propertyId is required' }),
+        JSON.stringify({ error: 'propertyId or groupId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Analyzing reviews for property: ${propertyId}`);
+    let reviews: ReviewText[] = [];
+    let analysisTarget: string;
 
-    // Fetch review texts for this property
-    const { data: reviews, error: reviewsError } = await supabase
-      .from('review_texts')
-      .select('review_text, review_rating, platform')
-      .eq('property_id', propertyId)
-      .limit(100);
+    if (groupId) {
+      // GROUP-LEVEL ANALYSIS: Fetch reviews for all properties in the group
+      console.log(`Analyzing reviews for group: ${groupId}`);
+      analysisTarget = groupId;
 
-    if (reviewsError) {
-      throw new Error(`Failed to fetch reviews: ${reviewsError.message}`);
+      // Get property IDs in this group
+      const { data: groupProperties, error: gpError } = await supabase
+        .from('group_properties')
+        .select('property_id')
+        .eq('group_id', groupId);
+
+      if (gpError) throw new Error(`Failed to fetch group properties: ${gpError.message}`);
+      
+      if (!groupProperties || groupProperties.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'No properties in this group' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const propertyIds = groupProperties.map(gp => gp.property_id);
+      
+      const { data: groupReviews, error: reviewsError } = await supabase
+        .from('review_texts')
+        .select('review_text, review_rating, platform, property_id')
+        .in('property_id', propertyIds)
+        .order('collected_at', { ascending: false })
+        .limit(200);
+
+      if (reviewsError) throw new Error(`Failed to fetch reviews: ${reviewsError.message}`);
+      reviews = groupReviews || [];
+
+    } else {
+      // PROPERTY-LEVEL ANALYSIS
+      console.log(`Analyzing reviews for property: ${propertyId}`);
+      analysisTarget = propertyId;
+
+      const { data: propReviews, error: reviewsError } = await supabase
+        .from('review_texts')
+        .select('review_text, review_rating, platform')
+        .eq('property_id', propertyId)
+        .order('collected_at', { ascending: false })
+        .limit(150);
+
+      if (reviewsError) throw new Error(`Failed to fetch reviews: ${reviewsError.message}`);
+      reviews = propReviews || [];
     }
 
-    if (!reviews || reviews.length === 0) {
+    if (reviews.length === 0) {
       return new Response(
         JSON.stringify({ 
-          error: 'No reviews found for this property. Fetch reviews first.' 
+          error: 'No reviews found. Fetch reviews first using the Insights button.' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Found ${reviews.length} reviews to analyze`);
+    // RULE-BASED PRE-PROCESSING
+    const { positive, negative, neutral } = preprocessReviews(reviews);
+    
+    console.log(`Pre-processed: ${positive.length} positive, ${negative.length} negative, ${neutral.length} neutral reviews`);
 
-    // Prepare reviews for AI analysis
-    const reviewsText = reviews
-      .map((r: ReviewText, i: number) => `Review ${i + 1} (${r.platform}, rating: ${r.review_rating || 'N/A'}):\n${r.review_text}`)
-      .join('\n\n---\n\n');
+    if (positive.length === 0 && negative.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Not enough rated reviews for analysis. Need reviews with ratings.' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Call Lovable AI Gateway
+    // Format reviews for LLM
+    const formatReviews = (revs: ReviewText[]) => 
+      revs.map((r, i) => `${i + 1}. [${r.platform}] "${r.review_text}"`).join('\n');
+
+    const positiveText = positive.length > 0 
+      ? formatReviews(positive) 
+      : 'No positive reviews available.';
+    
+    const negativeText = negative.length > 0 
+      ? formatReviews(negative) 
+      : 'No negative reviews available.';
+
+    // LLM ANALYSIS with Lovable AI Gateway
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -98,24 +188,30 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a hotel review analyst. Analyze guest reviews and identify key themes. Be specific and actionable. Always respond with valid JSON only, no markdown.`
+            content: `You are a hotel review analyst. Analyze guest reviews and identify recurring themes. Be specific, actionable, and data-driven. Always respond with valid JSON only, no markdown code blocks.`
           },
           {
             role: 'user',
-            content: `Analyze these ${reviews.length} hotel reviews and provide:
-1. Top 5 positive themes (things guests love) with frequency count and a representative quote
-2. Top 5 negative themes (areas for improvement) with frequency count and a representative quote
-3. One-sentence overall summary
+            content: `Analyze these hotel reviews and identify the most common themes.
 
-Here are the reviews:
+POSITIVE REVIEWS (rating 4-5 stars):
+${positiveText}
 
-${reviewsText}
+NEGATIVE REVIEWS (rating 1-2 stars):
+${negativeText}
 
-Respond ONLY with this JSON structure (no markdown, no code blocks):
+Instructions:
+1. Identify the top 5 positive themes (what guests love)
+2. Identify the top 5 negative themes (areas for improvement)  
+3. For each theme, estimate how many reviews mention it
+4. Include a representative quote (verbatim from reviews)
+5. Write a one-sentence overall assessment
+
+Respond ONLY with this JSON structure:
 {
-  "positive": [{"theme": "Clean rooms", "count": 23, "quote": "The room was spotless..."}],
-  "negative": [{"theme": "Slow WiFi", "count": 8, "quote": "WiFi was frustratingly slow..."}],
-  "summary": "Overall positive reception with consistent praise for..."
+  "positive_themes": [{"theme": "Clean Rooms", "count": 23, "quote": "The room was spotless and modern"}],
+  "negative_themes": [{"theme": "Slow WiFi", "count": 8, "quote": "WiFi was frustratingly slow"}],
+  "summary": "Guests consistently praise X while noting Y as the main area for improvement."
 }`
           }
         ],
@@ -129,13 +225,13 @@ Respond ONLY with this JSON structure (no markdown, no code blocks):
       
       if (aiResponse.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a minute.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       if (aiResponse.status === 402) {
         return new Response(
-          JSON.stringify({ error: 'AI credits depleted. Please add credits to continue.' }),
+          JSON.stringify({ error: 'AI credits depleted. Please add credits to your workspace.' }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -150,46 +246,55 @@ Respond ONLY with this JSON structure (no markdown, no code blocks):
       throw new Error('No response from AI');
     }
 
-    console.log('AI response:', content);
+    console.log('AI response received');
 
-    // Parse the JSON response
+    // Parse and validate JSON response
     let analysis: AnalysisResult;
     try {
-      // Clean up potential markdown formatting
       const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       analysis = JSON.parse(cleanContent);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
-      throw new Error('Failed to parse AI analysis');
+      console.error('Failed to parse AI response:', content);
+      throw new Error('Failed to parse AI analysis result');
     }
 
-    // Store the analysis results using upsert
-    const { error: upsertError } = await supabase
-      .from('review_analysis')
-      .upsert({
-        property_id: propertyId,
-        positive_themes: analysis.positive || [],
-        negative_themes: analysis.negative || [],
-        summary: analysis.summary || '',
-        review_count: reviews.length,
-        analyzed_at: new Date().toISOString(),
-      }, {
-        onConflict: 'property_id',
-      });
+    // RULE-BASED POST-PROCESSING
+    const processedPositive = postprocessThemes(analysis.positive_themes || []);
+    const processedNegative = postprocessThemes(analysis.negative_themes || []);
 
-    if (upsertError) {
-      console.error('Failed to store analysis:', upsertError);
-      // Don't fail - still return the analysis
+    // Store results (only for property-level analysis)
+    if (propertyId && !groupId) {
+      const { error: upsertError } = await supabase
+        .from('review_analysis')
+        .upsert({
+          property_id: propertyId,
+          positive_themes: processedPositive,
+          negative_themes: processedNegative,
+          summary: analysis.summary || '',
+          review_count: positive.length + negative.length + neutral.length,
+          analyzed_at: new Date().toISOString(),
+        }, {
+          onConflict: 'property_id',
+        });
+
+      if (upsertError) {
+        console.error('Failed to cache analysis:', upsertError);
+      }
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         analysis: {
-          positive: analysis.positive || [],
-          negative: analysis.negative || [],
+          positive_themes: processedPositive,
+          negative_themes: processedNegative,
           summary: analysis.summary || '',
-          reviewCount: reviews.length,
+          review_count: positive.length + negative.length,
+          breakdown: {
+            positive_reviews: positive.length,
+            negative_reviews: negative.length,
+            neutral_reviews: neutral.length,
+          },
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
