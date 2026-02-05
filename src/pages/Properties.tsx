@@ -5,6 +5,7 @@ import { useProperties } from '@/hooks/useProperties';
 import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { useGoogleRatings, getGoogleRatingErrorMessage } from '@/hooks/useGoogleRatings';
 import { useBulkGoogleRefresh } from '@/hooks/useBulkGoogleRefresh';
+import { useGoogleTrends, formatChange, TrendDirection } from '@/hooks/useGoogleTrends';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,13 +26,26 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Plus, Trash2, Building2, MapPin, RefreshCw, Star } from 'lucide-react';
+import { Plus, Trash2, Building2, MapPin, RefreshCw, Star, TrendingUp, TrendingDown, Minus, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Property } from '@/lib/types';
 import { getScoreColor } from '@/lib/scoring';
 import { BulkRefreshDialog } from '@/components/properties/BulkRefreshDialog';
+
+function TrendIcon({ trend }: { trend: TrendDirection }) {
+  switch (trend) {
+    case 'up':
+      return <TrendingUp className="h-4 w-4 text-emerald-500" />;
+    case 'down':
+      return <TrendingDown className="h-4 w-4 text-red-500" />;
+    case 'flat':
+      return <ArrowRight className="h-4 w-4 text-muted-foreground" />;
+    default:
+      return <span className="text-muted-foreground">—</span>;
+  }
+}
 
 export default function Properties() {
   const { user, loading } = useAuth();
@@ -43,6 +57,7 @@ export default function Properties() {
   
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
+  const { data: trends = {} } = useGoogleTrends(propertyIds);
   const { fetchGoogleRating } = useGoogleRatings();
   const { isRunning, isComplete, propertyStates, startBulkRefresh, retryProperty, setDialogOpen } = useBulkGoogleRefresh();
 
@@ -216,6 +231,8 @@ export default function Properties() {
                   <TableHead className="font-semibold">Name</TableHead>
                   <TableHead className="font-semibold">Location</TableHead>
                   <TableHead className="text-center font-semibold">Google Rating</TableHead>
+                  <TableHead className="text-center font-semibold">Trend</TableHead>
+                  <TableHead className="text-center font-semibold">30d Δ</TableHead>
                   <TableHead className="text-center font-semibold">Reviews</TableHead>
                   <TableHead className="font-semibold">Last Updated</TableHead>
                   <TableHead className="w-[140px]">
@@ -244,6 +261,7 @@ export default function Properties() {
                 <TableBody>
                   {properties.map(property => {
                     const googleScore = getGoogleScore(property.id);
+                    const trendData = trends[property.id];
                     const isRefreshing = refreshingPropertyId === property.id;
                     const scoreColor = googleScore ? getScoreColor(googleScore.score) : '';
                     
@@ -268,6 +286,23 @@ export default function Properties() {
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <TrendIcon trend={trendData?.trend ?? 'none'} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className={cn(
+                            'text-sm',
+                            trendData?.change30d !== null && trendData?.change30d !== undefined
+                              ? trendData.change30d >= 0.05
+                                ? 'text-emerald-600'
+                                : trendData.change30d <= -0.05
+                                  ? 'text-red-600'
+                                  : 'text-muted-foreground'
+                              : 'text-muted-foreground'
+                          )}>
+                            {formatChange(trendData?.change30d ?? null)}
+                          </span>
                         </TableCell>
                         <TableCell className="text-center">
                           {googleScore ? (
