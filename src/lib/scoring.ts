@@ -1,6 +1,6 @@
 import { ReviewSource, SourceSnapshot } from './types';
 
-export const REVIEW_SOURCES: ReviewSource[] = ['google', 'tripadvisor', 'expedia', 'booking'];
+export const REVIEW_SOURCES: ReviewSource[] = ['google', 'tripadvisor', 'booking', 'expedia'];
 
 export const SOURCE_LABELS: Record<ReviewSource, string> = {
   google: 'Google',
