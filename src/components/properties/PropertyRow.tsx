@@ -1,4 +1,4 @@
-import { MapPin, Trash2, RefreshCw, ExternalLink, History } from 'lucide-react';
+import { MapPin, Trash2, RefreshCw, ExternalLink, History, Sparkles } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -25,6 +25,7 @@ interface PropertyRowProps {
   onRefreshOTA: (property: Property, source: 'tripadvisor' | 'booking' | 'expedia') => void;
   onRefreshAllPlatforms: (property: Property) => void;
   onViewHistory: (property: Property) => void;
+  onAnalyzeReviews: (property: Property) => void;
   isRefreshing: boolean;
   refreshingSource: string | null;
   isRefreshingAll?: boolean;
@@ -38,6 +39,7 @@ export function PropertyRow({
   onRefreshOTA,
   onRefreshAllPlatforms,
   onViewHistory,
+  onAnalyzeReviews,
   isRefreshing,
   refreshingSource,
   isRefreshingAll = false,
@@ -175,6 +177,16 @@ export function PropertyRow({
       {/* Actions */}
       <TableCell>
         <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 text-xs"
+            onClick={() => onAnalyzeReviews(property)}
+            title="Analyze reviews with AI"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Insights
+          </Button>
           <Button
             variant="outline"
             size="sm"
