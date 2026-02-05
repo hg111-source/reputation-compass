@@ -112,18 +112,20 @@ export function useAllPlatformsRefresh() {
                            !aliasData?.success;
       
       if (needsFallback) {
-        console.log(`[${platform}] ${property.name} falling back to name-based search...`);
+        console.log(`[${platform}] ${property.name} falling back to direct function call...`);
         
-        // Get the URL field for OTA platforms
-        const urlField = platform === 'google' ? null : `${platform}_url` as keyof Property;
-        const startUrl = urlField ? (property[urlField] as string | null) : undefined;
+        // Expedia requires propertyId (checks hotel_aliases internally)
+        // Other platforms use name-based search
+        const body = platform === 'expedia' 
+          ? { propertyId: property.id }
+          : {
+              hotelName: property.name,
+              city: `${property.city}, ${property.state}`,
+              startUrl: property[`${platform}_url` as keyof Property] as string | null,
+            };
         
         const { data, error } = await supabase.functions.invoke(PLATFORM_FUNCTIONS[platform], {
-          body: {
-            hotelName: property.name,
-            city: `${property.city}, ${property.state}`,
-            startUrl, // Pass stored URL if available
-          },
+          body,
         });
 
         if (error) {
@@ -147,13 +149,33 @@ export function useAllPlatformsRefresh() {
           return { success: false, error: msg };
         }
 
+        // Handle Expedia's new response format (uses success/status instead of found)
+        if (platform === 'expedia') {
+          if (data.status === 'no_alias') {
+            console.log(`[${platform}] ${property.name} NO ALIAS - resolve URLs first`);
+            return { success: false, error: 'Resolve URLs first' };
+          }
+          if (data.status === 'not_listed') {
+            console.log(`[${platform}] ${property.name} NOT LISTED`);
+            return { success: true, notListed: true };
+          }
+          if (data.success && data.status === 'found') {
+            console.log(`[${platform}] ${property.name} SUCCESS: ${data.rating}/${data.scale} (${data.reviewCount} reviews)`);
+            return { success: true };
+          }
+          if (!data.success) {
+            console.log(`[${platform}] ${property.name} FAILED: ${data.error || 'Unknown error'}`);
+            return { success: false, error: data.error || 'Unknown error' };
+          }
+        }
+
         if (!data.found) {
           console.log(`[${platform}] ${property.name} NOT FOUND`);
           return { success: true, notListed: true };
         }
 
-        // Save snapshot for name-based search results
-        if (data.rating !== null && data.rating !== undefined) {
+        // Save snapshot for name-based search results (except Expedia which saves internally)
+        if (platform !== 'expedia' && data.rating !== null && data.rating !== undefined) {
           const scale = platform === 'google' ? 5 : (data.scale || 5);
           const normalizedScore = scale === 10 ? data.rating : (data.rating / scale) * 10;
           
@@ -170,7 +192,7 @@ export function useAllPlatformsRefresh() {
             console.error('Error saving snapshot:', insertError);
           }
 
-          console.log(`[${platform}] ${property.name} SUCCESS (via name search): ${data.rating}/${scale} (${data.reviewCount} reviews)`);
+          console.log(`[${platform}] ${property.name} SUCCESS (via fallback): ${data.rating}/${scale} (${data.reviewCount} reviews)`);
         }
 
         return { success: true };
