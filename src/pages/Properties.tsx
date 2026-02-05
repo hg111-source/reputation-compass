@@ -37,6 +37,7 @@ import { AllPlatformsRefreshDialog } from '@/components/properties/AllPlatformsR
 import { exportPropertiesToCSV } from '@/lib/csv';
 import { calculatePropertyMetrics } from '@/lib/scoring';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
+import { ScoreLegend } from '@/components/properties/ScoreLegend';
 
 type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 
@@ -340,7 +341,11 @@ export default function Properties() {
             </p>
           </div>
         ) : (
-          <Card className="overflow-hidden shadow-kasa">
+          <div className="space-y-2">
+            <div className="flex justify-end">
+              <ScoreLegend />
+            </div>
+            <Card className="overflow-hidden shadow-kasa">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -447,6 +452,7 @@ export default function Properties() {
               </TableBody>
             </Table>
           </Card>
+          </div>
         )}
 
         {/* All platforms refresh dialog */}
