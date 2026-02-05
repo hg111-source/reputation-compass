@@ -1,4 +1,4 @@
- import { useState } from 'react';
+import { useState, useMemo } from 'react';
  import { Navigate } from 'react-router-dom';
  import { useAuth } from '@/hooks/useAuth';
  import { useGroups, useGroupProperties } from '@/hooks/useGroups';
@@ -16,7 +16,7 @@
  import { Label } from '@/components/ui/label';
  import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
  import { Checkbox } from '@/components/ui/checkbox';
- import { Plus, Trash2, FolderOpen, Settings } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, Settings, CheckSquare, XSquare, Search } from 'lucide-react';
  import { useToast } from '@/hooks/use-toast';
  import { format } from 'date-fns';
  
@@ -192,12 +192,59 @@
    allProperties: Array<{ id: string; name: string; city: string; state: string }>;
    onClose: () => void;
  }) {
-   const { properties: groupProperties, addPropertyToGroup, removePropertyFromGroup } =
-     useGroupProperties(groupId);
+  const { 
+    properties: groupProperties, 
+    addPropertyToGroup, 
+    removePropertyFromGroup,
+    bulkAddAllProperties,
+    bulkRemoveAllProperties,
+  } = useGroupProperties(groupId);
    const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
  
    const groupPropertyIds = new Set(groupProperties.map(p => p.id));
  
+  const filteredProperties = useMemo(() => {
+    if (!searchQuery.trim()) return allProperties;
+    const query = searchQuery.toLowerCase();
+    return allProperties.filter(
+      p =>
+        p.name.toLowerCase().includes(query) ||
+        p.city.toLowerCase().includes(query) ||
+        p.state.toLowerCase().includes(query)
+    );
+  }, [allProperties, searchQuery]);
+ 
+  const propertiesToAdd = allProperties.filter(p => !groupPropertyIds.has(p.id));
+ 
+  const handleSelectAll = async () => {
+    if (propertiesToAdd.length === 0) return;
+    setIsProcessing(true);
+    try {
+      const result = await bulkAddAllProperties.mutateAsync({
+        groupId,
+        propertyIds: propertiesToAdd.map(p => p.id),
+      });
+      toast({ title: 'Added properties', description: `Added ${result.count} properties to group.` });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to add properties.' });
+    }
+    setIsProcessing(false);
+  };
+ 
+  const handleClearAll = async () => {
+    if (groupPropertyIds.size === 0) return;
+    setIsProcessing(true);
+    try {
+      const result = await bulkRemoveAllProperties.mutateAsync(groupId);
+      toast({ title: 'Removed properties', description: `Removed ${result.count} properties from group.` });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to remove properties.' });
+    }
+    setIsProcessing(false);
+  };
+
    const handleToggle = async (propertyId: string, isInGroup: boolean) => {
      try {
        if (isInGroup) {
@@ -221,13 +268,44 @@
          </Button>
        </CardHeader>
        <CardContent>
+          <div className="mb-4 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search properties..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                disabled={isProcessing || propertiesToAdd.length === 0}
+              >
+                <CheckSquare className="mr-2 h-4 w-4" />
+                Select All ({propertiesToAdd.length})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearAll}
+                disabled={isProcessing || groupPropertyIds.size === 0}
+              >
+                <XSquare className="mr-2 h-4 w-4" />
+                Clear All ({groupPropertyIds.size})
+              </Button>
+            </div>
+          </div>
          {allProperties.length === 0 ? (
            <p className="text-sm text-muted-foreground">
              No properties available. Upload or add properties first.
            </p>
          ) : (
            <div className="max-h-64 space-y-2 overflow-y-auto">
-             {allProperties.map(property => {
+              {filteredProperties.map(property => {
                const isInGroup = groupPropertyIds.has(property.id);
                return (
                  <div

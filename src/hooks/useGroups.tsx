@@ -124,11 +124,48 @@
  
    const properties = groupProperties.map(gp => gp.properties);
  
+   const bulkAddAllProperties = useMutation({
+     mutationFn: async ({ groupId, propertyIds }: { groupId: string; propertyIds: string[] }) => {
+       if (propertyIds.length === 0) return { count: 0 };
+       const { error } = await supabase
+         .from('group_properties')
+         .insert(propertyIds.map(propertyId => ({ group_id: groupId, property_id: propertyId })));
+       if (error) throw error;
+       return { count: propertyIds.length };
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ['group-properties'] });
+     },
+   });
+ 
+   const bulkRemoveAllProperties = useMutation({
+     mutationFn: async (groupId: string) => {
+       // First get the count
+       const { data: existing } = await supabase
+         .from('group_properties')
+         .select('id')
+         .eq('group_id', groupId);
+       const count = existing?.length || 0;
+       
+       const { error } = await supabase
+         .from('group_properties')
+         .delete()
+         .eq('group_id', groupId);
+       if (error) throw error;
+       return { count };
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ['group-properties'] });
+     },
+   });
+ 
    return {
      groupProperties,
      properties,
      isLoading,
      addPropertyToGroup,
      removePropertyFromGroup,
+     bulkAddAllProperties,
+     bulkRemoveAllProperties,
    };
  }
