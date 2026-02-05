@@ -146,21 +146,24 @@ async function searchSerpApiWithValidation(
           console.log(`    Result: ${result.title.substring(0, 50)}...`);
           console.log(`      Match: ${matchAnalysis.isMatch} - ${matchAnalysis.reason}`);
           
-          // For Expedia: if we can extract a hotel_id from URL, accept it even if title doesn't match
-          // The URL structure (/pinned/XXX or selected=XXX) is strong evidence it's a valid hotel page
+          // For Expedia: require BOTH a valid hotel_id AND name matching
+          // Previously we accepted any hotel_id which caused wrong matches like "W Hollywood" for "Andaz"
           if (platform === 'expedia') {
             const extractedHotelId = extractExpediaHotelId(result.link);
-            if (extractedHotelId && !bestResult) {
+            // Must have hotel_id AND pass name matching
+            if (extractedHotelId && matchAnalysis.isMatch && !bestResult) {
               bestResult = {
                 link: result.link,
                 title: result.title,
                 isMatch: true,
-                reason: `Expedia hotel_id ${extractedHotelId} extracted from URL`,
+                reason: `Expedia match: ${matchAnalysis.reason} (hotel_id: ${extractedHotelId})`,
                 hotelId: extractedHotelId,
               };
-              console.log(`  ✓ Expedia match found via hotel_id: ${extractedHotelId}`);
+              console.log(`  ✓ Expedia match found: ${extractedHotelId} - ${matchAnalysis.reason}`);
               console.log(`    URL: ${bestResult.link}`);
               break;
+            } else if (extractedHotelId && !matchAnalysis.isMatch) {
+              console.log(`  ✗ Expedia hotel_id ${extractedHotelId} found but name doesn't match: ${matchAnalysis.reason}`);
             }
           } else if (matchAnalysis.isMatch && !bestResult) {
             // For other platforms, use name matching
