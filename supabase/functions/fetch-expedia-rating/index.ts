@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const APIFY_BASE_URL = 'https://api.apify.com/v2';
 const EXPEDIA_SEARCH_ACTOR_ID = 'pK2iIKVVxERtpwXMy'; // jupri/expedia-hotels (search-based)
-const EXPEDIA_URL_ACTOR_ID = '4zyibEJ79jE7VXIpA'; // tri_angle/expedia-hotels-com-reviews-scraper (URL-based)
+const CHEERIO_SCRAPER_ID = 'YvFnfxvCbCLumMHJL'; // apify/cheerio-scraper (fast page scraper)
 
 interface ApifyRunResponse {
   data: {
@@ -129,19 +129,81 @@ function findBestMatch(results: ExpediaResult[], hotelName: string): ExpediaResu
   return results[0];
 }
 
-// Try direct URL scraping using the tri_angle reviews scraper actor
+// Try direct URL scraping using lightweight Cheerio Scraper (fast!)
 async function tryDirectUrl(startUrl: string, apiToken: string): Promise<ExpediaResult | null> {
-  console.log(`Expedia trying direct URL with reviews scraper: "${startUrl}"`);
+  console.log(`Expedia trying direct URL with Cheerio Scraper: "${startUrl}"`);
   
   try {
-    // Use the tri_angle actor which supports direct URL scraping
+    // Use Cheerio Scraper - much faster than reviews scrapers
+    // The pageFunction extracts rating data from the page HTML
+    const pageFunction = `
+      async function pageFunction(context) {
+        const { $, request } = context;
+        
+        // Try to find rating in various places Expedia uses
+        // Method 1: Look for guest rating in structured data
+        let rating = null;
+        let reviewCount = null;
+        let hotelName = null;
+        
+        // Try JSON-LD structured data first
+        const jsonLdScripts = $('script[type="application/ld+json"]');
+        jsonLdScripts.each((i, el) => {
+          try {
+            const data = JSON.parse($(el).html());
+            if (data['@type'] === 'Hotel' || data['@type'] === 'LodgingBusiness') {
+              if (data.aggregateRating) {
+                rating = parseFloat(data.aggregateRating.ratingValue);
+                reviewCount = parseInt(data.aggregateRating.reviewCount) || 0;
+              }
+              hotelName = data.name;
+            }
+          } catch (e) {}
+        });
+        
+        // Method 2: Look for rating in common Expedia elements
+        if (!rating) {
+          // Guest rating badge (e.g., "8.4/10")
+          const ratingText = $('[data-stid="reviews-summary"] span, .uitk-badge, [class*="rating"]').first().text();
+          const match = ratingText.match(/(\\d+\\.?\\d*)\\s*\\/\\s*10/);
+          if (match) {
+            rating = parseFloat(match[1]);
+          }
+        }
+        
+        // Method 3: Look for review count
+        if (!reviewCount) {
+          const reviewText = $('[data-stid="reviews-summary"], [class*="review"]').text();
+          const countMatch = reviewText.match(/(\\d[\\d,]*)\\s*(?:reviews?|ratings?)/i);
+          if (countMatch) {
+            reviewCount = parseInt(countMatch[1].replace(/,/g, ''));
+          }
+        }
+        
+        // Get hotel name if not found
+        if (!hotelName) {
+          hotelName = $('h1').first().text().trim() || $('[data-stid="content-hotel-title"]').text().trim();
+        }
+        
+        return {
+          url: request.url,
+          hotelName,
+          rating,
+          reviewCount: reviewCount || 0,
+        };
+      }
+    `;
+    
     const runResponse = await fetch(
-      `${APIFY_BASE_URL}/acts/${EXPEDIA_URL_ACTOR_ID}/runs?token=${apiToken}`,
+      `${APIFY_BASE_URL}/acts/${CHEERIO_SCRAPER_ID}/runs?token=${apiToken}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startUrls: [{ url: startUrl, method: 'GET' }],
+          startUrls: [{ url: startUrl }],
+          pageFunction,
+          maxRequestsPerCrawl: 1,
+          maxConcurrency: 1,
         }),
       }
     );
@@ -155,9 +217,10 @@ async function tryDirectUrl(startUrl: string, apiToken: string): Promise<Expedia
     const runData: ApifyRunResponse = await runResponse.json();
     const runId = runData.data.id;
     
-    console.log(`Apify Expedia direct URL run started: ${runId}`);
+    console.log(`Apify Cheerio Scraper run started: ${runId}`);
 
-    const datasetId = await waitForRun(runId, apiToken);
+    // Cheerio scraper is fast - reduce timeout to 60 seconds
+    const datasetId = await waitForRun(runId, apiToken, 60000);
     
     const resultsResponse = await fetch(
       `${APIFY_BASE_URL}/datasets/${datasetId}/items?token=${apiToken}`
@@ -167,9 +230,19 @@ async function tryDirectUrl(startUrl: string, apiToken: string): Promise<Expedia
       return null;
     }
 
-    const results: ExpediaResult[] = await resultsResponse.json();
-    console.log(`Direct URL results:`, JSON.stringify(results, null, 2));
-    return results && results.length > 0 ? results[0] : null;
+    const results = await resultsResponse.json();
+    console.log(`Cheerio Scraper results:`, JSON.stringify(results, null, 2));
+    
+    if (results && results.length > 0) {
+      const result = results[0];
+      return {
+        name: result.hotelName,
+        hotelName: result.hotelName,
+        hotelOverallRating: result.rating,
+        hotelReviewCount: result.reviewCount,
+      };
+    }
+    return null;
   } catch (error) {
     console.error(`Direct URL fetch failed:`, error);
     return null;
