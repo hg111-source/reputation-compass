@@ -32,7 +32,7 @@ export default function Groups() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-3 text-muted-foreground">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           <span>Loading...</span>
         </div>
       </div>
@@ -68,41 +68,42 @@ export default function Groups() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-10">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Groups</h1>
-            <p className="mt-1 text-muted-foreground">
+            <h1 className="text-4xl font-bold tracking-tight">Groups</h1>
+            <p className="mt-2 text-muted-foreground">
               Organize properties into groups for comparison
             </p>
           </div>
 
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-accent hover:bg-accent/90">
+              <Button variant="secondary">
                 <Plus className="mr-2 h-4 w-4" />
                 Create Group
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="rounded-xl sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Create Group</DialogTitle>
+                <DialogTitle className="text-xl">Create Group</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4">
+              <form onSubmit={handleCreate} className="space-y-5 pt-2">
                 <div className="space-y-2">
                   <Label htmlFor="name">Group Name</Label>
                   <Input
                     id="name"
                     name="name"
                     placeholder="e.g., NYC Competitive Set"
-                    className="h-11"
+                    className="h-12 rounded-md"
                     required
                   />
                 </div>
                 <Button 
                   type="submit" 
-                  className="h-11 w-full bg-accent hover:bg-accent/90" 
+                  variant="secondary"
+                  className="h-12 w-full" 
                   disabled={createGroup.isPending}
                 >
                   {createGroup.isPending ? 'Creating...' : 'Create Group'}
@@ -114,21 +115,21 @@ export default function Groups() {
 
         {isLoading ? (
           <div className="flex items-center gap-3 text-muted-foreground">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
             <span>Loading groups...</span>
           </div>
         ) : groups.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-16 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+          <div className="rounded-xl border border-dashed border-border bg-card p-20 text-center shadow-kasa">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
               <FolderOpen className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="mt-6 text-xl font-semibold">No groups yet</h3>
-            <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
+            <h3 className="mt-8 text-2xl font-semibold">No groups yet</h3>
+            <p className="mx-auto mt-3 max-w-md text-muted-foreground">
               Create groups to organize and compare properties.
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {groups.map(group => (
               <GroupCard
                 key={group.id}
@@ -167,14 +168,14 @@ function GroupCard({
   const { properties } = useGroupProperties(group.id);
 
   return (
-    <Card className={`border-0 shadow-card transition-all ${isSelected ? 'ring-2 ring-accent' : ''}`}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-lg font-semibold">{group.name}</CardTitle>
+    <Card className={`shadow-kasa transition-all hover:shadow-kasa-hover ${isSelected ? 'ring-2 ring-accent' : ''}`}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardTitle className="text-xl font-semibold">{group.name}</CardTitle>
         <div className="flex gap-1">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-8 w-8 text-muted-foreground hover:text-foreground" 
+            className="h-9 w-9 text-muted-foreground hover:text-foreground" 
             onClick={onManage}
           >
             <Settings className="h-4 w-4" />
@@ -182,7 +183,7 @@ function GroupCard({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            className="h-9 w-9 text-muted-foreground hover:text-destructive"
             onClick={onDelete}
           >
             <Trash2 className="h-4 w-4" />
@@ -190,18 +191,18 @@ function GroupCard({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-            <Building2 className="h-5 w-5 text-muted-foreground" />
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+            <Building2 className="h-6 w-6 text-muted-foreground" />
           </div>
           <div>
-            <div className="text-2xl font-bold">{properties.length}</div>
+            <div className="text-3xl font-bold">{properties.length}</div>
             <p className="text-sm text-muted-foreground">
               {properties.length === 1 ? 'property' : 'properties'}
             </p>
           </div>
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">
+        <p className="mt-5 text-xs text-muted-foreground">
           Created {format(new Date(group.created_at), 'MMM d, yyyy')}
         </p>
       </CardContent>
@@ -286,33 +287,32 @@ function GroupPropertiesManager({
   };
 
   return (
-    <Card className="border-0 shadow-card">
-      <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
-        <CardTitle className="text-lg">Manage Properties</CardTitle>
+    <Card className="shadow-kasa">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border">
+        <CardTitle className="text-xl">Manage Properties</CardTitle>
         <Button variant="outline" size="sm" onClick={onClose}>
           Done
         </Button>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="mb-4 space-y-3">
+      <CardContent className="pt-6">
+        <div className="mb-5 space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search properties..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="h-10 pl-9"
+              className="h-12 rounded-lg pl-11"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <Button
               variant="outline"
               size="sm"
               onClick={handleSelectAll}
               disabled={isProcessing || propertiesToAdd.length === 0}
-              className="text-xs"
             >
-              <CheckSquare className="mr-2 h-3.5 w-3.5" />
+              <CheckSquare className="mr-2 h-4 w-4" />
               Select All ({propertiesToAdd.length})
             </Button>
             <Button
@@ -320,26 +320,25 @@ function GroupPropertiesManager({
               size="sm"
               onClick={handleClearAll}
               disabled={isProcessing || groupPropertyIds.size === 0}
-              className="text-xs"
             >
-              <XSquare className="mr-2 h-3.5 w-3.5" />
+              <XSquare className="mr-2 h-4 w-4" />
               Clear All ({groupPropertyIds.size})
             </Button>
           </div>
         </div>
         {allProperties.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-10 text-center text-muted-foreground">
             No properties available. Upload or add properties first.
           </p>
         ) : (
-          <div className="max-h-72 space-y-2 overflow-y-auto">
+          <div className="max-h-80 space-y-3 overflow-y-auto">
             {filteredProperties.map(property => {
               const isInGroup = groupPropertyIds.has(property.id);
               return (
                 <div
                   key={property.id}
-                  className={`flex items-center space-x-3 rounded-xl border p-3 transition-colors ${
-                    isInGroup ? 'border-accent/30 bg-accent/5' : 'border-border bg-card'
+                  className={`flex items-center space-x-4 rounded-xl border p-4 transition-colors ${
+                    isInGroup ? 'border-accent/30 bg-accent/5' : 'border-border bg-card hover:bg-muted/30'
                   }`}
                 >
                   <Checkbox

@@ -36,7 +36,7 @@ export default function Properties() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-3 text-muted-foreground">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           <span>Loading...</span>
         </div>
       </div>
@@ -74,35 +74,35 @@ export default function Properties() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-10">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Properties</h1>
-            <p className="mt-1 text-muted-foreground">
+            <h1 className="text-4xl font-bold tracking-tight">Properties</h1>
+            <p className="mt-2 text-muted-foreground">
               Manage your hotel and property listings
             </p>
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-accent hover:bg-accent/90">
+              <Button variant="secondary">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Property
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="rounded-xl sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Add Property</DialogTitle>
+                <DialogTitle className="text-xl">Add Property</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4">
+              <form onSubmit={handleCreate} className="space-y-5 pt-2">
                 <div className="space-y-2">
                   <Label htmlFor="name">Hotel Name</Label>
                   <Input 
                     id="name" 
                     name="name" 
                     placeholder="The Grand Hotel" 
-                    className="h-11"
+                    className="h-12 rounded-md"
                     required 
                   />
                 </div>
@@ -113,7 +113,7 @@ export default function Properties() {
                       id="city" 
                       name="city" 
                       placeholder="New York" 
-                      className="h-11"
+                      className="h-12 rounded-md"
                       required 
                     />
                   </div>
@@ -123,14 +123,15 @@ export default function Properties() {
                       id="state" 
                       name="state" 
                       placeholder="NY" 
-                      className="h-11"
+                      className="h-12 rounded-md"
                       required 
                     />
                   </div>
                 </div>
                 <Button 
                   type="submit" 
-                  className="h-11 w-full bg-accent hover:bg-accent/90" 
+                  variant="secondary"
+                  className="h-12 w-full" 
                   disabled={createProperty.isPending}
                 >
                   {createProperty.isPending ? 'Adding...' : 'Add Property'}
@@ -142,21 +143,21 @@ export default function Properties() {
 
         {isLoading ? (
           <div className="flex items-center gap-3 text-muted-foreground">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
             <span>Loading properties...</span>
           </div>
         ) : properties.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-16 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+          <div className="rounded-xl border border-dashed border-border bg-card p-20 text-center shadow-kasa">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
               <Building2 className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="mt-6 text-xl font-semibold">No properties yet</h3>
-            <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
+            <h3 className="mt-8 text-2xl font-semibold">No properties yet</h3>
+            <p className="mx-auto mt-3 max-w-md text-muted-foreground">
               Add properties manually or upload a CSV file to get started.
             </p>
           </div>
         ) : (
-          <Card className="overflow-hidden border-0 shadow-card">
+          <Card className="overflow-hidden shadow-kasa">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">

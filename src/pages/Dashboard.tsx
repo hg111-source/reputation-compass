@@ -24,7 +24,7 @@ export default function Dashboard() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-3 text-muted-foreground">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           <span>Loading...</span>
         </div>
       </div>
@@ -39,12 +39,12 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-10">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-            <p className="mt-1 text-muted-foreground">
+            <h1 className="text-4xl font-bold tracking-tight">Dashboard</h1>
+            <p className="mt-2 text-muted-foreground">
               View and track reputation scores across your property groups
             </p>
           </div>
@@ -54,10 +54,10 @@ export default function Dashboard() {
               value={selectedGroupId || ''}
               onValueChange={(value) => setSelectedGroupId(value || null)}
             >
-              <SelectTrigger className="w-[240px] bg-card shadow-sm">
+              <SelectTrigger className="h-12 w-[260px] rounded-lg border-border bg-card shadow-kasa">
                 <SelectValue placeholder="Select a group" />
               </SelectTrigger>
-              <SelectContent className="bg-card">
+              <SelectContent className="rounded-lg border-border bg-card shadow-kasa-hover">
                 {groups.map(group => (
                   <SelectItem key={group.id} value={group.id}>
                     {group.name}
@@ -70,20 +70,20 @@ export default function Dashboard() {
 
         {groupsLoading ? (
           <div className="flex items-center gap-3 text-muted-foreground">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
             <span>Loading groups...</span>
           </div>
         ) : groups.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-16 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+          <div className="rounded-xl border border-dashed border-border bg-card p-20 text-center shadow-kasa">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
               <FolderOpen className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="mt-6 text-xl font-semibold">No groups yet</h3>
-            <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
+            <h3 className="mt-8 text-2xl font-semibold">No groups yet</h3>
+            <p className="mx-auto mt-3 max-w-md text-muted-foreground">
               Create a group and add properties to start tracking your reputation scores.
             </p>
-            <div className="mt-8 flex justify-center gap-3">
-              <Button asChild className="bg-accent hover:bg-accent/90">
+            <div className="mt-10 flex justify-center gap-4">
+              <Button asChild variant="secondary">
                 <Link to="/groups">Create Group</Link>
               </Button>
               <Button variant="outline" asChild>
@@ -92,12 +92,12 @@ export default function Dashboard() {
             </div>
           </div>
         ) : !selectedGroupId ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-16 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+          <div className="rounded-xl border border-dashed border-border bg-card p-20 text-center shadow-kasa">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
               <TrendingUp className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="mt-6 text-xl font-semibold">Select a group</h3>
-            <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
+            <h3 className="mt-8 text-2xl font-semibold">Select a group</h3>
+            <p className="mx-auto mt-3 max-w-md text-muted-foreground">
               Choose a group from the dropdown above to view reputation scores.
             </p>
           </div>

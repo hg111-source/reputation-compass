@@ -75,9 +75,9 @@ export function GroupScoresTable({
 
   if (properties.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
-        <p className="text-muted-foreground">No properties in this group yet.</p>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <div className="rounded-xl border border-dashed border-border bg-card p-16 text-center shadow-kasa">
+        <p className="text-lg text-muted-foreground">No properties in this group yet.</p>
+        <p className="mt-2 text-muted-foreground">
           Add properties from the Groups page.
         </p>
       </div>
@@ -85,78 +85,75 @@ export function GroupScoresTable({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Scores table */}
-      <Card className="overflow-hidden border-0 shadow-card">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
-              <TableHead className="w-[200px] font-semibold">Property</TableHead>
-              <TableHead className="w-[140px] font-semibold">Location</TableHead>
+    <Card className="overflow-hidden shadow-kasa">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableHead className="w-[220px] py-4 font-semibold">Property</TableHead>
+            <TableHead className="w-[160px] py-4 font-semibold">Location</TableHead>
+            {REVIEW_SOURCES.map(source => (
+              <TableHead key={source} className="w-[110px] py-4 text-center font-semibold">
+                {SOURCE_LABELS[source]}
+              </TableHead>
+            ))}
+            <TableHead className="w-[110px] py-4 text-center font-semibold">Weighted</TableHead>
+            <TableHead className="w-[140px] py-4 font-semibold">Updated</TableHead>
+            <TableHead className="w-[90px] py-4"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {propertiesWithScores.map(property => (
+            <TableRow key={property.id} className="group">
+              <TableCell className="py-4 font-medium">{property.name}</TableCell>
+              <TableCell className="py-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
+                  {property.city}, {property.state}
+                </div>
+              </TableCell>
               {REVIEW_SOURCES.map(source => (
-                <TableHead key={source} className="w-[100px] text-center font-semibold">
-                  {SOURCE_LABELS[source]}
-                </TableHead>
+                <TableCell key={source} className="py-4">
+                  <ScoreCell
+                    score={property.scores[source]?.score}
+                    count={property.scores[source]?.count}
+                  />
+                </TableCell>
               ))}
-              <TableHead className="w-[100px] text-center font-semibold">Weighted</TableHead>
-              <TableHead className="w-[120px] font-semibold">Updated</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {propertiesWithScores.map(property => (
-              <TableRow key={property.id} className="group">
-                <TableCell className="font-medium">{property.name}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {property.city}, {property.state}
-                  </div>
-                </TableCell>
-                {REVIEW_SOURCES.map(source => (
-                  <TableCell key={source}>
-                    <ScoreCell
-                      score={property.scores[source]?.score}
-                      count={property.scores[source]?.count}
-                    />
-                  </TableCell>
-                ))}
-                <TableCell>
-                  <ScoreCell score={property.weightedScore} showCount={false} isWeighted />
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {property.lastUpdated
-                    ? format(new Date(property.lastUpdated), 'MMM d, h:mm a')
-                    : '—'}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <TableCell className="py-4">
+                <ScoreCell score={property.weightedScore} showCount={false} isWeighted />
+              </TableCell>
+              <TableCell className="py-4 text-sm text-muted-foreground">
+                {property.lastUpdated
+                  ? format(new Date(property.lastUpdated), 'MMM d, h:mm a')
+                  : '—'}
+              </TableCell>
+              <TableCell className="py-4">
+                <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                    onClick={() => onRefreshProperty(property.id)}
+                    disabled={isRefreshing}
+                  >
+                    <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                  </Button>
+                  {onRemoveProperty && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      onClick={() => onRefreshProperty(property.id)}
-                      disabled={isRefreshing}
+                      className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                      onClick={() => onRemoveProperty(property.id)}
                     >
-                      <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                    {onRemoveProperty && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => onRemoveProperty(property.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-    </div>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
   );
 }
