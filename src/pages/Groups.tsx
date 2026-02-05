@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { 
   Plus, Trash2, FolderOpen, Settings, CheckSquare, XSquare, Search, 
   Building2, MessageSquare, Wand2, MoreVertical, Pencil, Download, RefreshCw,
-  Globe, Sparkles
+  Globe, Sparkles, Copy, Lock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -42,7 +42,7 @@ import { exportGroupToCSV } from '@/lib/csv';
 
 export default function Groups() {
   const { user, loading } = useAuth();
-  const { groups, isLoading, createGroup, deleteGroup, updateGroup } = useGroups();
+  const { myGroups, publicGroups, isLoading, createGroup, deleteGroup, updateGroup, copyGroup } = useGroups();
   const { properties } = useProperties();
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
@@ -50,6 +50,7 @@ export default function Groups() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAutoGroupOpen, setIsAutoGroupOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [newGroupPublic, setNewGroupPublic] = useState(false);
 
   // Calculate "All Properties" metrics
   const allPropertiesMetrics = useMemo(() => {
@@ -86,15 +87,17 @@ export default function Groups() {
     return <Navigate to="/auth" replace />;
   }
 
+
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
 
     try {
-      await createGroup.mutateAsync(name);
+      await createGroup.mutateAsync({ name, isPublic: newGroupPublic });
       toast({ title: 'Group created', description: `${name} has been created.` });
       setIsCreateOpen(false);
+      setNewGroupPublic(false);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to create group.' });
     }
@@ -152,6 +155,22 @@ export default function Groups() {
                       className="h-12 rounded-md"
                       required
                     />
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="is_public"
+                      checked={newGroupPublic}
+                      onCheckedChange={(checked) => setNewGroupPublic(checked === true)}
+                    />
+                    <Label htmlFor="is_public" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <span>Make this group public</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Public groups can be viewed by other users
+                      </p>
+                    </Label>
                   </div>
                   <Button 
                     type="submit" 
@@ -242,15 +261,48 @@ export default function Groups() {
               </CardContent>
             </Card>
 
-            {groups.map(group => (
+            {myGroups.map(group => (
               <GroupCard
                 key={group.id}
                 group={group}
                 onDelete={() => handleDelete(group.id, group.name)}
                 onManage={() => setSelectedGroupId(group.id)}
                 isSelected={selectedGroupId === group.id}
+                isOwner={true}
               />
             ))}
+          </div>
+        )}
+
+        {/* Public Groups Section */}
+        {publicGroups.length > 0 && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-semibold">Public Groups</h2>
+              <p className="mt-1 text-muted-foreground">
+                Shared groups from other users (read-only)
+              </p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {publicGroups.map(group => (
+                <GroupCard
+                  key={group.id}
+                  group={group}
+                  onDelete={() => {}}
+                  onManage={() => {}}
+                  isSelected={false}
+                  isOwner={false}
+                  onCopy={async (name) => {
+                    try {
+                      await copyGroup.mutateAsync({ sourceGroupId: group.id, newName: name });
+                      toast({ title: 'Group copied', description: `"${name}" has been added to your groups.` });
+                    } catch (error) {
+                      toast({ variant: 'destructive', title: 'Error', description: 'Failed to copy group.' });
+                    }
+                  }}
+                />
+              ))}
+            </div>
           </div>
         )}
 
@@ -278,11 +330,15 @@ function GroupCard({
   onDelete,
   onManage,
   isSelected,
+  isOwner = true,
+  onCopy,
 }: {
-  group: { id: string; name: string; created_at: string };
+  group: { id: string; name: string; created_at: string; is_public?: boolean; user_id?: string };
   onDelete: () => void;
   onManage: () => void;
   isSelected: boolean;
+  isOwner?: boolean;
+  onCopy?: (name: string) => void;
 }) {
   const { avgScore, totalProperties, totalReviews, isLoading, properties, scores } = useGroupMetrics(group.id);
   const { updateGroup } = useGroups();
@@ -290,6 +346,8 @@ function GroupCard({
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(group.name);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
+  const [copyName, setCopyName] = useState(`${group.name} (Copy)`);
 
   const handleRename = async () => {
     if (!newName.trim() || newName === group.name) {
@@ -305,9 +363,30 @@ function GroupCard({
     }
   };
 
+  const handleTogglePublic = async () => {
+    try {
+      await updateGroup.mutateAsync({ id: group.id, isPublic: !group.is_public });
+      toast({ 
+        title: group.is_public ? 'Group made private' : 'Group made public',
+        description: group.is_public 
+          ? 'Only you can see this group now.' 
+          : 'Other users can now view this group.'
+      });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to update group.' });
+    }
+  };
+
   const handleExport = () => {
     exportGroupToCSV(group.name, properties, scores as Record<string, Record<ReviewSource, { score: number; count: number; updated: string }>>);
     toast({ title: 'Export complete', description: 'Group exported to CSV.' });
+  };
+
+  const handleCopy = () => {
+    if (onCopy && copyName.trim()) {
+      onCopy(copyName.trim());
+      setIsCopyDialogOpen(false);
+    }
   };
 
   return (
@@ -329,7 +408,14 @@ function GroupCard({
               <Button size="sm" variant="ghost" onClick={handleRename}>Save</Button>
             </div>
           ) : (
-            <CardTitle className="text-xl font-semibold">{group.name}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-xl font-semibold">{group.name}</CardTitle>
+              {group.is_public ? (
+                <Globe className="h-4 w-4 text-accent" />
+              ) : (
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -338,28 +424,55 @@ function GroupCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsAnalysisOpen(true)}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Analyze Reviews
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onManage}>
-                <Settings className="mr-2 h-4 w-4" />
-                Manage Properties
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setNewName(group.name); setIsRenaming(true); }}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Rename
-              </DropdownMenuItem>
+              {isOwner && (
+                <>
+                  <DropdownMenuItem onClick={() => setIsAnalysisOpen(true)}>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Analyze Reviews
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onManage}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Manage Properties
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setNewName(group.name); setIsRenaming(true); }}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Rename
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleTogglePublic}>
+                    {group.is_public ? (
+                      <>
+                        <Lock className="mr-2 h-4 w-4" />
+                        Make Private
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="mr-2 h-4 w-4" />
+                        Make Public
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuItem onClick={handleExport} disabled={totalProperties === 0}>
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onDelete} className="text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
+              {!isOwner && onCopy && (
+                <DropdownMenuItem onClick={() => setIsCopyDialogOpen(true)}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy to My Groups
+                </DropdownMenuItem>
+              )}
+              {isOwner && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </CardHeader>
@@ -434,6 +547,33 @@ function GroupCard({
         groupId={group.id}
         groupName={group.name}
       />
+
+      {/* Copy Group Dialog */}
+      <Dialog open={isCopyDialogOpen} onOpenChange={setIsCopyDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Copy Group</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="copy-name">New Group Name</Label>
+              <Input
+                id="copy-name"
+                value={copyName}
+                onChange={(e) => setCopyName(e.target.value)}
+                placeholder="Enter a name for your copy"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This will create a copy of the group with only the properties you own.
+            </p>
+            <Button onClick={handleCopy} className="w-full">
+              <Copy className="mr-2 h-4 w-4" />
+              Copy Group
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

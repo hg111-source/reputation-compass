@@ -12,12 +12,13 @@ export interface Property {
   google_place_id?: string | null;
 }
  
- export interface Group {
-   id: string;
-   user_id: string;
-   name: string;
-   created_at: string;
- }
+export interface Group {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+  is_public: boolean;
+}
  
  export interface GroupProperty {
    id: string;
