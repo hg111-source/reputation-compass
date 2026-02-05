@@ -389,9 +389,15 @@ function GroupCard({
     }
   };
 
+  const isPrivate = !group.is_public;
+
   return (
     <>
-      <Card className={`shadow-kasa transition-all hover:shadow-kasa-hover ${isSelected ? 'ring-2 ring-accent' : ''}`}>
+      <Card className={cn(
+        'shadow-kasa transition-all hover:shadow-kasa-hover',
+        isSelected && 'ring-2 ring-accent',
+        isPrivate && 'bg-muted/60'
+      )}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           {isRenaming ? (
             <div className="flex items-center gap-2 flex-1 mr-2">
