@@ -388,7 +388,6 @@ export default function Properties() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="w-8"></TableHead>
                   <SortableTableHead
                     sortKey="name"
                     currentSort={sortKey}
