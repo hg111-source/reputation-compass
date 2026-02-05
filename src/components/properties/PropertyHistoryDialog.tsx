@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { History, TrendingUp, TrendingDown, Minus, Trash2 } from 'lucide-react';
+import { History, TrendingUp, TrendingDown, Minus, Trash2, BarChart3, TableIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Property, SourceSnapshot, ReviewSource } from '@/lib/types';
 import { usePropertySnapshots } from '@/hooks/useSnapshots';
 import { useCleanupSnapshots } from '@/hooks/useCleanupSnapshots';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { getScoreColor, formatScore, calculateWeightedScore, REVIEW_SOURCES, SOURCE_LABELS } from '@/lib/scoring';
+import { PropertyTrendChart } from './PropertyTrendChart';
 
 const TREND_THRESHOLD = 0.05;
 
@@ -159,85 +161,102 @@ export function PropertyHistoryDialog({ property, open, onOpenChange }: Property
               <p className="text-sm">Refresh scores to start tracking history</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  {REVIEW_SOURCES.map(source => (
-                    <TableHead key={source} className="text-center">
-                      {SOURCE_LABELS[source]}
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-center">Weighted Avg</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {groupedRows.map((row, index) => (
-                  <TableRow key={row.date} className={index === 0 ? 'bg-accent/5' : ''}>
-                    <TableCell className="whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        {index === 0 && (
-                          <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-                            Latest
-                          </span>
-                        )}
-                        {format(new Date(row.date), 'MMM d, yyyy')}
-                      </div>
-                    </TableCell>
-                    {REVIEW_SOURCES.map(source => {
-                      const data = row.scores[source];
-                      const prevRow = groupedRows[index + 1];
-                      const prevData = prevRow?.scores[source];
-                      const trend = getTrendIndicator(data?.score ?? null, prevData?.score ?? null);
-                      const isNotListed = data?.status === 'not_listed';
-                      return (
-                        <TableCell key={source} className="text-center">
-                          {data ? (
-                            isNotListed ? (
-                              <span className="text-xs text-muted-foreground italic">Not Listed</span>
-                            ) : data.score !== null ? (
-                              <div className="flex items-center justify-center gap-1">
-                                <div>
-                                  <span className={cn('font-semibold', getScoreColor(data.score))}>
-                                    {formatScore(data.score)}
-                                  </span>
-                                  <div className="text-xs text-muted-foreground">
-                                    {data.count.toLocaleString()}
+            <Tabs defaultValue="chart" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="chart" className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Trend Chart
+                </TabsTrigger>
+                <TabsTrigger value="table" className="flex items-center gap-2">
+                  <TableIcon className="h-4 w-4" />
+                  Data Table
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="chart">
+                <PropertyTrendChart snapshots={snapshots} />
+              </TabsContent>
+              <TabsContent value="table">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      {REVIEW_SOURCES.map(source => (
+                        <TableHead key={source} className="text-center">
+                          {SOURCE_LABELS[source]}
+                        </TableHead>
+                      ))}
+                      <TableHead className="text-center">Weighted Avg</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {groupedRows.map((row, index) => (
+                      <TableRow key={row.date} className={index === 0 ? 'bg-accent/5' : ''}>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            {index === 0 && (
+                              <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
+                                Latest
+                              </span>
+                            )}
+                            {format(new Date(row.date), 'MMM d, yyyy')}
+                          </div>
+                        </TableCell>
+                        {REVIEW_SOURCES.map(source => {
+                          const data = row.scores[source];
+                          const prevRow = groupedRows[index + 1];
+                          const prevData = prevRow?.scores[source];
+                          const trend = getTrendIndicator(data?.score ?? null, prevData?.score ?? null);
+                          const isNotListed = data?.status === 'not_listed';
+                          return (
+                            <TableCell key={source} className="text-center">
+                              {data ? (
+                                isNotListed ? (
+                                  <span className="text-xs text-muted-foreground italic">Not Listed</span>
+                                ) : data.score !== null ? (
+                                  <div className="flex items-center justify-center gap-1">
+                                    <div>
+                                      <span className={cn('font-semibold', getScoreColor(data.score))}>
+                                        {formatScore(data.score)}
+                                      </span>
+                                      <div className="text-xs text-muted-foreground">
+                                        {data.count.toLocaleString()}
+                                      </div>
+                                    </div>
+                                    {trend && (
+                                      <trend.icon className={cn('h-3 w-3', trend.color)} aria-label={trend.label} />
+                                    )}
                                   </div>
-                                </div>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="text-center">
+                          {(() => {
+                            const prevRow = groupedRows[index + 1];
+                            const trend = getTrendIndicator(row.weightedAvg, prevRow?.weightedAvg ?? null);
+                            return (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className={cn('font-bold', row.weightedAvg !== null ? getScoreColor(row.weightedAvg) : 'text-muted-foreground')}>
+                                  {row.weightedAvg !== null ? row.weightedAvg.toFixed(1) : '—'}
+                                </span>
                                 {trend && (
                                   <trend.icon className={cn('h-3 w-3', trend.color)} aria-label={trend.label} />
                                 )}
                               </div>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                            );
+                          })()}
                         </TableCell>
-                      );
-                    })}
-                    <TableCell className="text-center">
-                      {(() => {
-                        const prevRow = groupedRows[index + 1];
-                        const trend = getTrendIndicator(row.weightedAvg, prevRow?.weightedAvg ?? null);
-                        return (
-                          <div className="flex items-center justify-center gap-1">
-                            <span className={cn('font-bold', row.weightedAvg !== null ? getScoreColor(row.weightedAvg) : 'text-muted-foreground')}>
-                              {row.weightedAvg !== null ? row.weightedAvg.toFixed(1) : '—'}
-                            </span>
-                            {trend && (
-                              <trend.icon className={cn('h-3 w-3', trend.color)} aria-label={trend.label} />
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+            </Tabs>
           )}
         </div>
       </DialogContent>

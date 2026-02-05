@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Plus, Building2, RefreshCw, Download } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Plus, Building2, RefreshCw, Download, LayoutGrid, TableIcon } from 'lucide-react';
 import googleLogo from '@/assets/logos/google.svg';
 import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
 import bookingLogo from '@/assets/logos/booking.png';
@@ -31,6 +32,7 @@ import expediaLogo from '@/assets/logos/expedia.png';
 import { useToast } from '@/hooks/use-toast';
 import { Property, ReviewSource } from '@/lib/types';
 import { PropertyRow } from '@/components/properties/PropertyRow';
+import { PropertyCard } from '@/components/properties/PropertyCard';
 import { UnifiedRefreshDialog } from '@/components/properties/UnifiedRefreshDialog';
 import { PropertyHistoryDialog } from '@/components/properties/PropertyHistoryDialog';
 import { ReviewInsightsDialog } from '@/components/properties/ReviewInsightsDialog';
@@ -41,6 +43,7 @@ import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { HotelAutocomplete } from '@/components/properties/HotelAutocomplete';
 
 type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
+type ViewMode = 'table' | 'card';
 
 export default function Properties() {
   const { user, loading } = useAuth();
@@ -52,6 +55,7 @@ export default function Properties() {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [historyProperty, setHistoryProperty] = useState<Property | null>(null);
   const [insightsProperty, setInsightsProperty] = useState<Property | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   
   // Form state for controlled inputs
   const [formName, setFormName] = useState('');
@@ -357,18 +361,35 @@ export default function Properties() {
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="flex justify-end">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <ToggleGroup 
+                type="single" 
+                value={viewMode} 
+                onValueChange={(v) => v && setViewMode(v as ViewMode)}
+                className="bg-muted p-1 rounded-lg"
+              >
+                <ToggleGroupItem value="table" aria-label="Table view" className="data-[state=on]:bg-background">
+                  <TableIcon className="h-4 w-4 mr-1.5" />
+                  Table
+                </ToggleGroupItem>
+                <ToggleGroupItem value="card" aria-label="Card view" className="data-[state=on]:bg-background">
+                  <LayoutGrid className="h-4 w-4 mr-1.5" />
+                  Cards
+                </ToggleGroupItem>
+              </ToggleGroup>
               <ScoreLegend />
             </div>
-            <Card className="overflow-hidden shadow-kasa">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <SortableTableHead
-                    sortKey="name"
-                    currentSort={sortKey}
-                    currentDirection={sortDirection}
+            
+            {viewMode === 'table' ? (
+              <Card className="overflow-hidden shadow-kasa">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <SortableTableHead
+                      sortKey="name"
+                      currentSort={sortKey}
+                      currentDirection={sortDirection}
                     onSort={handleSort}
                     className="font-semibold text-left"
                   >
@@ -502,6 +523,23 @@ export default function Properties() {
               </TableBody>
             </Table>
           </Card>
+            ) : (
+              /* Card View */
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {sortedProperties.map(property => (
+                  <PropertyCard
+                    key={property.id}
+                    property={property}
+                    scores={scores[property.id]}
+                    onDelete={handleDelete}
+                    onRefreshAllPlatforms={handleRefreshSingleRow}
+                    onViewHistory={setHistoryProperty}
+                    onAnalyzeReviews={setInsightsProperty}
+                    isRefreshing={isRunning}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
