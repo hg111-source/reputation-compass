@@ -67,6 +67,14 @@ export function useAllPlatformsRefresh() {
     );
   }, []);
 
+  // Map platform to edge function name for fallback
+  const PLATFORM_FUNCTIONS: Record<Platform, string> = {
+    google: 'fetch-place-rating',
+    tripadvisor: 'fetch-tripadvisor-rating',
+    booking: 'fetch-booking-rating',
+    expedia: 'fetch-expedia-rating',
+  };
+
   const fetchSinglePlatform = useCallback(async (
     property: Property,
     platform: Platform,
@@ -75,75 +83,112 @@ export function useAllPlatformsRefresh() {
     try {
       console.log(`[${platform}] Fetching ${property.name} (attempt ${retryAttempt + 1})`);
       
-      // Use the unified fetch-rating-by-alias function
-      const { data, error } = await supabase.functions.invoke('fetch-rating-by-alias', {
+      // First try the unified fetch-rating-by-alias function
+      const { data: aliasData, error: aliasError } = await supabase.functions.invoke('fetch-rating-by-alias', {
         body: {
           propertyId: property.id,
           source: platform,
         },
       });
 
-      if (error) {
-        const isRetryable = error.message?.includes('timeout') || 
-                           error.message?.includes('rate limit') || 
-                           error.message?.includes('429') ||
-                           error.message?.includes('TIMED-OUT');
-        
-        // Retry logic for Apify platforms (booking, expedia, tripadvisor)
-        if (isRetryable && retryAttempt < MAX_RETRIES && platform !== 'google') {
-          console.log(`[${platform}] ${property.name} failed, retrying in ${RETRY_DELAY_MS/1000}s...`);
-          await delay(RETRY_DELAY_MS);
-          return fetchSinglePlatform(property, platform, retryAttempt + 1);
+      // If alias-based fetch worked, use that result
+      if (!aliasError && aliasData?.success) {
+        if (aliasData.rating !== null && aliasData.rating !== undefined) {
+          console.log(`[${platform}] ${property.name} SUCCESS (via alias): ${aliasData.rating}/${aliasData.scale} (${aliasData.reviewCount} reviews)`);
         }
-        
-        const msg = error.message?.includes('rate limit') || error.message?.includes('429')
-          ? 'Rate limit reached'
-          : error.message?.includes('timeout') || error.message?.includes('TIMED-OUT')
-            ? 'Timeout'
-            : error.message || 'API error';
-        console.log(`[${platform}] ${property.name} FAILED: ${msg}`);
-        return { success: false, error: msg };
+        return { success: true };
       }
 
-      // Handle response from fetch-rating-by-alias
-      if (!data.success) {
-        // Check specific statuses
-        if (data.status === 'not_listed') {
-          console.log(`[${platform}] ${property.name} NOT LISTED`);
+      // If alias returned not_listed, respect that
+      if (!aliasError && aliasData?.status === 'not_listed') {
+        console.log(`[${platform}] ${property.name} NOT LISTED (via alias)`);
+        return { success: true, notListed: true };
+      }
+
+      // If no alias exists or alias fetch failed, fall back to name-based search
+      const needsFallback = aliasError || 
+                           aliasData?.status === 'no_alias' || 
+                           aliasData?.status === 'needs_review' ||
+                           !aliasData?.success;
+      
+      if (needsFallback) {
+        console.log(`[${platform}] ${property.name} falling back to name-based search...`);
+        
+        // Get the URL field for OTA platforms
+        const urlField = platform === 'google' ? null : `${platform}_url` as keyof Property;
+        const startUrl = urlField ? (property[urlField] as string | null) : undefined;
+        
+        const { data, error } = await supabase.functions.invoke(PLATFORM_FUNCTIONS[platform], {
+          body: {
+            hotelName: property.name,
+            city: `${property.city}, ${property.state}`,
+            startUrl, // Pass stored URL if available
+          },
+        });
+
+        if (error) {
+          const isRetryable = error.message?.includes('timeout') || 
+                             error.message?.includes('rate limit') || 
+                             error.message?.includes('429') ||
+                             error.message?.includes('TIMED-OUT');
+          
+          if (isRetryable && retryAttempt < MAX_RETRIES && platform !== 'google') {
+            console.log(`[${platform}] ${property.name} failed, retrying in ${RETRY_DELAY_MS/1000}s...`);
+            await delay(RETRY_DELAY_MS);
+            return fetchSinglePlatform(property, platform, retryAttempt + 1);
+          }
+          
+          const msg = error.message?.includes('rate limit') || error.message?.includes('429')
+            ? 'Rate limit reached'
+            : error.message?.includes('timeout') || error.message?.includes('TIMED-OUT')
+              ? 'Timeout'
+              : error.message || 'API error';
+          console.log(`[${platform}] ${property.name} FAILED: ${msg}`);
+          return { success: false, error: msg };
+        }
+
+        if (!data.found) {
+          console.log(`[${platform}] ${property.name} NOT FOUND`);
           return { success: true, notListed: true };
         }
-        
-        if (data.status === 'no_alias') {
-          console.log(`[${platform}] ${property.name} NO ALIAS - run resolve-identity first`);
-          return { success: false, error: 'No identity resolved' };
+
+        // Save snapshot for name-based search results
+        if (data.rating !== null && data.rating !== undefined) {
+          const scale = platform === 'google' ? 5 : (data.scale || 5);
+          const normalizedScore = scale === 10 ? data.rating : (data.rating / scale) * 10;
+          
+          const { error: insertError } = await supabase.from('source_snapshots').insert({
+            property_id: property.id,
+            source: platform,
+            score_raw: data.rating,
+            score_scale: scale,
+            review_count: data.reviewCount || 0,
+            normalized_score_0_10: parseFloat(normalizedScore.toFixed(2)),
+          });
+
+          if (insertError) {
+            console.error('Error saving snapshot:', insertError);
+          }
+
+          console.log(`[${platform}] ${property.name} SUCCESS (via name search): ${data.rating}/${scale} (${data.reviewCount} reviews)`);
         }
-        
-        if (data.status === 'needs_review') {
-          console.log(`[${platform}] ${property.name} NEEDS REVIEW`);
-          return { success: false, error: 'Needs manual review' };
-        }
-        
-        // Retry on Apify errors
-        if (retryAttempt < MAX_RETRIES && platform !== 'google' && 
-            (data.error?.includes('timeout') || data.error?.includes('TIMEOUT') || data.status === 'timeout')) {
+
+        return { success: true };
+      }
+
+      // Handle other alias statuses
+      if (aliasData?.status === 'timeout') {
+        if (retryAttempt < MAX_RETRIES && platform !== 'google') {
           console.log(`[${platform}] ${property.name} timeout, retrying in ${RETRY_DELAY_MS/1000}s...`);
           await delay(RETRY_DELAY_MS);
           return fetchSinglePlatform(property, platform, retryAttempt + 1);
         }
-        
-        console.log(`[${platform}] ${property.name} FAILED: ${data.error || data.status}`);
-        return { success: false, error: data.error || data.status };
+        return { success: false, error: 'Timeout' };
       }
 
-      // Success - snapshot is already saved by the edge function
-      if (data.rating !== null && data.rating !== undefined) {
-        console.log(`[${platform}] ${property.name} SUCCESS: ${data.rating}/${data.scale} (${data.reviewCount} reviews)`);
-      }
-
-      console.log(`[${platform}] ${property.name} SUCCESS`);
-      return { success: true };
+      console.log(`[${platform}] ${property.name} FAILED: ${aliasData?.error || aliasData?.status}`);
+      return { success: false, error: aliasData?.error || aliasData?.status };
     } catch (err) {
-      // Retry on unexpected errors for Apify platforms
       if (retryAttempt < MAX_RETRIES && platform !== 'google') {
         console.log(`[${platform}] ${property.name} unexpected error, retrying in ${RETRY_DELAY_MS/1000}s...`);
         await delay(RETRY_DELAY_MS);
