@@ -23,11 +23,32 @@ export function normalizeHotelName(name: string): string {
     // Remove "The " at start
     .replace(/^the\s+/i, '')
     
-    // Remove brand suffixes
+    // Remove Marriott brand suffixes
     .replace(/,?\s*(autograph collection|tribute portfolio hotel|a tribute portfolio hotel|tribute portfolio)/gi, '')
-    .replace(/,?\s*(curio collection|tapestry collection|unbound collection)/gi, '')
-    .replace(/,?\s*(luxury collection|edition|w hotel)/gi, '')
-    .replace(/,?\s*by\s+(marriott|hilton|hyatt|ihg|wyndham|accor|choice|best western|radisson)/gi, '')
+    .replace(/,?\s*(luxury collection|edition|moxy|aloft|element|ac hotel|courtyard)/gi, '')
+    .replace(/,?\s*(residence inn|springhill suites|fairfield|towneplace suites)/gi, '')
+    .replace(/^(jw marriott|marriott|sheraton|westin|le meridien|st\. regis|st regis|w hotel|delta hotels?)\s*/gi, '')
+    
+    // Remove Hilton brand suffixes
+    .replace(/,?\s*(curio collection|tapestry collection|canopy|signia|lxr hotels?)/gi, '')
+    .replace(/^(waldorf astoria|conrad|hilton|doubletree|embassy suites|hampton|homewood suites|home2 suites|tru)\s*/gi, '')
+    
+    // Remove Hyatt brand suffixes
+    .replace(/,?\s*(unbound collection|destination|joie de vivre)/gi, '')
+    .replace(/^(park hyatt|grand hyatt|hyatt regency|hyatt centric|hyatt place|hyatt house|andaz|thompson|alila)\s*/gi, '')
+    
+    // Remove IHG brand suffixes
+    .replace(/^(intercontinental|kimpton|hotel indigo|crowne plaza|holiday inn|staybridge|candlewood|avid|atwell|vignette)/gi, '')
+    .replace(/,?\s*(vignette collection|regent|six senses)/gi, '')
+    
+    // Remove luxury/independent brand prefixes
+    .replace(/^(four seasons|ritz[- ]carlton|peninsula|mandarin oriental|rosewood|aman|banyan tree|raffles|fairmont|sofitel|nobu)\s*/gi, '')
+    
+    // Remove other chain prefixes
+    .replace(/^(wyndham|radisson|best western|choice|la quinta|motel 6|red roof|quality inn|comfort inn|days inn|super 8|ramada)\s*/gi, '')
+    
+    // Remove "by [Brand]" suffixes
+    .replace(/,?\s*by\s+(marriott|hilton|hyatt|ihg|wyndham|accor|choice|best western|radisson|sonesta)/gi, '')
     
     // Standardize punctuation
     .replace(/&/g, 'and')
