@@ -28,10 +28,10 @@ interface PropertyRowProps {
 }
 
 const PLATFORM_COLORS: Record<ReviewSource, string> = {
-  google: 'text-amber-600',
-  tripadvisor: 'text-orange-600',
-  booking: 'text-blue-600',
-  expedia: 'text-purple-600',
+  google: 'text-blue-500',
+  tripadvisor: 'text-green-600',
+  booking: 'text-blue-800',
+  expedia: 'text-yellow-500',
 };
 
 export function PropertyRow({
