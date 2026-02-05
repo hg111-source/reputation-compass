@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { normalizeHotelName, hotelNamesMatch } from "../_shared/hotelNameUtils.ts";
+import { normalizeHotelName, analyzeHotelMatch, validateCity } from "../_shared/hotelNameUtils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -77,22 +77,49 @@ serve(async (req) => {
       );
     }
 
-    // Find best matching place using normalized name comparison
+    // Find best matching place using word-based comparison
     let bestPlace: PlaceResult | null = null;
+    const [cityName] = city.split(',').map((s: string) => s.trim());
     
     for (const place of searchData.places as PlaceResult[]) {
       const placeName = place.displayName?.text || '';
-      if (hotelNamesMatch(hotelName, placeName, 0.7)) {
-        bestPlace = place;
-        console.log(`Matched: "${placeName}" with "${hotelName}"`);
-        break;
+      const matchResult = analyzeHotelMatch(hotelName, placeName);
+      
+      console.log(`Analyzing: "${placeName}" vs "${hotelName}"`);
+      console.log(`  → ${matchResult.reason}`);
+      console.log(`  → Matching words: [${matchResult.searchWords.filter(w => matchResult.resultWords.includes(w)).join(', ')}]`);
+      
+      // Check if name matches AND city is correct
+      if (matchResult.isMatch) {
+        if (validateCity(place.formattedAddress, cityName)) {
+          bestPlace = place;
+          console.log(`  ✓ MATCH (city validated)`);
+          break;
+        } else {
+          console.log(`  ✗ Name matches but wrong city`);
+        }
       }
     }
     
-    // Fall back to first result if no good match
+    // Fall back to first result only if it's in the right city
+    if (!bestPlace && searchData.places.length > 0) {
+      const firstPlace = searchData.places[0] as PlaceResult;
+      if (validateCity(firstPlace.formattedAddress, cityName)) {
+        bestPlace = firstPlace;
+        console.log(`No exact match, using first result: ${bestPlace.displayName?.text}`);
+      } else {
+        console.log(`First result is in wrong city, rejecting`);
+      }
+    }
+
     if (!bestPlace) {
-      bestPlace = searchData.places[0];
-      console.log(`No exact match, using first result: ${bestPlace.displayName?.text}`);
+      return new Response(
+        JSON.stringify({ 
+          found: false, 
+          message: 'No matching hotel found in the specified city' 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(
