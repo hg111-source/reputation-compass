@@ -185,6 +185,23 @@ export default function Properties() {
     return scores[propertyId]?.[source];
   };
 
+  const calculateWeightedAverage = (propertyId: string) => {
+    const platforms: ReviewSource[] = ['google', 'tripadvisor', 'booking', 'expedia'];
+    let totalPoints = 0;
+    let totalReviews = 0;
+
+    for (const platform of platforms) {
+      const data = scores[propertyId]?.[platform];
+      if (data && data.score > 0 && data.count > 0) {
+        totalPoints += data.score * data.count;
+        totalReviews += data.count;
+      }
+    }
+
+    if (totalReviews === 0) return null;
+    return totalPoints / totalReviews;
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-10">
@@ -276,6 +293,7 @@ export default function Properties() {
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="font-semibold">Name</TableHead>
                   <TableHead className="font-semibold">Location</TableHead>
+                  <TableHead className="text-center font-semibold">Weighted Avg</TableHead>
                   <TableHead className="text-center font-semibold">
                     <div className="flex flex-col items-center gap-0.5">
                       <Button
@@ -362,6 +380,7 @@ export default function Properties() {
                   const tripAdvisorScore = getScore(property.id, 'tripadvisor');
                   const bookingScore = getScore(property.id, 'booking');
                   const expediaScore = getScore(property.id, 'expedia');
+                  const weightedAvg = calculateWeightedAverage(property.id);
                   const isRefreshingThis = refreshingPropertyId === property.id;
                   
                   // Find most recent update across all platforms
@@ -380,6 +399,15 @@ export default function Properties() {
                           <MapPin className="h-3.5 w-3.5" />
                           {property.city}, {property.state}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {weightedAvg !== null ? (
+                          <span className={cn('text-lg font-bold', getScoreColor(weightedAvg))}>
+                            {weightedAvg.toFixed(1)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">N/A</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         <PlatformScoreCell data={googleScore} platform="google" />
