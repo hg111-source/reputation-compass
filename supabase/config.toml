@@ -1,1 +1,4 @@
 project_id = "hmshfuvjzixoinblmagv"
+
+[functions.fetch-place-rating]
+verify_jwt = false
