@@ -9,7 +9,8 @@ const corsHeaders = {
 const PLATFORM_FILTERS: Record<string, string> = {
   booking: 'site:booking.com/hotel',
   tripadvisor: 'site:tripadvisor.com inurl:Hotel_Review',
-  expedia: 'site:expedia.com inurl:Hotel',
+  // Use Hotels.com instead of Expedia - same reviews (Expedia Group owns both)
+  expedia: 'site:hotels.com',
 };
 
 // Generate query variations for better matching
