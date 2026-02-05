@@ -6,49 +6,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function extractRatingFromHtml(html: string): { rating: number | null; reviewCount: number; hotelName: string | null } {
-  let rating: number | null = null;
-  let reviewCount = 0;
-  let hotelName: string | null = null;
+// Hotels.com Review Scraper - same reviews as Expedia (both owned by Expedia Group)
+const HOTELS_COM_ACTOR_ID = 'merRpWJCABv7fb6Mf';
 
-  // Try JSON-LD structured data
-  const jsonLdMatches = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
-  
-  if (jsonLdMatches) {
-    for (const match of jsonLdMatches) {
-      try {
-        const jsonContent = match.replace(/<script[^>]*>|<\/script>/gi, '').trim();
-        const data = JSON.parse(jsonContent);
-        const items = Array.isArray(data) ? data : [data];
-        
-        for (const item of items) {
-          if (item['@type'] === 'Hotel' || item['@type'] === 'LodgingBusiness') {
-            hotelName = item.name || hotelName;
-            if (item.aggregateRating) {
-              rating = parseFloat(item.aggregateRating.ratingValue);
-              reviewCount = parseInt(item.aggregateRating.reviewCount) || 0;
-            }
-          }
-        }
-      } catch (_e) { /* continue */ }
-    }
-  }
+async function pollActorRun(apiToken: string, runId: string, maxWaitMs = 180000): Promise<any> {
+  const startTime = Date.now();
+  const pollInterval = 5000;
 
-  // Fallback patterns
-  if (rating === null) {
-    const ratingMatch = html.match(/ratingValue["']?\s*[:=]\s*["']?([\d.]+)/i);
-    if (ratingMatch) rating = parseFloat(ratingMatch[1]);
+  while (Date.now() - startTime < maxWaitMs) {
+    const response = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apiToken}`);
+    const runInfo = await response.json();
     
-    const reviewMatch = html.match(/reviewCount["']?\s*[:=]\s*["']?(\d+)/i);
-    if (reviewMatch) reviewCount = parseInt(reviewMatch[1]);
+    console.log(`Poll status: ${runInfo.data?.status}`);
+
+    if (runInfo.data?.status === 'SUCCEEDED') {
+      // Fetch dataset items
+      const datasetId = runInfo.data.defaultDatasetId;
+      const datasetResponse = await fetch(
+        `https://api.apify.com/v2/datasets/${datasetId}/items?token=${apiToken}`
+      );
+      return await datasetResponse.json();
+    }
+
+    if (runInfo.data?.status === 'FAILED' || runInfo.data?.status === 'ABORTED') {
+      throw new Error(`Actor run ${runInfo.data?.status}`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
 
-  if (rating === null) {
-    const scorePattern = html.match(/([\d.]+)\s*\/\s*10\s*(?:Exceptional|Wonderful|Very Good|Good|Pleasant)/i);
-    if (scorePattern) rating = parseFloat(scorePattern[1]);
-  }
-
-  return { rating, reviewCount, hotelName };
+  throw new Error('Actor run timed out');
 }
 
 serve(async (req) => {
@@ -57,6 +44,11 @@ serve(async (req) => {
   }
 
   try {
+    const apiToken = Deno.env.get('APIFY_API_TOKEN');
+    if (!apiToken) {
+      throw new Error('APIFY_API_TOKEN not configured');
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -71,10 +63,10 @@ serve(async (req) => {
       );
     }
 
-    // Check hotel_aliases for resolved Expedia URL
+    // Check hotel_aliases for resolved Hotels.com URL (stored as expedia source)
     const { data: alias, error: aliasError } = await supabase
       .from('hotel_aliases')
-      .select('platform_url, resolution_status')
+      .select('platform_url, resolution_status, source_name_raw')
       .eq('property_id', propertyId)
       .eq('source', 'expedia')
       .single();
@@ -97,54 +89,148 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Fetching: ${alias.platform_url}`);
-
-    const response = await fetch(alias.platform_url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html',
-      },
-    });
-
-    if (!response.ok) {
+    // Verify it's a Hotels.com URL
+    if (!alias.platform_url.includes('hotels.com')) {
+      console.log(`URL is not Hotels.com: ${alias.platform_url}`);
       return new Response(
-        JSON.stringify({ success: false, status: 'error', error: `HTTP ${response.status}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const html = await response.text();
-    const { rating, reviewCount, hotelName } = extractRatingFromHtml(html);
-
-    if (rating === null) {
-      return new Response(
-        JSON.stringify({ success: false, status: 'not_found', message: 'Rating not found in page' }),
+        JSON.stringify({ success: false, status: 'invalid_url', message: 'URL is not Hotels.com - re-resolve URLs' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log(`Fetching Hotels.com reviews for: ${alias.platform_url}`);
+
+    // Call the Hotels.com Review Scraper actor
+    const actorInput = {
+      productUrls: [alias.platform_url],
+      maxItems: 1, // We just need the overall rating
+    };
+
+    console.log('Starting Hotels.com actor with input:', JSON.stringify(actorInput));
+
+    const runResponse = await fetch(
+      `https://api.apify.com/v2/acts/${HOTELS_COM_ACTOR_ID}/runs?token=${apiToken}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(actorInput),
+      }
+    );
+
+    if (!runResponse.ok) {
+      const errorText = await runResponse.text();
+      console.error(`Actor start failed: ${runResponse.status} - ${errorText}`);
+      throw new Error(`Failed to start actor: ${runResponse.status}`);
+    }
+
+    const runData = await runResponse.json();
+    const runId = runData.data?.id;
+
+    if (!runId) {
+      throw new Error('No run ID returned from actor');
+    }
+
+    console.log(`Actor run started: ${runId}`);
+
+    // Poll for completion
+    const results = await pollActorRun(apiToken, runId);
+    
+    console.log(`Actor returned ${results?.length || 0} results`);
+    
+    if (!results || results.length === 0) {
+      return new Response(
+        JSON.stringify({ success: false, status: 'not_found', message: 'No results from Hotels.com' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Extract rating from Hotels.com data
+    // The actor returns review data - look for overall rating
+    const hotelData = results[0];
+    console.log('Hotels.com result keys:', Object.keys(hotelData || {}));
+    
+    // Hotels.com Review Scraper returns individual reviews
+    // The overall rating might be in hotelInfo or similar field
+    let rating: number | null = null;
+    let reviewCount = 0;
+    let hotelName: string | null = null;
+
+    // Check various possible field names for rating
+    if (hotelData.hotelOverallRating) {
+      rating = parseFloat(hotelData.hotelOverallRating);
+    } else if (hotelData.overallRating) {
+      rating = parseFloat(hotelData.overallRating);
+    } else if (hotelData.rating) {
+      rating = parseFloat(hotelData.rating);
+    } else if (hotelData.hotelInfo?.rating) {
+      rating = parseFloat(hotelData.hotelInfo.rating);
+    } else if (hotelData.guestRating) {
+      rating = parseFloat(hotelData.guestRating);
+    }
+
+    // Check for review count
+    if (hotelData.hotelReviewCount) {
+      reviewCount = parseInt(hotelData.hotelReviewCount);
+    } else if (hotelData.reviewCount) {
+      reviewCount = parseInt(hotelData.reviewCount);
+    } else if (hotelData.totalReviews) {
+      reviewCount = parseInt(hotelData.totalReviews);
+    } else if (hotelData.hotelInfo?.reviewCount) {
+      reviewCount = parseInt(hotelData.hotelInfo.reviewCount);
+    }
+
+    // Get hotel name
+    hotelName = hotelData.hotelName || hotelData.name || hotelData.hotelInfo?.name || null;
+
+    console.log(`Extracted: rating=${rating}, reviewCount=${reviewCount}, name=${hotelName}`);
+    console.log('Full result sample:', JSON.stringify(hotelData).substring(0, 500));
+
+    if (rating === null) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          status: 'not_found', 
+          message: 'Rating not found in Hotels.com response',
+          debug: Object.keys(hotelData || {})
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Hotels.com uses 10-point scale
+    const scale = 10;
+    const normalizedScore = rating;
+
     // Save snapshot
-    await supabase.from('source_snapshots').insert({
+    const { error: insertError } = await supabase.from('source_snapshots').insert({
       property_id: propertyId,
-      source: 'expedia',
+      source: 'expedia', // Store as expedia since they share the same reviews
       score_raw: rating,
-      score_scale: 10,
+      score_scale: scale,
       review_count: reviewCount,
-      normalized_score_0_10: rating,
+      normalized_score_0_10: parseFloat(normalizedScore.toFixed(2)),
       status: 'found',
     });
+
+    if (insertError) {
+      console.error('Error saving snapshot:', insertError);
+    }
 
     // Update alias
     await supabase
       .from('hotel_aliases')
-      .update({ last_verified_at: new Date().toISOString(), resolution_status: 'verified', source_name_raw: hotelName })
+      .update({ 
+        last_verified_at: new Date().toISOString(), 
+        resolution_status: 'verified', 
+        source_name_raw: hotelName 
+      })
       .eq('property_id', propertyId)
       .eq('source', 'expedia');
 
-    console.log(`Expedia: ${rating}/10 (${reviewCount} reviews)`);
+    console.log(`Hotels.com (Expedia): ${rating}/${scale} (${reviewCount} reviews)`);
 
     return new Response(
-      JSON.stringify({ success: true, status: 'found', rating, reviewCount, scale: 10 }),
+      JSON.stringify({ success: true, status: 'found', rating, reviewCount, scale }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
