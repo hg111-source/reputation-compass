@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.daily-google-refresh]
 verify_jwt = false
+
+[functions.fetch-tripadvisor-rating]
+verify_jwt = false
+
+[functions.fetch-booking-rating]
+verify_jwt = false
+
+[functions.fetch-expedia-rating]
+verify_jwt = false

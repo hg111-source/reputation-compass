@@ -4,8 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { useGoogleRatings, getGoogleRatingErrorMessage } from '@/hooks/useGoogleRatings';
-import { useBulkGoogleRefresh } from '@/hooks/useBulkGoogleRefresh';
-import { useGoogleTrends, formatChange, TrendDirection } from '@/hooks/useGoogleTrends';
+import { useOTARatings, getOTARatingErrorMessage, OTASource } from '@/hooks/useOTARatings';
+import { useAllPlatformsRefresh } from '@/hooks/useAllPlatformsRefresh';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,40 +26,37 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Plus, Trash2, Building2, MapPin, RefreshCw, Star, TrendingUp, TrendingDown, Minus, ArrowRight } from 'lucide-react';
+import { Plus, Trash2, Building2, MapPin, RefreshCw, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Property } from '@/lib/types';
+import { Property, ReviewSource } from '@/lib/types';
 import { getScoreColor } from '@/lib/scoring';
-import { BulkRefreshDialog } from '@/components/properties/BulkRefreshDialog';
-
-function TrendIcon({ trend }: { trend: TrendDirection }) {
-  switch (trend) {
-    case 'up':
-      return <TrendingUp className="h-4 w-4 text-emerald-500" />;
-    case 'down':
-      return <TrendingDown className="h-4 w-4 text-red-500" />;
-    case 'flat':
-      return <ArrowRight className="h-4 w-4 text-muted-foreground" />;
-    default:
-      return <span className="text-muted-foreground">—</span>;
-  }
-}
+import { PlatformScoreCell } from '@/components/properties/PlatformScoreCell';
+import { AllPlatformsRefreshDialog } from '@/components/properties/AllPlatformsRefreshDialog';
 
 export default function Properties() {
   const { user, loading } = useAuth();
   const { properties, isLoading, createProperty, deleteProperty } = useProperties();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [isAllPlatformsDialogOpen, setIsAllPlatformsDialogOpen] = useState(false);
   const [refreshingPropertyId, setRefreshingPropertyId] = useState<string | null>(null);
+  const [refreshingSource, setRefreshingSource] = useState<string | null>(null);
   
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
-  const { data: trends = {} } = useGoogleTrends(propertyIds);
   const { fetchGoogleRating } = useGoogleRatings();
-  const { isRunning, isComplete, propertyStates, startBulkRefresh, retryProperty, setDialogOpen } = useBulkGoogleRefresh();
+  const { fetchOTARating } = useOTARatings();
+  const {
+    isRunning: isAllPlatformsRunning,
+    isComplete: isAllPlatformsComplete,
+    currentPlatform,
+    propertyStates,
+    startAllPlatformsRefresh,
+    retryPlatform,
+    setDialogOpen: setAllPlatformsDialogOpen,
+  } = useAllPlatformsRefresh();
 
   if (loading) {
     return (
@@ -103,13 +100,13 @@ export default function Properties() {
 
   const handleRefreshGoogle = async (property: Property) => {
     setRefreshingPropertyId(property.id);
+    setRefreshingSource('google');
     
     try {
       const result = await fetchGoogleRating.mutateAsync({ property });
-      
       toast({
         title: 'Google rating updated',
-        description: `${property.name}: ${result.rating?.toFixed(1) || 'N/A'} ★ (${result.reviewCount?.toLocaleString() || 0} reviews)`,
+        description: `${property.name}: ${result.rating?.toFixed(1) || 'N/A'} ★`,
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'API_ERROR';
@@ -120,22 +117,46 @@ export default function Properties() {
       });
     } finally {
       setRefreshingPropertyId(null);
+      setRefreshingSource(null);
     }
   };
 
-  const getGoogleScore = (propertyId: string) => {
-    return scores[propertyId]?.google;
+  const handleRefreshOTA = async (property: Property, source: OTASource) => {
+    setRefreshingPropertyId(property.id);
+    setRefreshingSource(source);
+    
+    try {
+      const result = await fetchOTARating.mutateAsync({ property, source });
+      toast({
+        title: `${source.charAt(0).toUpperCase() + source.slice(1)} rating updated`,
+        description: `${property.name}: ${result.rating?.toFixed(1) || 'N/A'}`,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'API_ERROR';
+      toast({
+        variant: 'destructive',
+        title: 'Refresh failed',
+        description: getOTARatingErrorMessage(errorMessage, source),
+      });
+    } finally {
+      setRefreshingPropertyId(null);
+      setRefreshingSource(null);
+    }
   };
 
-  const handleBulkRefresh = () => {
-    setIsBulkDialogOpen(true);
-    setDialogOpen(true);
-    startBulkRefresh(properties);
+  const handleRefreshAllPlatforms = () => {
+    setIsAllPlatformsDialogOpen(true);
+    setAllPlatformsDialogOpen(true);
+    startAllPlatformsRefresh(properties);
   };
 
-  const handleBulkDialogChange = (open: boolean) => {
-    setIsBulkDialogOpen(open);
-    setDialogOpen(open);
+  const handleAllPlatformsDialogChange = (open: boolean) => {
+    setIsAllPlatformsDialogOpen(open);
+    setAllPlatformsDialogOpen(open);
+  };
+
+  const getScore = (propertyId: string, source: ReviewSource) => {
+    return scores[propertyId]?.[source];
   };
 
   return (
@@ -223,27 +244,34 @@ export default function Properties() {
             </p>
           </div>
         ) : (
-          <>
-            <Card className="overflow-hidden shadow-kasa">
-              <Table>
+          <Card className="overflow-hidden shadow-kasa">
+            <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="font-semibold">Name</TableHead>
                   <TableHead className="font-semibold">Location</TableHead>
-                  <TableHead className="text-center font-semibold">Google Rating</TableHead>
-                  <TableHead className="text-center font-semibold">Trend</TableHead>
-                  <TableHead className="text-center font-semibold">30d Δ</TableHead>
-                  <TableHead className="text-center font-semibold">Reviews</TableHead>
+                  <TableHead className="text-center font-semibold">
+                    <span className="text-amber-500">Google</span>
+                  </TableHead>
+                  <TableHead className="text-center font-semibold">
+                    <span className="text-orange-500">TripAdvisor</span>
+                  </TableHead>
+                  <TableHead className="text-center font-semibold">
+                    <span className="text-blue-500">Booking</span>
+                  </TableHead>
+                  <TableHead className="text-center font-semibold">
+                    <span className="text-purple-500">Expedia</span>
+                  </TableHead>
                   <TableHead className="font-semibold">Last Updated</TableHead>
-                  <TableHead className="w-[140px]">
+                  <TableHead className="w-[280px]">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleBulkRefresh}
-                      disabled={isRunning || properties.length === 0}
+                      onClick={handleRefreshAllPlatforms}
+                      disabled={isAllPlatformsRunning || properties.length === 0}
                       className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
                     >
-                      {isRunning ? (
+                      {isAllPlatformsRunning ? (
                         <>
                           <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                           Refreshing...
@@ -251,123 +279,146 @@ export default function Properties() {
                       ) : (
                         <>
                           <RefreshCw className="h-3.5 w-3.5" />
-                          Refresh All
+                          Refresh All Platforms
                         </>
                       )}
                     </Button>
                   </TableHead>
                 </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {properties.map(property => {
-                    const googleScore = getGoogleScore(property.id);
-                    const trendData = trends[property.id];
-                    const isRefreshing = refreshingPropertyId === property.id;
-                    const scoreColor = googleScore ? getScoreColor(googleScore.score) : '';
-                    
-                    return (
-                      <TableRow key={property.id} className="group">
-                        <TableCell className="font-medium">{property.name}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <MapPin className="h-3.5 w-3.5" />
-                            {property.city}, {property.state}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {googleScore ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                              <span className={cn('font-semibold', scoreColor)}>
-                                {googleScore.score.toFixed(1)}
-                              </span>
-                              <span className="text-muted-foreground text-xs">/ 10</span>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <TrendIcon trend={trendData?.trend ?? 'none'} />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className={cn(
-                            'text-sm',
-                            trendData?.change30d !== null && trendData?.change30d !== undefined
-                              ? trendData.change30d >= 0.05
-                                ? 'text-emerald-600'
-                                : trendData.change30d <= -0.05
-                                  ? 'text-red-600'
-                                  : 'text-muted-foreground'
-                              : 'text-muted-foreground'
-                          )}>
-                            {formatChange(trendData?.change30d ?? null)}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {googleScore ? (
-                            <span className="text-muted-foreground">
-                              {googleScore.count.toLocaleString()}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {googleScore?.updated
-                            ? format(new Date(googleScore.updated), 'MMM d, h:mm a')
-                            : '—'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                              onClick={() => handleRefreshGoogle(property)}
-                              disabled={isRefreshing}
-                            >
-                              {isRefreshing ? (
-                                <>
-                                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                                  <span>Fetching...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <RefreshCw className="h-3.5 w-3.5" />
-                                  <span>Google</span>
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                              onClick={() => handleDelete(property.id, property.name)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </Card>
-          </>
+              </TableHeader>
+              <TableBody>
+                {properties.map(property => {
+                  const googleScore = getScore(property.id, 'google');
+                  const tripAdvisorScore = getScore(property.id, 'tripadvisor');
+                  const bookingScore = getScore(property.id, 'booking');
+                  const expediaScore = getScore(property.id, 'expedia');
+                  const isRefreshingThis = refreshingPropertyId === property.id;
+                  
+                  // Find most recent update across all platforms
+                  const allUpdates = [googleScore, tripAdvisorScore, bookingScore, expediaScore]
+                    .filter(Boolean)
+                    .map(s => s!.updated);
+                  const mostRecentUpdate = allUpdates.length > 0
+                    ? allUpdates.reduce((a, b) => new Date(a) > new Date(b) ? a : b)
+                    : null;
+                  
+                  return (
+                    <TableRow key={property.id} className="group">
+                      <TableCell className="font-medium">{property.name}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <MapPin className="h-3.5 w-3.5" />
+                          {property.city}, {property.state}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <PlatformScoreCell data={googleScore} platform="google" />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <PlatformScoreCell data={tripAdvisorScore} platform="tripadvisor" />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <PlatformScoreCell data={bookingScore} platform="booking" />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <PlatformScoreCell data={expediaScore} platform="expedia" />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {mostRecentUpdate
+                          ? format(new Date(mostRecentUpdate), 'MMM d, h:mm a')
+                          : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {/* Google refresh */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-amber-600 hover:bg-amber-500/10 hover:text-amber-600"
+                            onClick={() => handleRefreshGoogle(property)}
+                            disabled={isRefreshingThis}
+                          >
+                            {isRefreshingThis && refreshingSource === 'google' ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                              'G'
+                            )}
+                          </Button>
+                          
+                          {/* TripAdvisor refresh */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-orange-600 hover:bg-orange-500/10 hover:text-orange-600"
+                            onClick={() => handleRefreshOTA(property, 'tripadvisor')}
+                            disabled={isRefreshingThis}
+                          >
+                            {isRefreshingThis && refreshingSource === 'tripadvisor' ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                              'TA'
+                            )}
+                          </Button>
+                          
+                          {/* Booking refresh */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-blue-600 hover:bg-blue-500/10 hover:text-blue-600"
+                            onClick={() => handleRefreshOTA(property, 'booking')}
+                            disabled={isRefreshingThis}
+                          >
+                            {isRefreshingThis && refreshingSource === 'booking' ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                              'B'
+                            )}
+                          </Button>
+                          
+                          {/* Expedia refresh */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-purple-600 hover:bg-purple-500/10 hover:text-purple-600"
+                            onClick={() => handleRefreshOTA(property, 'expedia')}
+                            disabled={isRefreshingThis}
+                          >
+                            {isRefreshingThis && refreshingSource === 'expedia' ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                              'E'
+                            )}
+                          </Button>
+                          
+                          {/* Delete button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                            onClick={() => handleDelete(property.id, property.name)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
         )}
 
-        {/* Bulk refresh dialog */}
-        <BulkRefreshDialog
-          open={isBulkDialogOpen}
-          onOpenChange={handleBulkDialogChange}
-          properties={propertyStates}
-          onRetry={retryProperty}
-          isComplete={isComplete}
+        {/* All platforms refresh dialog */}
+        <AllPlatformsRefreshDialog
+          open={isAllPlatformsDialogOpen}
+          onOpenChange={handleAllPlatformsDialogChange}
+          propertyStates={propertyStates}
+          currentPlatform={currentPlatform}
+          onRetry={retryPlatform}
+          isComplete={isAllPlatformsComplete}
         />
       </div>
     </DashboardLayout>
   );
 }
-
