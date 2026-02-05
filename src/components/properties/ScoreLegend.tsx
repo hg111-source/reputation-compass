@@ -4,9 +4,9 @@ import { cn } from '@/lib/utils';
 
 const SCORE_TIERS = [
   { min: 9, label: 'Wonderful', color: 'bg-emerald-500' },
-  { min: 8, label: 'Very Good', color: 'bg-green-600' },
-  { min: 7, label: 'Good', color: 'bg-lime-500' },
-  { min: 6, label: 'Pleasant', color: 'bg-amber-500' },
+  { min: 8, label: 'Very Good', color: 'bg-blue-500' },
+  { min: 7, label: 'Good', color: 'bg-yellow-500' },
+  { min: 6, label: 'Pleasant', color: 'bg-orange-500' },
   { min: 0, label: 'Needs Work', color: 'bg-red-500' },
 ];
 

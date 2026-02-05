@@ -173,18 +173,18 @@ export function generateSampleScores(): Array<{
  * Returns the appropriate color class based on score thresholds.
  * 
  * Score Tiers (0-10 scale):
- * - Wonderful (≥9.0): Bright green - exceptional performance
- * - Very Good (≥8.0): Green - strong performance
- * - Good (≥7.0): Lime/yellow-green - solid performance
- * - Pleasant (≥6.0): Amber - acceptable, room for improvement
+ * - Wonderful (≥9.0): Emerald - exceptional performance
+ * - Very Good (≥8.0): Blue - strong performance
+ * - Good (≥7.0): Yellow - solid performance
+ * - Pleasant (≥6.0): Orange - acceptable, room for improvement
  * - Needs Work (<6.0): Red - requires attention
  */
 export function getScoreColor(score: number | null): string {
   if (score === null) return 'text-muted-foreground';
   if (score >= 9) return 'text-emerald-500';  // Wonderful
-  if (score >= 8) return 'text-green-600';    // Very Good
-  if (score >= 7) return 'text-lime-500';     // Good
-  if (score >= 6) return 'text-amber-500';    // Pleasant
+  if (score >= 8) return 'text-blue-500';     // Very Good
+  if (score >= 7) return 'text-yellow-500';   // Good
+  if (score >= 6) return 'text-orange-500';   // Pleasant
   return 'text-red-500';                      // Needs Work
 }
 
