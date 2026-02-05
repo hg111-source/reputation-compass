@@ -23,8 +23,10 @@ interface PropertyRowProps {
   onDelete: (id: string, name: string) => void;
   onRefreshGoogle: (property: Property) => void;
   onRefreshOTA: (property: Property, source: 'tripadvisor' | 'booking' | 'expedia') => void;
+  onRefreshAllPlatforms: (property: Property) => void;
   isRefreshing: boolean;
   refreshingSource: string | null;
+  isRefreshingAll?: boolean;
 }
 
 export function PropertyRow({
@@ -33,8 +35,10 @@ export function PropertyRow({
   onDelete,
   onRefreshGoogle,
   onRefreshOTA,
+  onRefreshAllPlatforms,
   isRefreshing,
   refreshingSource,
+  isRefreshingAll = false,
 }: PropertyRowProps) {
   // Calculate weighted average and total reviews using centralized logic
   const { avgScore: weightedAvg, totalReviews } = calculatePropertyMetrics(scores);
@@ -97,6 +101,18 @@ export function PropertyRow({
 
   return (
     <TableRow className="group">
+      {/* Refresh All button - left side */}
+      <TableCell className="w-8 pr-0">
+        <button
+          onClick={() => onRefreshAllPlatforms(property)}
+          disabled={isRefreshing || isRefreshingAll}
+          className="p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted disabled:opacity-50"
+          title="Refresh all platforms for this hotel"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5 text-muted-foreground', isRefreshingAll && 'animate-spin text-primary')} />
+        </button>
+      </TableCell>
+
       {/* Hotel Name */}
       <TableCell className="font-medium">
         <a
