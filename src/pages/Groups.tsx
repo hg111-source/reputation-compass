@@ -417,9 +417,15 @@ function GroupCard({
             <div className="flex items-center gap-2">
               <CardTitle className="text-xl font-semibold">{group.name}</CardTitle>
               {group.is_public ? (
-                <Globe className="h-4 w-4 text-accent" />
+                <span className="flex items-center gap-1 text-xs text-accent">
+                  <Globe className="h-3.5 w-3.5" />
+                  Public
+                </span>
               ) : (
-                <Lock className="h-4 w-4 text-muted-foreground" />
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Lock className="h-3.5 w-3.5" />
+                  Private
+                </span>
               )}
             </div>
           )}
