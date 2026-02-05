@@ -3,6 +3,7 @@ import { Group, ReviewSource } from '@/lib/types';
 import { useGroupProperties } from '@/hooks/useGroups';
 import { useLatestPropertyScores, useGroupSnapshots, useRefreshScores } from '@/hooks/useSnapshots';
 import { GroupScoresTable } from './GroupScoresTable';
+import { GroupTrendChart } from './GroupTrendChart';
 import { SnapshotHistory } from './SnapshotHistory';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -160,6 +161,9 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
           </Card>
         </div>
       )}
+
+      {/* Group Trend Chart */}
+      <GroupTrendChart snapshots={groupSnapshots} />
 
       <GroupScoresTable
         properties={properties}
