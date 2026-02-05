@@ -73,6 +73,7 @@ export function useGoogleRatings() {
       queryClient.invalidateQueries({ queryKey: ['property-snapshots'] });
       queryClient.invalidateQueries({ queryKey: ['latest-scores'] });
       queryClient.invalidateQueries({ queryKey: ['property-google-snapshots'] });
+      queryClient.invalidateQueries({ queryKey: ['google-trends'] });
     },
   });
 

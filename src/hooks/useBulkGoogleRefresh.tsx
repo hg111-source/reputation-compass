@@ -115,6 +115,7 @@ export function useBulkGoogleRefresh() {
 
       // Update scores in real-time
       queryClient.invalidateQueries({ queryKey: ['latest-scores'] });
+      queryClient.invalidateQueries({ queryKey: ['google-trends'] });
 
       // Delay before next call (unless it's the last one)
       if (i < properties.length - 1) {
@@ -127,6 +128,7 @@ export function useBulkGoogleRefresh() {
 
     // Invalidate snapshots once at the end
     queryClient.invalidateQueries({ queryKey: ['property-snapshots'] });
+    queryClient.invalidateQueries({ queryKey: ['google-trends'] });
 
     // Show toast if dialog was closed during execution
     if (!dialogOpenRef.current) {
@@ -159,6 +161,7 @@ export function useBulkGoogleRefresh() {
 
     queryClient.invalidateQueries({ queryKey: ['property-snapshots'] });
     queryClient.invalidateQueries({ queryKey: ['latest-scores'] });
+    queryClient.invalidateQueries({ queryKey: ['google-trends'] });
   }, [fetchSingleProperty, queryClient, updatePropertyStatus, toast]);
 
   const setDialogOpen = useCallback((open: boolean) => {

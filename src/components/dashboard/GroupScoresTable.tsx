@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { ScoreCell } from './ScoreCell';
 import { Property, PropertyWithScores, ReviewSource } from '@/lib/types';
 import { REVIEW_SOURCES, SOURCE_LABELS, calculateWeightedScore, formatScore, getScoreColor } from '@/lib/scoring';
+import { useGoogleTrends, formatChange } from '@/hooks/useGoogleTrends';
 import { RefreshCw, Trash2, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -31,6 +32,9 @@ export function GroupScoresTable({
   onRemoveProperty,
   isRefreshing,
 }: GroupScoresTableProps) {
+  const propertyIds = properties.map(p => p.id);
+  const { data: trends = {} } = useGoogleTrends(propertyIds);
+  
   const propertiesWithScores: PropertyWithScores[] = useMemo(() => {
     return properties.map(property => {
       const propertyScores = scores[property.id] || {};
@@ -111,14 +115,40 @@ export function GroupScoresTable({
                   {property.city}, {property.state}
                 </div>
               </TableCell>
-              {REVIEW_SOURCES.map(source => (
-                <TableCell key={source} className="py-4">
-                  <ScoreCell
-                    score={property.scores[source]?.score}
-                    count={property.scores[source]?.count}
-                  />
-                </TableCell>
-              ))}
+              {REVIEW_SOURCES.map(source => {
+                const sourceScore = property.scores[source];
+                const trend30d = source === 'google' ? trends[property.id] : null;
+                
+                return (
+                  <TableCell key={source} className="py-4">
+                    <div className="text-center">
+                      <div className={cn(
+                        'font-semibold text-sm',
+                        getScoreColor(sourceScore?.score ?? null)
+                      )}>
+                        {formatScore(sourceScore?.score ?? null)}
+                      </div>
+                      {sourceScore?.count !== undefined && (
+                        <div className="text-xs text-muted-foreground">
+                          {sourceScore.count > 0 ? `${sourceScore.count} reviews` : '—'}
+                        </div>
+                      )}
+                      {source === 'google' && trend30d?.change30d !== null && trend30d?.change30d !== undefined && (
+                        <div className={cn(
+                          'text-xs mt-0.5',
+                          trend30d.change30d >= 0.05
+                            ? 'text-emerald-600'
+                            : trend30d.change30d <= -0.05
+                              ? 'text-red-600'
+                              : 'text-muted-foreground'
+                        )}>
+                          30d: {formatChange(trend30d.change30d)}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                );
+              })}
               <TableCell className="py-4">
                 <ScoreCell score={property.weightedScore} showCount={false} isWeighted />
               </TableCell>
