@@ -9,8 +9,8 @@ const corsHeaders = {
 const PLATFORM_FILTERS: Record<string, string> = {
   booking: 'site:booking.com/hotel',
   tripadvisor: 'site:tripadvisor.com inurl:Hotel_Review',
-  // Use Hotels.com instead of Expedia - same reviews (Expedia Group owns both)
-  expedia: 'site:hotels.com',
+  // Search Expedia directly to get proper hotel_id from "selected=" parameter
+  expedia: 'site:expedia.com inurl:Hotel-Search',
 };
 
 // Generate query variations for better matching
@@ -46,11 +46,34 @@ interface SearchResult {
   hotelId?: string; // Hotels.com hotel_id extracted from URL
 }
 
-// Extract Hotels.com hotel_id from URL
-function extractHotelsComId(url: string): string | undefined {
-  // Hotels.com URLs: https://www.hotels.com/ho123456/ or /ho123456?
-  const match = url.match(/\/ho(\d+)/);
-  return match ? match[1] : undefined;
+// Extract Expedia hotel_id from URL
+function extractExpediaHotelId(url: string): string | undefined {
+  try {
+    const urlObj = new URL(url);
+    // Primary: "selected=" parameter (e.g., ?selected=5075)
+    const selected = urlObj.searchParams.get('selected');
+    if (selected) {
+      console.log(`  Extracted hotel_id from selected param: ${selected}`);
+      return selected;
+    }
+    
+    // Fallback: "hotelId=" parameter
+    const hotelId = urlObj.searchParams.get('hotelId');
+    if (hotelId) {
+      console.log(`  Extracted hotel_id from hotelId param: ${hotelId}`);
+      return hotelId;
+    }
+  } catch {
+    // URL parsing failed, try regex
+    const selectedMatch = url.match(/[?&]selected=(\d+)/);
+    if (selectedMatch) {
+      console.log(`  Extracted hotel_id via regex: ${selectedMatch[1]}`);
+      return selectedMatch[1];
+    }
+  }
+  
+  console.log(`  Could not extract hotel_id from URL: ${url}`);
+  return undefined;
 }
 
 interface SearchReturn {
@@ -103,14 +126,18 @@ async function searchSerpApiWithValidation(
           console.log(`      Match: ${matchAnalysis.isMatch} - ${matchAnalysis.reason}`);
           
           if (matchAnalysis.isMatch && !bestResult) {
+            const extractedHotelId = platform === 'expedia' ? extractExpediaHotelId(result.link) : undefined;
             bestResult = {
               link: result.link,
               title: result.title,
               isMatch: true,
               reason: matchAnalysis.reason,
-              hotelId: platform === 'expedia' ? extractHotelsComId(result.link) : undefined,
+              hotelId: extractedHotelId,
             };
-            console.log(`  ✓ Match found: ${bestResult.link}${bestResult.hotelId ? ` (hotel_id: ${bestResult.hotelId})` : ''}`);
+            console.log(`  ✓ Match found: ${bestResult.link}`);
+            if (extractedHotelId) {
+              console.log(`  ✓ Expedia hotel_id: ${extractedHotelId}`);
+            }
             break; // First valid match wins
           }
         }
