@@ -23,9 +23,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Plus, Trash2, Building2, MapPin, RefreshCw, Star } from 'lucide-react';
+import { Plus, Trash2, Building2, MapPin, RefreshCw, Star, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -44,7 +50,7 @@ export default function Properties() {
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
   const { fetchGoogleRating } = useGoogleRatings();
-  const { isRunning, propertyStates, startBulkRefresh } = useBulkGoogleRefresh();
+  const { isRunning, isComplete, propertyStates, startBulkRefresh, retryProperty, setDialogOpen } = useBulkGoogleRefresh();
 
   if (loading) {
     return (
@@ -114,7 +120,13 @@ export default function Properties() {
 
   const handleBulkRefresh = () => {
     setIsBulkDialogOpen(true);
+    setDialogOpen(true);
     startBulkRefresh(properties);
+  };
+
+  const handleBulkDialogChange = (open: boolean) => {
+    setIsBulkDialogOpen(open);
+    setDialogOpen(open);
   };
 
   return (
@@ -207,7 +219,7 @@ export default function Properties() {
             <div className="flex items-center gap-3">
               <Button
                 onClick={handleBulkRefresh}
-                disabled={isRunning}
+                disabled={isRunning || properties.length === 0}
                 className="gap-2"
               >
                 {isRunning ? (
@@ -222,6 +234,27 @@ export default function Properties() {
                   </>
                 )}
               </Button>
+              
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button
+                        variant="outline"
+                        disabled
+                        className="gap-2"
+                      >
+                        <Layers className="h-4 w-4" />
+                        Refresh All Platforms
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Coming soon</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
               <span className="text-sm text-muted-foreground">
                 {properties.length} propert{properties.length === 1 ? 'y' : 'ies'}
               </span>
@@ -324,8 +357,10 @@ export default function Properties() {
         {/* Bulk refresh dialog */}
         <BulkRefreshDialog
           open={isBulkDialogOpen}
-          onOpenChange={setIsBulkDialogOpen}
+          onOpenChange={handleBulkDialogChange}
           properties={propertyStates}
+          onRetry={retryProperty}
+          isComplete={isComplete}
         />
       </div>
     </DashboardLayout>
