@@ -23,11 +23,18 @@ export function useProperties() {
   });
 
   const createProperty = useMutation({
-    mutationFn: async (property: { name: string; city: string; state: string }) => {
+    mutationFn: async (property: { name: string; city: string; state: string; google_place_id?: string | null; website_url?: string | null }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
         .from('properties')
-        .insert({ ...property, user_id: user.id })
+        .insert({ 
+          name: property.name,
+          city: property.city,
+          state: property.state,
+          user_id: user.id,
+          google_place_id: property.google_place_id || null,
+          website_url: property.website_url || null,
+        })
         .select()
         .single();
       if (error) throw error;

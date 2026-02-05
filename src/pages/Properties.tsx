@@ -57,6 +57,8 @@ export default function Properties() {
   const [formName, setFormName] = useState('');
   const [formCity, setFormCity] = useState('');
   const [formState, setFormState] = useState('');
+  const [formPlaceId, setFormPlaceId] = useState<string | null>(null);
+  const [formWebsiteUrl, setFormWebsiteUrl] = useState<string | null>(null);
   
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
@@ -162,7 +164,9 @@ export default function Properties() {
       const newProperty = await createProperty.mutateAsync({ 
         name: formName.trim(), 
         city: formCity.trim(), 
-        state: formState.trim() 
+        state: formState.trim(),
+        google_place_id: formPlaceId,
+        website_url: formWebsiteUrl,
       });
       toast({ title: 'Property created', description: `${formName} has been added. Fetching ratings...` });
       setIsDialogOpen(false);
@@ -171,6 +175,8 @@ export default function Properties() {
       setFormName('');
       setFormCity('');
       setFormState('');
+      setFormPlaceId(null);
+      setFormWebsiteUrl(null);
       
       // Auto-refresh all platforms for the new property using unified flow
       setIsRefreshDialogOpen(true);
@@ -290,6 +296,8 @@ export default function Properties() {
                         setFormName(details.name);
                         if (details.city) setFormCity(details.city);
                         if (details.state) setFormState(details.state);
+                        if (details.placeId) setFormPlaceId(details.placeId);
+                        if (details.websiteUrl) setFormWebsiteUrl(details.websiteUrl);
                       }}
                       placeholder="Search for a hotel..."
                     />
