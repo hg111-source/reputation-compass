@@ -115,8 +115,12 @@ async function fetchApifyRating(
     runBody.simple = true;
   }
 
+  const apifyUrl = `${APIFY_BASE_URL}/acts/${actorId}/runs?token=${apiToken}`;
+  console.log(`Apify URL: ${apifyUrl.replace(apiToken, 'TOKEN_HIDDEN')}`);
+  console.log(`Apify body:`, JSON.stringify(runBody));
+
   const runResponse = await fetch(
-    `${APIFY_BASE_URL}/acts/${actorId}/runs?token=${apiToken}`,
+    apifyUrl,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
