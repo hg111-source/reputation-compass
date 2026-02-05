@@ -10,6 +10,7 @@ import {
   REVIEW_SOURCES,
   calculatePropertyMetrics 
 } from '@/lib/scoring';
+import { Platform } from '@/hooks/useUnifiedRefresh';
 
 interface PlatformScore {
   score: number;
@@ -21,28 +22,24 @@ interface PropertyRowProps {
   property: Property;
   scores: Record<ReviewSource, PlatformScore> | undefined;
   onDelete: (id: string, name: string) => void;
-  onRefreshGoogle: (property: Property) => void;
-  onRefreshOTA: (property: Property, source: 'tripadvisor' | 'booking' | 'expedia') => void;
+  onRefreshPlatform: (property: Property, platform: Platform) => void;
   onRefreshAllPlatforms: (property: Property) => void;
   onViewHistory: (property: Property) => void;
   onAnalyzeReviews: (property: Property) => void;
   isRefreshing: boolean;
-  refreshingSource: string | null;
-  isRefreshingAll?: boolean;
+  currentPlatform: Platform | null;
 }
 
 export function PropertyRow({
   property,
   scores,
   onDelete,
-  onRefreshGoogle,
-  onRefreshOTA,
+  onRefreshPlatform,
   onRefreshAllPlatforms,
   onViewHistory,
   onAnalyzeReviews,
   isRefreshing,
-  refreshingSource,
-  isRefreshingAll = false,
+  currentPlatform,
 }: PropertyRowProps) {
   // Calculate weighted average and total reviews using centralized logic
   const { avgScore: weightedAvg, totalReviews } = calculatePropertyMetrics(scores);
@@ -57,17 +54,9 @@ export function PropertyRow({
     return `https://www.google.com/search?q=${query}`;
   };
 
-  const handleRefresh = (platform: ReviewSource) => {
-    if (platform === 'google') {
-      onRefreshGoogle(property);
-    } else {
-      onRefreshOTA(property, platform as 'tripadvisor' | 'booking' | 'expedia');
-    }
-  };
-
   const renderPlatformCell = (platform: ReviewSource) => {
     const data = scores?.[platform];
-    const isRefreshingThis = isRefreshing && refreshingSource === platform;
+    const isRefreshingThis = isRefreshing && currentPlatform === platform;
     
     // Check if URL is missing for OTA platforms
     const hasUrl = platform === 'google' 
@@ -104,7 +93,7 @@ export function PropertyRow({
                 <TooltipContent side="top" className="text-xs max-w-xs">
                   <p className="font-medium">Missing platform URL</p>
                   <p className="text-muted-foreground mt-1">
-                    Use "Resolve URLs" to find this property on {platform === 'booking' ? 'Booking.com' : platform === 'tripadvisor' ? 'TripAdvisor' : 'Expedia'}
+                    Click the refresh button to auto-resolve and fetch ratings
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -114,7 +103,7 @@ export function PropertyRow({
           )}
           {/* Hover refresh button */}
           <button
-            onClick={() => handleRefresh(platform)}
+            onClick={() => onRefreshPlatform(property, platform as Platform)}
             disabled={isRefreshing}
             className={cn(
               'absolute -right-1 top-1/2 -translate-y-1/2 rounded-full p-0.5 opacity-0 transition-opacity',
@@ -149,11 +138,11 @@ export function PropertyRow({
           </a>
           <button
             onClick={() => onRefreshAllPlatforms(property)}
-            disabled={isRefreshing || isRefreshingAll}
+            disabled={isRefreshing}
             className="p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted disabled:opacity-50"
             title="Refresh all platforms"
           >
-            <RefreshCw className={cn('h-3 w-3 text-muted-foreground', isRefreshingAll && 'animate-spin text-primary')} />
+            <RefreshCw className={cn('h-3 w-3 text-muted-foreground', isRefreshing && 'animate-spin text-primary')} />
           </button>
         </div>
       </TableCell>
