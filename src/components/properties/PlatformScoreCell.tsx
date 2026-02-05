@@ -40,8 +40,7 @@ export function PlatformScoreCell({ data, platform }: PlatformScoreCellProps) {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center justify-center gap-1 cursor-help">
-            <span className={cn('text-xs font-medium', config.color)}>{config.icon}</span>
+          <div className="flex items-center justify-center cursor-help">
             <span className={cn('font-semibold', scoreColor)}>
               {data.score.toFixed(1)}
             </span>
