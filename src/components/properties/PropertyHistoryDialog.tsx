@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
-import { History, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { History, TrendingUp, TrendingDown, Minus, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { Property, SourceSnapshot, ReviewSource } from '@/lib/types';
 import { usePropertySnapshots } from '@/hooks/useSnapshots';
+import { useCleanupSnapshots } from '@/hooks/useCleanupSnapshots';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { getScoreColor, formatScore, calculateWeightedScore, REVIEW_SOURCES, SOURCE_LABELS } from '@/lib/scoring';
 
@@ -31,6 +35,27 @@ interface SnapshotRow {
 
 export function PropertyHistoryDialog({ property, open, onOpenChange }: PropertyHistoryDialogProps) {
   const { data: snapshots = [], isLoading } = usePropertySnapshots(property?.id ?? null);
+  const cleanupMutation = useCleanupSnapshots();
+  const { toast } = useToast();
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+
+  const handleCleanup = async () => {
+    setIsCleaningUp(true);
+    try {
+      const deletedCount = await cleanupMutation.mutateAsync();
+      toast({
+        title: 'Cleanup complete',
+        description: `Removed ${deletedCount} duplicate snapshot${deletedCount !== 1 ? 's' : ''}.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Cleanup failed',
+        description: 'Could not remove duplicate snapshots.',
+      });
+    }
+    setIsCleaningUp(false);
+  };
 
   // Group snapshots by date (same calendar day) and calculate weighted averages
   const groupedRows: SnapshotRow[] = (() => {
@@ -90,10 +115,25 @@ export function PropertyHistoryDialog({ property, open, onOpenChange }: Property
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <History className="h-5 w-5 text-accent" />
-            Score History: {property?.name}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-accent" />
+              Score History: {property?.name}
+            </DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCleanup}
+              disabled={isCleaningUp || groupedRows.length === 0}
+              className="text-xs"
+            >
+              <Trash2 className={cn('mr-1 h-3 w-3', isCleaningUp && 'animate-spin')} />
+              {isCleaningUp ? 'Cleaning...' : 'Remove Duplicates'}
+            </Button>
+          </div>
+          <DialogDescription className="text-xs">
+            Historical scores grouped by day. Duplicates are automatically merged.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-auto">
