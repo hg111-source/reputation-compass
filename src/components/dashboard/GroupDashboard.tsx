@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Group, ReviewSource } from '@/lib/types';
 import { useGroupProperties } from '@/hooks/useGroups';
 import { useLatestPropertyScores, useGroupSnapshots, useRefreshScores } from '@/hooks/useSnapshots';
@@ -7,9 +7,11 @@ import { GroupTrendChart } from './GroupTrendChart';
 import { SnapshotHistory } from './SnapshotHistory';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, Download, TrendingUp, Building2 } from 'lucide-react';
+import { RefreshCw, Download, TrendingUp, Building2, Users } from 'lucide-react';
 import { exportGroupToCSV } from '@/lib/csv';
 import { useToast } from '@/hooks/use-toast';
+import { calculatePropertyMetrics, getScoreColor } from '@/lib/scoring';
+import { cn } from '@/lib/utils';
 
 interface GroupDashboardProps {
   group: Group;
@@ -39,10 +41,15 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
     if (propertyIds.length === 0) return;
     setIsRefreshing(true);
     try {
-      await refreshGroup.mutateAsync({ groupId: group.id, propertyIds });
-      toast({ title: 'Group refreshed', description: 'All property scores have been updated.' });
+      const result = await refreshGroup.mutateAsync({ groupId: group.id, propertyIds });
+      toast({ 
+        title: 'Group snapshot saved', 
+        description: result.weightedAvg !== null 
+          ? `Weighted average: ${result.weightedAvg.toFixed(2)} (${result.totalReviews.toLocaleString()} reviews)`
+          : 'No score data available'
+      });
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to refresh group.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to save group snapshot.' });
     }
     setIsRefreshing(false);
   };
@@ -61,6 +68,36 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
     toast({ title: 'Export complete', description: 'CSV file has been downloaded.' });
   };
 
+  // Calculate live group weighted average from current property scores
+  // Formula: Σ(hotelWeightedAvg × hotelTotalReviews) / Σ(allTotalReviews)
+  const liveGroupMetrics = useMemo(() => {
+    if (properties.length === 0) {
+      return { weightedAvg: null, totalReviews: 0, propertiesWithData: 0 };
+    }
+
+    let groupWeightedSum = 0;
+    let groupTotalReviews = 0;
+    let propertiesWithData = 0;
+
+    for (const property of properties) {
+      const propertyScores = scores[property.id];
+      const { avgScore, totalReviews } = calculatePropertyMetrics(propertyScores);
+
+      if (avgScore !== null && totalReviews > 0) {
+        // Each hotel's weighted avg × its total reviews
+        groupWeightedSum += avgScore * totalReviews;
+        groupTotalReviews += totalReviews;
+        propertiesWithData++;
+      }
+    }
+
+    return {
+      weightedAvg: groupTotalReviews > 0 ? groupWeightedSum / groupTotalReviews : null,
+      totalReviews: groupTotalReviews,
+      propertiesWithData,
+    };
+  }, [properties, scores]);
+
   if (propertiesLoading || scoresLoading) {
     return (
       <div className="flex items-center gap-3 text-muted-foreground">
@@ -70,7 +107,6 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
     );
   }
 
-  // Calculate summary stats
   const latestSnapshot = groupSnapshots[0];
   
   return (
@@ -103,64 +139,91 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
             disabled={isRefreshing || properties.length === 0}
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh All
+            Save Snapshot
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      {latestSnapshot && (
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card className="shadow-kasa">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Weighted Score
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-accent">
-                {latestSnapshot.weighted_score_0_10.toFixed(1)}
+      {/* Stats Cards - Show live calculated metrics */}
+      <div className="grid gap-6 md:grid-cols-4">
+        <Card className="shadow-kasa">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Group Weighted Average
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={cn(
+              'text-4xl font-bold',
+              getScoreColor(liveGroupMetrics.weightedAvg)
+            )}>
+              {liveGroupMetrics.weightedAvg !== null 
+                ? liveGroupMetrics.weightedAvg.toFixed(2) 
+                : '—'}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">out of 10</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-kasa">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Reviews
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Users className="h-6 w-6 text-muted-foreground" />
+              <div className="text-4xl font-bold">
+                {liveGroupMetrics.totalReviews.toLocaleString()}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">out of 10</p>
-            </CardContent>
-          </Card>
-          <Card className="shadow-kasa">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Properties
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <Building2 className="h-6 w-6 text-muted-foreground" />
-                <div className="text-4xl font-bold">{properties.length}</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-kasa">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Last Updated
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-semibold">
-                {new Date(latestSnapshot.collected_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {new Date(latestSnapshot.collected_at).toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit'
-                })}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-kasa">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Properties
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Building2 className="h-6 w-6 text-muted-foreground" />
+              <div className="text-4xl font-bold">{properties.length}</div>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {liveGroupMetrics.propertiesWithData} with scores
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-kasa">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Last Snapshot
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {latestSnapshot ? (
+              <>
+                <div className="text-xl font-semibold">
+                  {new Date(latestSnapshot.collected_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Score: {latestSnapshot.weighted_score_0_10.toFixed(2)}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-xl font-semibold text-muted-foreground">No snapshots</div>
+                <p className="mt-1 text-sm text-muted-foreground">Click "Refresh All" to save</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Group Trend Chart */}
       <GroupTrendChart snapshots={groupSnapshots} />
