@@ -73,7 +73,7 @@ export function useUnifiedRefresh() {
   }, []);
 
   // STEP 1: Resolve URLs if missing
-  const resolvePropertyUrls = useCallback(async (property: Property): Promise<{ success: boolean; hotelIds?: Record<string, string> }> => {
+  const resolvePropertyUrls = useCallback(async (property: Property): Promise<{ success: boolean; hotelIds?: Record<string, string>; updatedProperty?: Property }> => {
     try {
       const { data, error } = await supabase.functions.invoke('resolve-hotel-urls', {
         body: {
@@ -115,7 +115,15 @@ export function useUnifiedRefresh() {
         }, { onConflict: 'property_id,source' });
       }
 
-      return { success: true, hotelIds };
+      // Return updated property with new URLs
+      const updatedProperty: Property = {
+        ...property,
+        booking_url: urls.booking_url || property.booking_url,
+        tripadvisor_url: urls.tripadvisor_url || property.tripadvisor_url,
+        expedia_url: urls.expedia_url || property.expedia_url,
+      };
+
+      return { success: true, hotelIds, updatedProperty };
     } catch (err) {
       console.error('URL resolution error:', err);
       return { success: false };
@@ -163,6 +171,19 @@ export function useUnifiedRefresh() {
     try {
       console.log(`[${platform}] Fetching ${property.name} (attempt ${retryAttempt + 1})`);
       
+      // For OTA platforms, fetch fresh URLs from database to ensure we have latest
+      let startUrl: string | null = null;
+      if (platform !== 'google' && platform !== 'expedia') {
+        const { data: freshProperty } = await supabase
+          .from('properties')
+          .select(`${platform}_url`)
+          .eq('id', property.id)
+          .single();
+        
+        startUrl = freshProperty?.[`${platform}_url`] as string | null || null;
+        console.log(`[${platform}] ${property.name} using URL: ${startUrl || 'none'}`);
+      }
+      
       // Build request body based on platform
       const body = platform === 'expedia' 
         ? { propertyId: property.id }
@@ -176,7 +197,7 @@ export function useUnifiedRefresh() {
           : {
               hotelName: property.name,
               city: `${property.city}, ${property.state}`,
-              startUrl: property[`${platform}_url` as keyof Property] as string | null,
+              startUrl,
             };
       
       const { data, error } = await supabase.functions.invoke(PLATFORM_CONFIG[platform].functionName, {
@@ -274,11 +295,15 @@ export function useUnifiedRefresh() {
     try {
       // Step 1: Check if we need URL resolution
       const needsResolve = await needsUrlResolution(property, platform);
+      let currentProperty = property;
       
       if (needsResolve) {
         console.log(`[${platform}] ${property.name} needs URL resolution`);
         updatePlatformStatus(property.id, platform, 'resolving');
-        await resolvePropertyUrls(property);
+        const resolveResult = await resolvePropertyUrls(property);
+        if (resolveResult.updatedProperty) {
+          currentProperty = resolveResult.updatedProperty;
+        }
         await delay(1000); // Brief pause after resolution
       }
 
@@ -287,7 +312,8 @@ export function useUnifiedRefresh() {
       updatePropertyPhase(property.id, 'fetching');
       updatePlatformStatus(property.id, platform, 'fetching');
 
-      const result = await fetchPlatformRating(property, platform);
+      // Use the updated property with resolved URLs
+      const result = await fetchPlatformRating(currentProperty, platform);
 
       if (result.notListed) {
         updatePlatformStatus(property.id, platform, 'not_listed');
@@ -347,8 +373,9 @@ export function useUnifiedRefresh() {
         }
       }
 
-      // Resolve all at once
-      await resolvePropertyUrls(property);
+      // Resolve all at once and get updated property with URLs
+      const resolveResult = await resolvePropertyUrls(property);
+      const currentProperty = resolveResult.updatedProperty || property;
       await delay(1500);
 
       // Step 2: Fetch all platforms
@@ -363,7 +390,8 @@ export function useUnifiedRefresh() {
         setCurrentPlatform(platform);
         updatePlatformStatus(property.id, platform, 'fetching');
 
-        const result = await fetchPlatformRating(property, platform);
+        // Use the updated property with resolved URLs
+        const result = await fetchPlatformRating(currentProperty, platform);
 
         if (result.notListed) {
           notListedCount++;
@@ -423,6 +451,9 @@ export function useUnifiedRefresh() {
     let totalNotListed = 0;
     let totalFailed = 0;
 
+    // Map to store updated properties with resolved URLs
+    const updatedPropertiesMap = new Map<string, Property>();
+
     // Step 1: Resolve URLs for all properties (batch)
     console.log(`\n--- Phase 1: Resolving URLs ---`);
     for (const property of properties) {
@@ -439,7 +470,10 @@ export function useUnifiedRefresh() {
             updatePlatformStatus(property.id, ['tripadvisor', 'booking', 'expedia'][i] as Platform, 'resolving');
           }
         }
-        await resolvePropertyUrls(property);
+        const resolveResult = await resolvePropertyUrls(property);
+        if (resolveResult.updatedProperty) {
+          updatedPropertiesMap.set(property.id, resolveResult.updatedProperty);
+        }
       }
       
       // Brief delay between properties during resolution
@@ -456,11 +490,13 @@ export function useUnifiedRefresh() {
 
       for (let i = 0; i < properties.length; i++) {
         const property = properties[i];
+        // Use updated property with resolved URLs if available
+        const currentProperty = updatedPropertiesMap.get(property.id) || property;
         
         updatePropertyPhase(property.id, 'fetching');
         updatePlatformStatus(property.id, platform, 'fetching');
 
-        const result = await fetchPlatformRating(property, platform);
+        const result = await fetchPlatformRating(currentProperty, platform);
 
         if (result.notListed) {
           totalNotListed++;
