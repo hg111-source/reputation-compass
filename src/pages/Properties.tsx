@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Plus, Building2, RefreshCw, Download } from 'lucide-react';
+import { Plus, Building2, RefreshCw, Download, Globe } from 'lucide-react';
 import googleLogo from '@/assets/logos/google.svg';
 import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
 import bookingLogo from '@/assets/logos/booking.png';
@@ -41,6 +41,8 @@ import { calculatePropertyMetrics } from '@/lib/scoring';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { HotelAutocomplete } from '@/components/properties/HotelAutocomplete';
+import { useResolveUrls } from '@/hooks/useResolveUrls';
+import { ResolveUrlsDialog } from '@/components/properties/ResolveUrlsDialog';
 
 type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 
@@ -75,6 +77,15 @@ export default function Properties() {
     retryPlatform,
     setDialogOpen: setAllPlatformsDialogOpen,
   } = useAllPlatformsRefresh();
+  
+  const {
+    isResolving,
+    bulkProgress,
+    resolveAllProperties,
+    clearProgress,
+  } = useResolveUrls();
+  const [isResolveDialogOpen, setIsResolveDialogOpen] = useState(false);
+  const isResolveComplete = bulkProgress ? bulkProgress.current === bulkProgress.total : false;
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -284,6 +295,26 @@ export default function Properties() {
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Export CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsResolveDialogOpen(true);
+                    resolveAllProperties(properties);
+                  }}
+                  disabled={isResolving}
+                >
+                  {isResolving ? (
+                    <>
+                      <Globe className="mr-2 h-4 w-4 animate-pulse" />
+                      Resolving...
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="mr-2 h-4 w-4" />
+                      Resolve URLs
+                    </>
+                  )}
                 </Button>
                 <Button
                   variant="outline"
@@ -542,6 +573,17 @@ export default function Properties() {
           currentPlatform={currentPlatform}
           onRetry={retryPlatform}
           isComplete={isAllPlatformsComplete}
+        />
+
+        {/* Resolve URLs dialog */}
+        <ResolveUrlsDialog
+          open={isResolveDialogOpen}
+          onOpenChange={(open) => {
+            setIsResolveDialogOpen(open);
+            if (!open) clearProgress();
+          }}
+          progress={bulkProgress}
+          isComplete={isResolveComplete}
         />
 
         {/* Property history dialog */}

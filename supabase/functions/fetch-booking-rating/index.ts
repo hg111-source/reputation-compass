@@ -147,6 +147,53 @@ function findBestMatch(results: BookingResult[], hotelName: string): BookingResu
   return results[0];
 }
 
+// Try direct URL scraping
+async function tryDirectUrl(startUrl: string, apiToken: string): Promise<BookingResult | null> {
+  console.log(`Booking.com trying direct URL: "${startUrl}"`);
+  
+  try {
+    const runResponse = await fetch(
+      `${APIFY_BASE_URL}/acts/${BOOKING_ACTOR_ID}/runs?token=${apiToken}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startUrls: [{ url: startUrl }],
+          maxItems: 1,
+          simple: true,
+        }),
+      }
+    );
+
+    if (!runResponse.ok) {
+      const errorText = await runResponse.text();
+      console.error('Apify run start error:', errorText);
+      return null;
+    }
+
+    const runData: ApifyRunResponse = await runResponse.json();
+    const runId = runData.data.id;
+    
+    console.log(`Apify Booking.com direct URL run started: ${runId}`);
+
+    const datasetId = await waitForRun(runId, apiToken);
+    
+    const resultsResponse = await fetch(
+      `${APIFY_BASE_URL}/datasets/${datasetId}/items?token=${apiToken}`
+    );
+    
+    if (!resultsResponse.ok) {
+      return null;
+    }
+
+    const results: BookingResult[] = await resultsResponse.json();
+    return results && results.length > 0 ? results[0] : null;
+  } catch (error) {
+    console.error(`Direct URL fetch failed:`, error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -158,7 +205,7 @@ serve(async (req) => {
       throw new Error('APIFY_API_TOKEN is not configured');
     }
 
-    const { hotelName, city } = await req.json();
+    const { hotelName, city, startUrl } = await req.json();
     
     if (!hotelName || !city) {
       return new Response(
@@ -167,32 +214,41 @@ serve(async (req) => {
       );
     }
 
-    // Parse city and state from input (format: "City, State")
-    const [cityName, stateName = ''] = city.split(',').map((s: string) => s.trim());
-    
-    // Generate search variations
-    const searchVariations = generateSearchVariations(hotelName, cityName, stateName);
-    
     let bestMatch: BookingResult | null = null;
-    
-    // Try each search variation
-    for (const searchQuery of searchVariations) {
-      const results = await trySearch(searchQuery, apiToken);
+
+    // If we have a direct URL, try that first
+    if (startUrl) {
+      console.log(`Using pre-resolved URL for Booking.com: ${startUrl}`);
+      bestMatch = await tryDirectUrl(startUrl, apiToken);
+    }
+
+    // Fall back to search if no URL or URL fetch failed
+    if (!bestMatch) {
+      // Parse city and state from input (format: "City, State")
+      const [cityName, stateName = ''] = city.split(',').map((s: string) => s.trim());
       
-      if (results && results.length > 0) {
-        bestMatch = findBestMatch(results, hotelName);
-        if (bestMatch) {
-          console.log(`Found match with query: "${searchQuery}"`);
-          break;
+      // Generate search variations
+      const searchVariations = generateSearchVariations(hotelName, cityName, stateName);
+      
+      // Try each search variation
+      for (const searchQuery of searchVariations) {
+        const results = await trySearch(searchQuery, apiToken);
+        
+        if (results && results.length > 0) {
+          bestMatch = findBestMatch(results, hotelName);
+          if (bestMatch) {
+            console.log(`Found match with query: "${searchQuery}"`);
+            break;
+          }
         }
+        
+        // Small delay between searches to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
-      
-      // Small delay between searches to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     if (!bestMatch) {
-      console.log(`No results found for ${hotelName} after trying all variations`);
+      console.log(`No results found for ${hotelName} after trying all methods`);
       return new Response(
         JSON.stringify({ 
           found: false,

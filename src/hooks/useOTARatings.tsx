@@ -32,10 +32,15 @@ export function useOTARatings() {
     mutationFn: async ({ property, source }: FetchOTARatingParams): Promise<OTARatingResult> => {
       const config = SOURCE_CONFIG[source];
       
+      // Get the stored URL for this platform if available
+      const urlField = `${source}_url` as 'tripadvisor_url' | 'booking_url' | 'expedia_url';
+      const startUrl = property[urlField] || undefined;
+      
       const { data, error } = await supabase.functions.invoke(config.functionName, {
         body: {
           hotelName: property.name,
           city: `${property.city}, ${property.state}`,
+          startUrl, // Pass the pre-resolved URL if available
         },
       });
 

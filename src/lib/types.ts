@@ -6,6 +6,10 @@ export interface Property {
   state: string;
   created_at: string;
   website_url?: string | null;
+  booking_url?: string | null;
+  tripadvisor_url?: string | null;
+  expedia_url?: string | null;
+  google_place_id?: string | null;
 }
  
  export interface Group {
