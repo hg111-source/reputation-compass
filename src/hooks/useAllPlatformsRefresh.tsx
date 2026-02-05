@@ -25,11 +25,11 @@ const DELAY_BETWEEN_CALLS_MS = 5000;
 const RETRY_DELAY_MS = 10000;
 const MAX_RETRIES = 1;
 
-const PLATFORM_CONFIG: Record<Platform, { functionName: string; displayName: string; scale: number }> = {
-  google: { functionName: 'fetch-place-rating', displayName: 'Google', scale: 5 },
-  tripadvisor: { functionName: 'fetch-tripadvisor-rating', displayName: 'TripAdvisor', scale: 5 },
-  booking: { functionName: 'fetch-booking-rating', displayName: 'Booking.com', scale: 10 },
-  expedia: { functionName: 'fetch-expedia-rating', displayName: 'Expedia', scale: 10 },
+const PLATFORM_CONFIG: Record<Platform, { displayName: string; scale: number }> = {
+  google: { displayName: 'Google', scale: 5 },
+  tripadvisor: { displayName: 'TripAdvisor', scale: 5 },
+  booking: { displayName: 'Booking.com', scale: 10 },
+  expedia: { displayName: 'Expedia', scale: 10 },
 };
 
 function delay(ms: number) {
@@ -72,15 +72,14 @@ export function useAllPlatformsRefresh() {
     platform: Platform,
     retryAttempt = 0
   ): Promise<{ success: boolean; error?: string; notListed?: boolean }> => {
-    const config = PLATFORM_CONFIG[platform];
-    
     try {
       console.log(`[${platform}] Fetching ${property.name} (attempt ${retryAttempt + 1})`);
       
-      const { data, error } = await supabase.functions.invoke(config.functionName, {
+      // Use the unified fetch-rating-by-alias function
+      const { data, error } = await supabase.functions.invoke('fetch-rating-by-alias', {
         body: {
-          hotelName: property.name,
-          city: `${property.city}, ${property.state}`,
+          propertyId: property.id,
+          source: platform,
         },
       });
 
@@ -101,61 +100,44 @@ export function useAllPlatformsRefresh() {
           ? 'Rate limit reached'
           : error.message?.includes('timeout') || error.message?.includes('TIMED-OUT')
             ? 'Timeout'
-            : 'API error';
+            : error.message || 'API error';
         console.log(`[${platform}] ${property.name} FAILED: ${msg}`);
         return { success: false, error: msg };
       }
 
-      if (data.error) {
+      // Handle response from fetch-rating-by-alias
+      if (!data.success) {
+        // Check specific statuses
+        if (data.status === 'not_listed') {
+          console.log(`[${platform}] ${property.name} NOT LISTED`);
+          return { success: true, notListed: true };
+        }
+        
+        if (data.status === 'no_alias') {
+          console.log(`[${platform}] ${property.name} NO ALIAS - run resolve-identity first`);
+          return { success: false, error: 'No identity resolved' };
+        }
+        
+        if (data.status === 'needs_review') {
+          console.log(`[${platform}] ${property.name} NEEDS REVIEW`);
+          return { success: false, error: 'Needs manual review' };
+        }
+        
         // Retry on Apify errors
         if (retryAttempt < MAX_RETRIES && platform !== 'google' && 
-            (data.error.includes('timeout') || data.error.includes('TIMED-OUT') || data.error.includes('FAILED'))) {
-          console.log(`[${platform}] ${property.name} Apify error, retrying in ${RETRY_DELAY_MS/1000}s...`);
+            (data.error?.includes('timeout') || data.error?.includes('TIMEOUT') || data.status === 'timeout')) {
+          console.log(`[${platform}] ${property.name} timeout, retrying in ${RETRY_DELAY_MS/1000}s...`);
           await delay(RETRY_DELAY_MS);
           return fetchSinglePlatform(property, platform, retryAttempt + 1);
         }
-        console.log(`[${platform}] ${property.name} FAILED: ${data.error}`);
-        return { success: false, error: data.error };
+        
+        console.log(`[${platform}] ${property.name} FAILED: ${data.error || data.status}`);
+        return { success: false, error: data.error || data.status };
       }
 
-      // Handle "not listed" case - store it in database
-      if (!data.found) {
-        console.log(`[${platform}] ${property.name} NOT LISTED`);
-        const { error: insertError } = await supabase.from('source_snapshots').insert({
-          property_id: property.id,
-          source: platform,
-          score_raw: null,
-          score_scale: null,
-          review_count: 0,
-          normalized_score_0_10: null,
-          status: 'not_listed',
-        });
-
-        if (insertError) {
-          console.error('Error saving not_listed snapshot:', insertError);
-        }
-
-        return { success: true, notListed: true };
-      }
-
+      // Success - snapshot is already saved by the edge function
       if (data.rating !== null && data.rating !== undefined) {
-        const scale = data.scale || config.scale;
-        const normalizedScore = scale === 10 ? data.rating : (data.rating / scale) * 10;
-
-        const { error: insertError } = await supabase.from('source_snapshots').insert({
-          property_id: property.id,
-          source: platform,
-          score_raw: data.rating,
-          score_scale: scale,
-          review_count: data.reviewCount || 0,
-          normalized_score_0_10: parseFloat(normalizedScore.toFixed(2)),
-          status: 'found',
-        });
-
-        if (insertError) {
-          console.log(`[${platform}] ${property.name} FAILED: Error saving data`);
-          return { success: false, error: 'Error saving data' };
-        }
+        console.log(`[${platform}] ${property.name} SUCCESS: ${data.rating}/${data.scale} (${data.reviewCount} reviews)`);
       }
 
       console.log(`[${platform}] ${property.name} SUCCESS`);
