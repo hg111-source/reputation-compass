@@ -22,6 +22,13 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Search, Loader2, Star, ExternalLink, TrendingUp, MapPin } from 'lucide-react';
 import { ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
@@ -57,6 +64,7 @@ export default function Kasa() {
   const [currentProperty, setCurrentProperty] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [locationFilter, setLocationFilter] = useState<string>('all');
 
   // Filter properties that have Kasa data
   const kasaProperties = useMemo(() => {
@@ -127,11 +135,37 @@ export default function Kasa() {
     return kasaProperties.filter(p => !p.city || p.city === 'Unknown' || p.city === '').length;
   }, [kasaProperties]);
 
-  // Sorted properties
-  const sortedKasaProperties = useMemo(() => {
-    if (!sortKey || !sortDirection) return kasaProperties;
+  // Compute locations with property counts for dropdown
+  const locationOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
+    kasaProperties.forEach(p => {
+      const loc = p.city && p.state ? `${p.city}, ${p.state}` : p.city || 'Unknown';
+      counts[loc] = (counts[loc] || 0) + 1;
+    });
+    
+    return Object.entries(counts)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([location, count]) => ({
+        value: location,
+        label: `${location} (${count})`,
+      }));
+  }, [kasaProperties]);
 
-    return [...kasaProperties].sort((a, b) => {
+  // Sorted and filtered properties
+  const sortedKasaProperties = useMemo(() => {
+    // First filter by location
+    let filtered = kasaProperties;
+    if (locationFilter !== 'all') {
+      filtered = kasaProperties.filter(p => {
+        const loc = p.city && p.state ? `${p.city}, ${p.state}` : p.city || 'Unknown';
+        return loc === locationFilter;
+      });
+    }
+
+    // Then sort
+    if (!sortKey || !sortDirection) return filtered;
+
+    return [...filtered].sort((a, b) => {
       let aVal: number | string = 0;
       let bVal: number | string = 0;
 
@@ -163,7 +197,7 @@ export default function Kasa() {
       }
       return sortDirection === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
     });
-  }, [kasaProperties, kasaSnapshots, sortKey, sortDirection]);
+  }, [kasaProperties, kasaSnapshots, sortKey, sortDirection, locationFilter]);
 
   // Fix unknown locations by re-crawling those properties
   const handleFixUnknownLocations = async () => {
@@ -542,10 +576,31 @@ export default function Kasa() {
         {/* Properties Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Kasa Properties</CardTitle>
-            <CardDescription>
-              {kasaProperties.length} properties with Kasa ratings
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Kasa Properties</CardTitle>
+                <CardDescription>
+                  {locationFilter === 'all' 
+                    ? `${kasaProperties.length} properties with Kasa ratings`
+                    : `${sortedKasaProperties.length} of ${kasaProperties.length} properties in ${locationFilter}`
+                  }
+                </CardDescription>
+              </div>
+              <Select value={locationFilter} onValueChange={setLocationFilter}>
+                <SelectTrigger className="w-[220px]">
+                  <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Filter by location" />
+                </SelectTrigger>
+                <SelectContent className="bg-background">
+                  <SelectItem value="all">All Locations ({kasaProperties.length})</SelectItem>
+                  {locationOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent>
             {kasaProperties.length === 0 ? (
