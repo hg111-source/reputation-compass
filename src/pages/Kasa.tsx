@@ -265,7 +265,7 @@ export default function Kasa() {
                 {avgScore ? (
                   <>
                     <Star className="h-6 w-6 fill-primary text-primary" />
-                    {avgScore.toFixed(2)}
+                    {avgScore.toFixed(1)}/5
                   </>
                 ) : (
                   '—'
@@ -318,7 +318,7 @@ export default function Kasa() {
                         {property.kasa_aggregated_score ? (
                           <div className="flex items-center justify-center gap-1">
                             <Star className="h-4 w-4 fill-primary text-primary" />
-                            <span className="font-medium">{Number(property.kasa_aggregated_score).toFixed(1)}</span>
+                            <span className="font-medium">{Number(property.kasa_aggregated_score).toFixed(1)}/5</span>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
