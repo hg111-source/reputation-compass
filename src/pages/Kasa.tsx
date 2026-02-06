@@ -955,7 +955,7 @@ export default function Kasa() {
                     return (
                       <TableRow 
                         key={property.id} 
-                        className={tier ? tier.bgClass : (isHotel ? 'bg-muted/30' : '')}
+                        className={isHotel ? 'bg-muted/30' : ''}
                       >
                         <TableCell className="font-medium">{property.name}</TableCell>
                         <TableCell className="text-muted-foreground">
