@@ -248,6 +248,9 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
       {/* Kasa Portfolio by Platform - Dynamic benchmarking against non-Kasa properties */}
       <KasaOTAPlatformCard />
 
+      {/* Geographic Analysis */}
+      <GeographicAnalysis properties={properties} snapshots={snapshots} />
+
       {/* Score Distribution */}
       <Card>
         <CardHeader>
@@ -315,9 +318,6 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
           </div>
         </CardContent>
       </Card>
-
-      {/* Geographic Analysis */}
-      <GeographicAnalysis properties={properties} snapshots={snapshots} />
 
       {/* Top Performers & Needs Attention */}
       <div className="grid gap-4 md:grid-cols-2">
