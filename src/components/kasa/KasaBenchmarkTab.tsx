@@ -293,6 +293,56 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
         </Card>
       </div>
 
+      {/* Kasa Portfolio by Platform - Hardcoded OTA data */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Kasa Portfolio by Platform</CardTitle>
+          <CardDescription>Average scores across OTA review platforms (manual input)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Google */}
+            <div className="p-4 rounded-lg border text-center bg-emerald-100 dark:bg-emerald-900/30">
+              <p className="text-sm font-medium text-muted-foreground mb-1">Google</p>
+              <p className="text-2xl font-bold text-emerald-600">4.64</p>
+              <p className="text-xs text-muted-foreground">/5 scale</p>
+              <Badge variant="outline" className="mt-2 text-xs text-emerald-600">
+                Top 1%
+              </Badge>
+            </div>
+            
+            {/* Booking */}
+            <div className="p-4 rounded-lg border text-center bg-blue-100 dark:bg-blue-900/30">
+              <p className="text-sm font-medium text-muted-foreground mb-1">Booking</p>
+              <p className="text-2xl font-bold text-blue-600">8.32</p>
+              <p className="text-xs text-muted-foreground">/10 scale</p>
+              <Badge variant="outline" className="mt-2 text-xs text-blue-600">
+                Top 26%
+              </Badge>
+            </div>
+            
+            {/* Expedia */}
+            <div className="p-4 rounded-lg border text-center bg-yellow-100 dark:bg-yellow-900/30">
+              <p className="text-sm font-medium text-muted-foreground mb-1">Expedia</p>
+              <p className="text-2xl font-bold text-yellow-600">8.69</p>
+              <p className="text-xs text-muted-foreground">/10 scale</p>
+              <Badge variant="outline" className="mt-2 text-xs text-yellow-600">
+                Top 31%
+              </Badge>
+            </div>
+            
+            {/* TripAdvisor */}
+            <div className="p-4 rounded-lg border text-center bg-emerald-100 dark:bg-emerald-900/30">
+              <p className="text-sm font-medium text-muted-foreground mb-1">TripAdvisor</p>
+              <p className="text-2xl font-bold text-emerald-600">4.61</p>
+              <p className="text-xs text-muted-foreground">/5 scale</p>
+              <Badge variant="outline" className="mt-2 text-xs text-emerald-600">
+                Top 5%
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Portfolio vs Industry Benchmark */}
       <Card>
