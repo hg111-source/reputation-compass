@@ -352,51 +352,84 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
               </Tooltip>
             </TooltipProvider>
           </CardTitle>
-          <CardDescription>Score thresholds for each percentile rank</CardDescription>
+          <CardDescription>
+            Score thresholds for each percentile rank
+            {metrics.avg !== null && (
+              <span className="ml-2 text-foreground font-medium">
+                • Kasa avg: {metrics.avg.toFixed(2)}
+              </span>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Percentile</TableHead>
+                <TableHead>Rank</TableHead>
                 {Object.values(INDUSTRY_BENCHMARKS.platforms).map(platform => (
                   <TableHead key={platform.name} className="text-center">{platform.name}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {INDUSTRY_BENCHMARKS.percentiles.map((percentile, idx) => (
-                <TableRow key={percentile}>
-                  <TableCell className="font-medium">
-                    <Badge variant={percentile >= 90 ? 'default' : 'outline'}>
-                      {percentile}th
-                    </Badge>
-                  </TableCell>
-                  {Object.values(INDUSTRY_BENCHMARKS.platforms).map(platform => {
-                    const value = platform.values[idx];
-                    const isKasaAbove = metrics.avg !== null && metrics.avg >= value;
-                    return (
-                      <TableCell 
-                        key={`${platform.name}-${percentile}`} 
-                        className={cn(
-                          'text-center',
-                          isKasaAbove && 'bg-emerald-50 dark:bg-emerald-900/20 font-semibold'
-                        )}
-                      >
-                        {value.toFixed(2)}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              ))}
+              {INDUSTRY_BENCHMARKS.percentiles.map((percentile, idx) => {
+                const rankLabels: Record<number, string> = {
+                  50: 'Top 50%',
+                  75: 'Top 25%',
+                  90: 'Top 10%',
+                  95: 'Top 5%',
+                  99: 'Top 1%',
+                };
+                
+                // Check if Kasa falls into this tier (for Airbnb benchmark)
+                const airbnbValues = INDUSTRY_BENCHMARKS.platforms.airbnb.values;
+                const nextIdx = idx + 1;
+                const isKasaTier = metrics.avg !== null && 
+                  metrics.avg >= airbnbValues[idx] && 
+                  (nextIdx >= airbnbValues.length || metrics.avg < airbnbValues[nextIdx]);
+                
+                return (
+                  <TableRow 
+                    key={percentile}
+                    className={cn(isKasaTier && 'bg-primary/10 border-l-4 border-l-primary')}
+                  >
+                    <TableCell className="font-medium">
+                      <Badge variant={percentile >= 90 ? 'default' : 'outline'}>
+                        {percentile}th
+                      </Badge>
+                    </TableCell>
+                    <TableCell className={cn('font-medium', isKasaTier && 'text-primary')}>
+                      {rankLabels[percentile]}
+                      {isKasaTier && ' ← Kasa'}
+                    </TableCell>
+                    {Object.values(INDUSTRY_BENCHMARKS.platforms).map(platform => {
+                      const value = platform.values[idx];
+                      const isKasaAbove = metrics.avg !== null && metrics.avg >= value;
+                      return (
+                        <TableCell 
+                          key={`${platform.name}-${percentile}`} 
+                          className={cn(
+                            'text-center',
+                            isKasaAbove && 'bg-emerald-50 dark:bg-emerald-900/20 font-semibold'
+                          )}
+                        >
+                          {value.toFixed(2)}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
-          {metrics.avg !== null && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              <span className="inline-block w-3 h-3 bg-emerald-50 dark:bg-emerald-900/20 border mr-1" />
-              Kasa portfolio ({metrics.avg.toFixed(2)}) exceeds this threshold
-            </p>
-          )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            <span className="inline-block w-3 h-3 bg-emerald-50 dark:bg-emerald-900/20 border mr-1 align-middle" />
+            Kasa exceeds threshold
+            <span className="mx-2">•</span>
+            <span className="inline-block w-3 h-3 bg-primary/10 border-l-2 border-l-primary mr-1 align-middle" />
+            Kasa's current tier (vs Airbnb)
+          </p>
         </CardContent>
       </Card>
 
