@@ -176,35 +176,31 @@ export default function Kasa() {
   }, [kasaSnapshots]);
 
   // Fallback to properties table if no snapshots exist yet
+  // Using simple average (each property counts equally) since Kasa scores are already weighted averages
   const displayStats = useMemo(() => {
-    if (portfolioStats.totalReviews > 0) {
+    if (portfolioStats.totalProperties > 0 && portfolioStats.simpleAverage !== null) {
       return {
-        avgScore: portfolioStats.weightedAverage !== null 
-          ? portfolioStats.weightedAverage / 2 // Convert back to 5-scale for display
-          : null,
+        avgScore: portfolioStats.simpleAverage / 2, // Convert back to 5-scale for display
         totalReviews: portfolioStats.totalReviews,
+        propertyCount: portfolioStats.totalProperties,
         source: 'snapshots' as const,
       };
     }
     
-    // Fallback: Calculate from properties table (weighted)
-    const withScores = kasaProperties.filter(p => p.kasa_aggregated_score && p.kasa_review_count);
+    // Fallback: Calculate simple average from properties table
+    const withScores = kasaProperties.filter(p => p.kasa_aggregated_score != null);
     if (withScores.length === 0) {
-      return { avgScore: null, totalReviews: 0, source: 'properties' as const };
+      return { avgScore: null, totalReviews: 0, propertyCount: 0, source: 'properties' as const };
     }
     
-    let weightedSum = 0;
-    let totalReviews = 0;
-    for (const p of withScores) {
-      const score = Number(p.kasa_aggregated_score) || 0;
-      const count = p.kasa_review_count || 0;
-      weightedSum += score * count;
-      totalReviews += count;
-    }
+    const scores = withScores.map(p => Number(p.kasa_aggregated_score) || 0);
+    const simpleAvg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const totalReviews = withScores.reduce((sum, p) => sum + (p.kasa_review_count || 0), 0);
     
     return {
-      avgScore: totalReviews > 0 ? weightedSum / totalReviews : null,
+      avgScore: simpleAvg,
       totalReviews,
+      propertyCount: withScores.length,
       source: 'properties' as const,
     };
   }, [portfolioStats, kasaProperties]);
@@ -804,7 +800,7 @@ export default function Kasa() {
           <Card>
             <CardHeader className="pb-2">
               <CardDescription className="flex items-center gap-2">
-                Weighted Average
+                Portfolio Average
                 <TrendingUp className="h-3 w-3" />
               </CardDescription>
               <CardTitle className="text-3xl flex items-center gap-2">
@@ -820,7 +816,7 @@ export default function Kasa() {
             </CardHeader>
             <CardContent className="pt-0">
               <p className="text-xs text-muted-foreground">
-                Based on {displayStats.totalReviews.toLocaleString()} reviews
+                Avg of {displayStats.propertyCount || kasaProperties.length} property scores
               </p>
             </CardContent>
           </Card>
