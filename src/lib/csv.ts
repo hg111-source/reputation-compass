@@ -4,7 +4,8 @@ import { Property, ReviewSource } from './types';
 import { REVIEW_SOURCES, SOURCE_LABELS, formatScore } from './scoring';
 
 interface CSVProperty {
-  'Hotel Name': string;
+  'Hotel Name'?: string;
+  'Name'?: string;
   City: string;
   State: string;
   'Google Place ID'?: string;
@@ -32,10 +33,11 @@ export function parseCSVFile(file: File): Promise<ParsedProperty[]> {
       skipEmptyLines: true,
       complete: (results) => {
         const properties = results.data
-          .filter(row => row['Hotel Name'] && row.City && row.State)
+          .filter(row => (row['Hotel Name'] || row['Name']) && row.City && row.State)
           .map(row => {
+            const hotelName = row['Hotel Name'] || row['Name'] || '';
             const prop: ParsedProperty = {
-              name: row['Hotel Name'].trim(),
+              name: hotelName.trim(),
               city: row.City.trim(),
               state: row.State.trim(),
             };
@@ -90,17 +92,18 @@ export async function parseExcelFile(file: File): Promise<ParsedProperty[]> {
         
         const properties = jsonData
           .filter((row, index) => {
-            const hasName = !!row['Hotel Name'];
+            const hasName = !!(row['Hotel Name'] || row['Name']);
             const hasCity = !!row.City;
             const hasState = !!row.State;
             if (!hasName || !hasCity || !hasState) {
-              console.log(`[Excel Parser] Row ${index + 2} skipped - missing: ${!hasName ? 'Hotel Name' : ''} ${!hasCity ? 'City' : ''} ${!hasState ? 'State' : ''}`.trim());
+              console.log(`[Excel Parser] Row ${index + 2} skipped - missing: ${!hasName ? 'Name' : ''} ${!hasCity ? 'City' : ''} ${!hasState ? 'State' : ''}`.trim());
             }
             return hasName && hasCity && hasState;
           })
           .map(row => {
+            const hotelName = row['Hotel Name'] || row['Name'] || '';
             const prop: ParsedProperty = {
-              name: String(row['Hotel Name']).trim(),
+              name: String(hotelName).trim(),
               city: String(row.City).trim(),
               state: String(row.State).trim(),
             };

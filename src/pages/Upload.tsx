@@ -183,7 +183,7 @@ export default function Upload() {
                 File Format
               </CardTitle>
               <CardDescription>
-                Required columns: <strong>Hotel Name</strong>, <strong>City</strong>, <strong>State</strong>
+                Required columns: <strong>Name</strong> (or Hotel Name), <strong>City</strong>, <strong>State</strong>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -191,7 +191,7 @@ export default function Upload() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted">
                     <tr>
-                      <th className="px-5 py-4 text-left font-semibold">Hotel Name</th>
+                      <th className="px-5 py-4 text-left font-semibold">Name</th>
                       <th className="px-5 py-4 text-left font-semibold">City</th>
                       <th className="px-5 py-4 text-left font-semibold">State</th>
                       <th className="px-5 py-4 text-left font-semibold text-muted-foreground">Website URL <span className="text-xs">(optional)</span></th>
