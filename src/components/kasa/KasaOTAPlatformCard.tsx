@@ -41,14 +41,14 @@ function getPercentileTier(percentile: number): { color: string; bgColor: string
 }
 
 export function KasaOTAPlatformCard() {
-  const { data: benchmark, isLoading } = usePortfolioBenchmark();
+  const { data: benchmark, isLoading, error } = usePortfolioBenchmark();
 
   const platformData = useMemo(() => {
-    if (!benchmark?.distributions) return [];
+    if (!benchmark || !benchmark.distributions) return [];
     
     return PLATFORM_ORDER.map(platform => {
       const kasaScore = KASA_OTA_SCORES[platform];
-      const dist = benchmark.distributions[platform];
+      const dist = benchmark.distributions?.[platform];
       
       if (!dist) {
         return {
@@ -61,7 +61,7 @@ export function KasaOTAPlatformCard() {
         };
       }
       
-      const percentile = dist.scores.length > 0
+      const percentile = dist.scores && dist.scores.length > 0
         ? calculatePercentileInDistribution(kasaScore, dist.scores)
         : null;
       
@@ -89,6 +89,20 @@ export function KasaOTAPlatformCard() {
               <Skeleton key={i} className="h-32 rounded-lg" />
             ))}
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Kasa Portfolio Avg Score & Percentile by Channel</CardTitle>
+          <CardDescription>Error loading benchmark data</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-destructive">Failed to load benchmark data. Please refresh the page.</p>
         </CardContent>
       </Card>
     );
