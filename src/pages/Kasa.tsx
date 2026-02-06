@@ -269,7 +269,8 @@ export default function Kasa() {
       }
 
       setImportResults([...results]);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Longer delay (2s) between requests to avoid Firecrawl rate limiting
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
     setImportProgress(100);
