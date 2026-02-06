@@ -32,15 +32,7 @@ import {
 import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
-
-// Score tier helper function
-function getScoreTier(score10: number): { label: string; bgClass: string; textClass: string } {
-  if (score10 >= 9) return { label: 'Wonderful', bgClass: 'bg-emerald-50 dark:bg-emerald-950/30', textClass: 'text-emerald-700 dark:text-emerald-400' };
-  if (score10 >= 8) return { label: 'Very Good', bgClass: 'bg-teal-50 dark:bg-teal-950/30', textClass: 'text-teal-700 dark:text-teal-400' };
-  if (score10 >= 7) return { label: 'Good', bgClass: 'bg-yellow-50 dark:bg-yellow-950/30', textClass: 'text-yellow-700 dark:text-yellow-400' };
-  if (score10 >= 6) return { label: 'Pleasant', bgClass: 'bg-orange-50 dark:bg-orange-950/30', textClass: 'text-orange-700 dark:text-orange-400' };
-  return { label: 'Needs Work', bgClass: 'bg-red-50 dark:bg-red-950/30', textClass: 'text-red-700 dark:text-red-400' };
-}
+import { getScoreColor } from '@/lib/scoring';
 import { ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { TableHead } from '@/components/ui/table';
@@ -929,16 +921,7 @@ export default function Kasa() {
                       onSort={handleSort}
                       className="text-center"
                     >
-                      Score
-                    </SortableTableHead>
-                    <SortableTableHead
-                      sortKey="reviews"
-                      currentSort={sortKey}
-                      currentDirection={sortDirection}
-                      onSort={handleSort}
-                      className="text-center"
-                    >
-                      Reviews
+                      Kasa.com
                     </SortableTableHead>
                     <TableHead className="text-right w-[60px]">Link</TableHead>
                   </TableRow>
@@ -950,7 +933,6 @@ export default function Kasa() {
                     const score10 = score5 ? Number(score5) * 2 : null;
                     const reviewCount = snapshot?.review_count ?? property.kasa_review_count;
                     const isHotel = getPropertyType(property.kasa_url) === 'Hotel';
-                    const tier = score10 ? getScoreTier(score10) : null;
                     
                     return (
                       <TableRow 
@@ -978,26 +960,20 @@ export default function Kasa() {
                           })()}
                         </TableCell>
                         <TableCell className="text-center">
-                          {score10 !== null && tier ? (
-                            <div className="flex flex-col items-center gap-0.5">
-                              <div className="flex items-center gap-1">
-                                <Star className={`h-4 w-4 fill-current ${tier.textClass}`} />
-                                <span className={`font-semibold ${tier.textClass}`}>
-                                  {score10.toFixed(2)}/10
+                          <div className="flex flex-col items-center gap-0.5">
+                            {score10 !== null ? (
+                              <>
+                                <span className={`font-semibold ${getScoreColor(score10)}`}>
+                                  {score10.toFixed(2)}
                                 </span>
-                              </div>
-                              <span className={`text-xs ${tier.textClass}`}>{tier.label}</span>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {reviewCount ? (
-                            <span className="font-medium">{reviewCount.toLocaleString()}</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                                <span className="text-xs text-muted-foreground">
+                                  {reviewCount ? reviewCount.toLocaleString() : '—'}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           {property.kasa_url && (
