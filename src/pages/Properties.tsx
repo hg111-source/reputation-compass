@@ -149,11 +149,16 @@ export default function Properties() {
     }
   };
 
+  // Filter out Kasa-only properties (they have their own page)
+  const nonKasaProperties = useMemo(() => {
+    return properties.filter(p => !p.kasa_url && !p.kasa_aggregated_score);
+  }, [properties]);
+
   // Filter properties by selected group
   const filteredProperties = useMemo(() => {
-    if (selectedGroupFilter === 'all') return properties;
-    return properties.filter(p => propertyGroupIds[p.id]?.includes(selectedGroupFilter));
-  }, [properties, propertyGroupIds, selectedGroupFilter]);
+    if (selectedGroupFilter === 'all') return nonKasaProperties;
+    return nonKasaProperties.filter(p => propertyGroupIds[p.id]?.includes(selectedGroupFilter));
+  }, [nonKasaProperties, propertyGroupIds, selectedGroupFilter]);
 
   const sortedProperties = useMemo(() => {
     if (!sortKey || !sortDirection) return filteredProperties;
@@ -276,14 +281,14 @@ export default function Properties() {
   const handleRefreshAll = () => {
     setIsRefreshDialogOpen(true);
     setDialogOpen(true);
-    refreshAll(properties);
+    refreshAll(nonKasaProperties);
   };
 
   // UNIFIED: Refresh single platform column
   const handleRefreshColumn = (platform: Platform) => {
     setIsRefreshDialogOpen(true);
     setDialogOpen(true);
-    refreshAll(properties, [platform]);
+    refreshAll(nonKasaProperties, [platform]);
   };
 
   const handleRefreshDialogChange = (open: boolean) => {
@@ -316,7 +321,7 @@ export default function Properties() {
               <Home className="mr-2 h-4 w-4" />
               Discover Airbnb
             </Button>
-            {properties.length > 0 && (
+            {nonKasaProperties.length > 0 && (
               <>
                 <Button
                   variant="outline"
@@ -415,7 +420,7 @@ export default function Properties() {
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
             <span>Loading properties...</span>
           </div>
-        ) : properties.length === 0 ? (
+        ) : nonKasaProperties.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-card p-20 text-center shadow-kasa">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
               <Building2 className="h-8 w-8 text-muted-foreground" />
@@ -434,7 +439,7 @@ export default function Properties() {
                     <SelectValue placeholder="All Properties" />
                   </SelectTrigger>
                   <SelectContent className="rounded-lg border-border bg-card shadow-kasa-hover">
-                    <SelectItem value="all">All Properties ({properties.length})</SelectItem>
+                    <SelectItem value="all">All Properties ({nonKasaProperties.length})</SelectItem>
                     {groups.map(group => (
                       <SelectItem key={group.id} value={group.id}>
                         {group.name} ({groupPropertyCounts[group.id] || 0})
