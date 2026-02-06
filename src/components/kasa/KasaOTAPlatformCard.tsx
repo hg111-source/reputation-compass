@@ -153,7 +153,7 @@ export function KasaOTAPlatformCard() {
           })}
         </div>
         <p className="text-xs text-muted-foreground mt-4 text-center">
-          * Percentile calculated from {benchmark?.totalProperties || 0} non-Kasa properties across your portfolio
+          * Percentile rank within full portfolio ({(benchmark?.totalProperties || 0) + 1} properties including Kasa)
         </p>
       </CardContent>
     </Card>

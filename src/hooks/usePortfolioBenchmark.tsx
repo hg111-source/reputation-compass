@@ -95,15 +95,23 @@ export function usePortfolioBenchmark() {
   });
 }
 
-// Calculate percentile of a score within a sorted distribution
-export function calculatePercentileInDistribution(score: number, sortedScores: number[]): number {
-  if (sortedScores.length === 0) return 0;
+// Calculate percentile rank of a score INCLUDING it in the full distribution
+// This matches Excel's PERCENTRANK behavior: add the value to the set, then find its rank
+export function calculatePercentileInDistribution(score: number, otherScores: number[]): number {
+  if (otherScores.length === 0) return 50; // No comparison data, assume median
   
-  let count = 0;
-  for (const s of sortedScores) {
-    if (s < score) count++;
+  // Add Kasa's score to the full set (like Excel would)
+  const fullSet = [...otherScores, score].sort((a, b) => a - b);
+  
+  // Count how many values are strictly below this score
+  let countBelow = 0;
+  for (const s of fullSet) {
+    if (s < score) countBelow++;
     else break;
   }
   
-  return (count / sortedScores.length) * 100;
+  // Percentile rank = (values below) / (total - 1) * 100
+  // This gives the position in the distribution (0-100)
+  const totalCount = fullSet.length;
+  return (countBelow / (totalCount - 1)) * 100;
 }
