@@ -29,9 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, BarChart3 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
+import { KasaBenchmarkTab } from '@/components/kasa/KasaBenchmarkTab';
 import { getScoreColor } from '@/lib/scoring';
 import { ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
@@ -792,209 +794,232 @@ export default function Kasa() {
           </Card>
         )}
 
-        {/* Stats Row */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total Properties</CardDescription>
-              <CardTitle className="text-3xl">{kasaProperties.length}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2">
-                Portfolio Average
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs text-sm" side="top">
-                      <p className="font-medium mb-1">Simple average of all property scores.</p>
-                      <p className="text-muted-foreground">
-                        Each property's imported score from Kasa.com is assumed to already be a weighted average of reviews across platforms, so we don't double-weight by review count here.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </CardDescription>
-              <CardTitle className="text-3xl flex items-center gap-2">
-                {displayStats.avgScore !== null ? (
-                  <>
-                    <Star className="h-6 w-6 fill-primary text-primary" />
-                    {(displayStats.avgScore * 2).toFixed(2)}/10
-                  </>
-                ) : (
-                  '—'
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-xs text-muted-foreground">
-                Avg of {displayStats.propertyCount || kasaProperties.length} property scores
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total Reviews</CardDescription>
-              <CardTitle className="text-3xl">
-                {displayStats.totalReviews.toLocaleString()}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
+        {/* Tabs */}
+        <Tabs defaultValue="properties" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="properties" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              Properties
+            </TabsTrigger>
+            <TabsTrigger value="insights" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              So What?
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Properties Table */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Kasa Properties</CardTitle>
-                <CardDescription>
-                  {locationFilter === 'all' 
-                    ? `${kasaProperties.length} properties with Kasa ratings`
-                    : `${sortedKasaProperties.length} of ${kasaProperties.length} properties in ${locationFilter}`
-                  }
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-4">
-                <ScoreLegend />
-                <Select value={locationFilter} onValueChange={setLocationFilter}>
-                  <SelectTrigger className="w-[220px]">
-                    <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Filter by location" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background">
-                    <SelectItem value="all">All Locations ({kasaProperties.length})</SelectItem>
-                    {locationOptions.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <TabsContent value="properties" className="space-y-6">
+            {/* Stats Row */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Total Properties</CardDescription>
+                  <CardTitle className="text-3xl">{kasaProperties.length}</CardTitle>
+                </CardHeader>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-2">
+                    Portfolio Average
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-sm" side="top">
+                          <p className="font-medium mb-1">Simple average of all property scores.</p>
+                          <p className="text-muted-foreground">
+                            Each property's imported score from Kasa.com is assumed to already be a weighted average of reviews across platforms, so we don't double-weight by review count here.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </CardDescription>
+                  <CardTitle className="text-3xl flex items-center gap-2">
+                    {displayStats.avgScore !== null ? (
+                      <>
+                        <Star className="h-6 w-6 fill-primary text-primary" />
+                        {(displayStats.avgScore * 2).toFixed(2)}/10
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-xs text-muted-foreground">
+                    Avg of {displayStats.propertyCount || kasaProperties.length} property scores
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Total Reviews</CardDescription>
+                  <CardTitle className="text-3xl">
+                    {displayStats.totalReviews.toLocaleString()}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
             </div>
-          </CardHeader>
-          <CardContent>
-            {kasaProperties.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No Kasa properties imported yet.</p>
-                <p className="text-sm mt-1">Click "Import from Kasa.com" to get started.</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <SortableTableHead
-                      sortKey="name"
-                      currentSort={sortKey}
-                      currentDirection={sortDirection}
-                      onSort={handleSort}
-                      className="text-left"
-                    >
-                      Property Name
-                    </SortableTableHead>
-                    <SortableTableHead
-                      sortKey="location"
-                      currentSort={sortKey}
-                      currentDirection={sortDirection}
-                      onSort={handleSort}
-                      className="text-left"
-                    >
-                      Location
-                    </SortableTableHead>
-                    <SortableTableHead
-                      sortKey="type"
-                      currentSort={sortKey}
-                      currentDirection={sortDirection}
-                      onSort={handleSort}
-                      className="text-center"
-                    >
-                      Type
-                    </SortableTableHead>
-                    <SortableTableHead
-                      sortKey="score"
-                      currentSort={sortKey}
-                      currentDirection={sortDirection}
-                      onSort={handleSort}
-                      className="text-center"
-                    >
-                      Kasa.com
-                    </SortableTableHead>
-                    <TableHead className="text-right w-[60px]">Link</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                {sortedKasaProperties.map(property => {
-                    const snapshot = kasaSnapshots[property.id];
-                    const score5 = snapshot?.score_raw ?? property.kasa_aggregated_score;
-                    const score10 = score5 ? Number(score5) * 2 : null;
-                    const reviewCount = snapshot?.review_count ?? property.kasa_review_count;
-                    const isHotel = getPropertyType(property.kasa_url) === 'Hotel';
-                    
-                    return (
-                      <TableRow 
-                        key={property.id} 
-                        className={isHotel ? 'bg-muted/30' : ''}
-                      >
-                        <TableCell className="font-medium">{property.name}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {property.city}{property.state ? `, ${property.state}` : ''}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {(() => {
-                            const type = getPropertyType(property.kasa_url);
-                            return type === 'Hotel' ? (
-                              <Badge variant="secondary" className="gap-1">
-                                <Building2 className="h-3 w-3" />
-                                Hotel
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="gap-1">
-                                <Home className="h-3 w-3" />
-                                Apt
-                              </Badge>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-0.5">
-                            {score10 !== null ? (
-                              <>
-                                <span className={`font-semibold ${getScoreColor(score10)}`}>
-                                  {score10.toFixed(2)}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {reviewCount ? reviewCount.toLocaleString() : '—'}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {property.kasa_url && (
-                            <a
-                              href={property.kasa_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          )}
-                        </TableCell>
+
+            {/* Properties Table */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Kasa Properties</CardTitle>
+                    <CardDescription>
+                      {locationFilter === 'all' 
+                        ? `${kasaProperties.length} properties with Kasa ratings`
+                        : `${sortedKasaProperties.length} of ${kasaProperties.length} properties in ${locationFilter}`
+                      }
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <ScoreLegend />
+                    <Select value={locationFilter} onValueChange={setLocationFilter}>
+                      <SelectTrigger className="w-[220px]">
+                        <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <SelectValue placeholder="Filter by location" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background">
+                        <SelectItem value="all">All Locations ({kasaProperties.length})</SelectItem>
+                        {locationOptions.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {kasaProperties.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p>No Kasa properties imported yet.</p>
+                    <p className="text-sm mt-1">Click "Import from Kasa.com" to get started.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <SortableTableHead
+                          sortKey="name"
+                          currentSort={sortKey}
+                          currentDirection={sortDirection}
+                          onSort={handleSort}
+                          className="text-left"
+                        >
+                          Property Name
+                        </SortableTableHead>
+                        <SortableTableHead
+                          sortKey="location"
+                          currentSort={sortKey}
+                          currentDirection={sortDirection}
+                          onSort={handleSort}
+                          className="text-left"
+                        >
+                          Location
+                        </SortableTableHead>
+                        <SortableTableHead
+                          sortKey="type"
+                          currentSort={sortKey}
+                          currentDirection={sortDirection}
+                          onSort={handleSort}
+                          className="text-center"
+                        >
+                          Type
+                        </SortableTableHead>
+                        <SortableTableHead
+                          sortKey="score"
+                          currentSort={sortKey}
+                          currentDirection={sortDirection}
+                          onSort={handleSort}
+                          className="text-center"
+                        >
+                          Kasa.com
+                        </SortableTableHead>
+                        <TableHead className="text-right w-[60px]">Link</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                    </TableHeader>
+                    <TableBody>
+                    {sortedKasaProperties.map(property => {
+                        const snapshot = kasaSnapshots[property.id];
+                        const score5 = snapshot?.score_raw ?? property.kasa_aggregated_score;
+                        const score10 = score5 ? Number(score5) * 2 : null;
+                        const reviewCount = snapshot?.review_count ?? property.kasa_review_count;
+                        const isHotel = getPropertyType(property.kasa_url) === 'Hotel';
+                        
+                        return (
+                          <TableRow 
+                            key={property.id} 
+                            className={isHotel ? 'bg-muted/30' : ''}
+                          >
+                            <TableCell className="font-medium">{property.name}</TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {property.city}{property.state ? `, ${property.state}` : ''}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {(() => {
+                                const type = getPropertyType(property.kasa_url);
+                                return type === 'Hotel' ? (
+                                  <Badge variant="secondary" className="gap-1">
+                                    <Building2 className="h-3 w-3" />
+                                    Hotel
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="gap-1">
+                                    <Home className="h-3 w-3" />
+                                    Apt
+                                  </Badge>
+                                );
+                              })()}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex flex-col items-center gap-0.5">
+                                {score10 !== null ? (
+                                  <>
+                                    <span className={`font-semibold ${getScoreColor(score10)}`}>
+                                      {score10.toFixed(2)}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {reviewCount ? reviewCount.toLocaleString() : '—'}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {property.kasa_url && (
+                                <a
+                                  href={property.kasa_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="insights">
+            <KasaBenchmarkTab 
+              properties={kasaProperties} 
+              snapshots={kasaSnapshots} 
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
