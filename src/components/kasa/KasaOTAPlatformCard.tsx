@@ -13,6 +13,14 @@ import expediaLogo from '@/assets/logos/expedia.svg';
 
 type Platform = 'google' | 'tripadvisor' | 'booking' | 'expedia';
 
+// Kasa's actual portfolio OTA averages (from master data)
+const KASA_OTA_SCORES: Record<Platform, number> = {
+  google: 9.28,      // 4.64/5 × 2
+  tripadvisor: 9.22, // 4.61/5 × 2
+  booking: 8.32,     // Already /10
+  expedia: 8.69,     // Already /10
+};
+
 // Platform order to match Properties table
 const PLATFORM_ORDER: Platform[] = ['google', 'tripadvisor', 'booking', 'expedia'];
 
@@ -39,20 +47,19 @@ export function KasaOTAPlatformCard() {
     if (!benchmark) return [];
     
     return PLATFORM_ORDER.map(platform => {
-      const kasaStats = benchmark.kasa[platform];
-      const nonKasaStats = benchmark.nonKasa[platform];
+      const kasaScore = KASA_OTA_SCORES[platform];
+      const dist = benchmark.distributions[platform];
       
-      const percentile = kasaStats.avg !== null && nonKasaStats.scores.length > 0
-        ? calculatePercentileInDistribution(kasaStats.avg, nonKasaStats.scores)
+      const percentile = dist.scores.length > 0
+        ? calculatePercentileInDistribution(kasaScore, dist.scores)
         : null;
       
       return {
         platform,
         ...PLATFORM_INFO[platform],
-        kasaAvg: kasaStats.avg,
-        kasaCount: kasaStats.count,
-        nonKasaAvg: nonKasaStats.avg,
-        nonKasaCount: nonKasaStats.count,
+        kasaScore,
+        portfolioAvg: dist.avg,
+        portfolioCount: dist.count,
         percentile,
       };
     });
@@ -76,65 +83,53 @@ export function KasaOTAPlatformCard() {
     );
   }
 
-  const hasData = platformData.some(p => p.kasaAvg !== null);
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Kasa Portfolio Avg Score & Percentile by Channel</CardTitle>
         <CardDescription>
-          Kasa properties benchmarked against {benchmark?.nonKasaPropertyCount || 0} non-Kasa properties
+          Kasa OTA averages benchmarked against {benchmark?.totalProperties || 0} properties in All Properties
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {!hasData ? (
-          <p className="text-center text-muted-foreground py-8">
-            No OTA data available for Kasa properties. Refresh OTA scores to enable benchmarking.
-          </p>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {platformData.map((data) => {
-                const tier = data.percentile !== null 
-                  ? getPercentileTier(data.percentile) 
-                  : { color: 'text-muted-foreground', bgColor: 'bg-muted/50' };
-                const topPercent = data.percentile !== null ? Math.round(100 - data.percentile) : null;
-                
-                return (
-                  <div 
-                    key={data.platform} 
-                    className={cn('p-4 rounded-lg border text-center', tier.bgColor)}
-                  >
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <img src={data.logo} alt={data.name} className="h-5 w-5" />
-                      <p className="text-sm font-medium text-muted-foreground">{data.name}</p>
-                    </div>
-                    {data.kasaAvg !== null ? (
-                      <>
-                        <p className={cn('text-xl font-bold', tier.color)}>
-                          {data.kasaAvg.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          /10 • {data.kasaCount} properties
-                        </p>
-                        {topPercent !== null && (
-                          <Badge variant="outline" className={cn('text-sm font-semibold px-3 py-1', tier.color)}>
-                            Top {topPercent}%
-                          </Badge>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground py-2">No data</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground mt-4 text-center">
-              * Percentile based on {benchmark?.nonKasaPropertyCount || 0} non-Kasa properties in your portfolio
-            </p>
-          </>
-        )}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {platformData.map((data) => {
+            const tier = data.percentile !== null 
+              ? getPercentileTier(data.percentile) 
+              : { color: 'text-muted-foreground', bgColor: 'bg-muted/50' };
+            const topPercent = data.percentile !== null ? Math.max(1, Math.round(100 - data.percentile)) : null;
+            
+            return (
+              <div 
+                key={data.platform} 
+                className={cn('p-4 rounded-lg border text-center', tier.bgColor)}
+              >
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <img src={data.logo} alt={data.name} className="h-5 w-5" />
+                  <p className="text-sm font-medium text-muted-foreground">{data.name}</p>
+                </div>
+                <p className={cn('text-xl font-bold', tier.color)}>
+                  {data.kasaScore.toFixed(2)}
+                </p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  /10 • Portfolio avg: {data.portfolioAvg?.toFixed(2) || 'N/A'}
+                </p>
+                {topPercent !== null ? (
+                  <Badge variant="outline" className={cn('text-sm font-semibold px-3 py-1', tier.color)}>
+                    Top {topPercent}%
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                    No data ({data.portfolioCount} props)
+                  </Badge>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-xs text-muted-foreground mt-4 text-center">
+          * Percentile calculated from {benchmark?.totalProperties || 0} non-Kasa properties across your portfolio
+        </p>
       </CardContent>
     </Card>
   );
