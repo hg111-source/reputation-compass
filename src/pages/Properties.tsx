@@ -421,7 +421,7 @@ export default function Properties() {
           <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
-                  <SelectTrigger className="h-10 w-[220px] rounded-lg border-border bg-card shadow-kasa">
+                  <SelectTrigger className="h-10 w-[220px] rounded-lg border-2 border-primary bg-primary text-primary-foreground font-semibold shadow-kasa hover:bg-primary/90 transition-colors">
                     <SelectValue placeholder="All Properties" />
                   </SelectTrigger>
                   <SelectContent className="rounded-lg border-border bg-card shadow-kasa-hover">
