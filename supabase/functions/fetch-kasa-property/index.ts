@@ -13,6 +13,21 @@ interface KasaReview {
   date?: string;
 }
 
+// US state abbreviations for parsing addresses
+const US_STATES: Record<string, string> = {
+  'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+  'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+  'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+  'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+  'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+  'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+  'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+  'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+  'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+  'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
+  'DC': 'District of Columbia'
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -37,17 +52,16 @@ serve(async (req) => {
     console.log(`Scraping Kasa property: ${propertyUrl}`);
 
     // Helper function to fetch with retry
-    const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 3): Promise<Response> => {
+    const fetchWithRetry = async (fetchUrl: string, options: RequestInit, maxRetries = 3): Promise<Response> => {
       let lastError: Error | null = null;
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
           if (attempt > 0) {
-            // Exponential backoff: 1s, 2s, 4s
             const delay = Math.pow(2, attempt) * 1000;
             console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms delay`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
-          const response = await fetch(url, options);
+          const response = await fetch(fetchUrl, options);
           return response;
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
@@ -83,6 +97,7 @@ serve(async (req) => {
     const html = data.data?.html || data.html || '';
     
     console.log('Parsing property data from scraped content...');
+    console.log('Markdown preview (first 2000 chars):', markdown.substring(0, 2000));
 
     // Parse the property name from the page
     let propertyName = '';
@@ -92,73 +107,97 @@ serve(async (req) => {
       propertyName = titleMatch[1].trim();
     }
 
-    // Extract rating - look for patterns like "4.62" near "rating" or "reviews"
+    // IMPROVED: Extract rating - look for pattern "X.XX• XXX reviews" or "Total rating: X.XX"
     let aggregatedRating: number | null = null;
-    const ratingPatterns = [
-      /(\d+\.?\d*)\s*(?:out of 5|\/5|stars?)/i,
-      /rating[:\s]*(\d+\.?\d*)/i,
-      /(\d+\.\d{1,2})\s*\(\d+\s*reviews?\)/i,
-      /★\s*(\d+\.?\d*)/,
-      /(\d+\.\d{2})\s*(?:·|•|\|)/,
-    ];
+    let reviewCount = 0;
     
-    for (const pattern of ratingPatterns) {
-      const match = markdown.match(pattern) || html.match(pattern);
-      if (match) {
-        const rating = parseFloat(match[1]);
-        if (rating >= 0 && rating <= 5) {
+    // Primary pattern: "4.66• 825 reviews" or "4.66 • 825 reviews"
+    const primaryRatingPattern = /(\d+\.\d{1,2})\s*[•·]\s*(\d+)\s*reviews?/i;
+    const primaryMatch = markdown.match(primaryRatingPattern) || html.match(primaryRatingPattern);
+    
+    if (primaryMatch) {
+      const rating = parseFloat(primaryMatch[1]);
+      if (rating >= 1 && rating <= 5) {
+        aggregatedRating = rating;
+        reviewCount = parseInt(primaryMatch[2], 10);
+        console.log(`Found rating via primary pattern: ${aggregatedRating} (${reviewCount} reviews)`);
+      }
+    }
+    
+    // Secondary pattern: "Total rating: 4.66 based on 825 reviews"
+    if (!aggregatedRating) {
+      const totalRatingPattern = /total\s+rating[:\s]+(\d+\.\d{1,2})\s+based\s+on\s+(\d+)\s*reviews?/i;
+      const totalMatch = markdown.match(totalRatingPattern) || html.match(totalRatingPattern);
+      if (totalMatch) {
+        const rating = parseFloat(totalMatch[1]);
+        if (rating >= 1 && rating <= 5) {
           aggregatedRating = rating;
+          reviewCount = parseInt(totalMatch[2], 10);
+          console.log(`Found rating via total pattern: ${aggregatedRating} (${reviewCount} reviews)`);
+        }
+      }
+    }
+    
+    // Tertiary: Look for standalone decimal near "review"
+    if (!aggregatedRating) {
+      const decimalNearReview = /(\d\.\d{2})\s*(?:\n|.){0,50}?(\d+)\s*reviews?/i;
+      const decimalMatch = markdown.match(decimalNearReview);
+      if (decimalMatch) {
+        const rating = parseFloat(decimalMatch[1]);
+        if (rating >= 1 && rating <= 5) {
+          aggregatedRating = rating;
+          reviewCount = parseInt(decimalMatch[2], 10);
+          console.log(`Found rating via decimal pattern: ${aggregatedRating} (${reviewCount} reviews)`);
+        }
+      }
+    }
+
+    // If still no review count, try standalone pattern
+    if (reviewCount === 0) {
+      const reviewCountPatterns = [
+        /(\d{1,5})\s*reviews?/i,
+        /reviews?\s*\((\d+)\)/i,
+      ];
+      for (const pattern of reviewCountPatterns) {
+        const match = markdown.match(pattern) || html.match(pattern);
+        if (match) {
+          reviewCount = parseInt(match[1], 10);
           break;
         }
       }
     }
 
-    // Extract review count
-    let reviewCount = 0;
-    const reviewCountPatterns = [
-      /(\d+)\s*reviews?/i,
-      /reviews?\s*\((\d+)\)/i,
-      /\((\d+)\s*reviews?\)/i,
-    ];
-    
-    for (const pattern of reviewCountPatterns) {
-      const match = markdown.match(pattern) || html.match(pattern);
-      if (match) {
-        reviewCount = parseInt(match[1], 10);
-        break;
-      }
-    }
-
-    // Extract location information
+    // IMPROVED: Extract address - look for street address pattern
+    let address = '';
     let city = '';
     let state = '';
     
-    // Try to extract from property name or URL
-    const locationMatch = propertyName.match(/(?:kasa\s+)?(.+?)\s*$/i);
-    if (locationMatch) {
-      const locationPart = locationMatch[1];
-      // Common patterns like "Sunset Los Angeles" or "West Loop Chicago"
-      const cityStateMatch = locationPart.match(/(.+?)\s+([\w\s]+)$/);
-      if (cityStateMatch) {
-        city = cityStateMatch[2].trim();
-      } else {
-        city = locationPart.trim();
-      }
+    // Pattern: "123 Street Name, City, ST 12345"
+    const addressPattern = /(\d+\s+[A-Za-z\s]+(?:Ave|St|Street|Blvd|Boulevard|Dr|Drive|Rd|Road|Way|Lane|Ln|Pl|Place|Ct|Court)[^,]*),\s*([A-Za-z\s]+),\s*([A-Z]{2})\s*(\d{5})?/i;
+    const addressMatch = markdown.match(addressPattern) || html.match(addressPattern);
+    
+    if (addressMatch) {
+      address = addressMatch[0].trim();
+      city = addressMatch[2].trim();
+      state = addressMatch[3].toUpperCase();
+      console.log(`Found address: ${address}, City: ${city}, State: ${state}`);
     }
     
-    // Try to find address in content
-    const addressMatch = markdown.match(/(?:address|location)[:\s]*([^,\n]+),?\s*([A-Z]{2})?/i) ||
-                         html.match(/(?:address|location)[:\s]*([^,<]+),?\s*([A-Z]{2})?/i);
-    if (addressMatch) {
-      if (addressMatch[1]) city = addressMatch[1].trim();
-      if (addressMatch[2]) state = addressMatch[2].trim();
+    // If no address found, try simpler city/state pattern from content
+    if (!city) {
+      // Look for "City, ST" pattern
+      const cityStatePattern = /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?),\s*([A-Z]{2})\s*\d{5}/;
+      const cityStateMatch = markdown.match(cityStatePattern);
+      if (cityStateMatch) {
+        city = cityStateMatch[1].trim();
+        state = cityStateMatch[2];
+      }
     }
 
     // Parse reviews from the page
     const reviews: KasaReview[] = [];
     
     // Look for review blocks - Kasa shows reviews with platform labels
-    // Pattern: "From TripAdvisor" or "From Expedia" followed by review text
     const reviewSections = markdown.split(/(?=From\s+(?:TripAdvisor|Expedia|Google|Booking|Airbnb))/i);
     
     for (const section of reviewSections) {
@@ -167,7 +206,7 @@ serve(async (req) => {
       
       const platform = platformMatch[1].toLowerCase().replace('.com', '');
       
-      // Extract review text - everything between platform label and next section or end
+      // Extract review text
       const textMatch = section.match(/From\s+\w+[^"]*[""]([^""]+)[""]/i) ||
                         section.match(/From\s+\w+\s*\n+(.+?)(?=\n\n|From\s+\w|$)/is);
       
@@ -176,7 +215,7 @@ serve(async (req) => {
         if (reviewText.length > 10) {
           reviews.push({
             text: reviewText,
-            rating: null, // Individual ratings not always shown
+            rating: null,
             platform: platform === 'booking' ? 'booking' : 
                      platform === 'tripadvisor' ? 'tripadvisor' :
                      platform === 'expedia' ? 'expedia' :
@@ -200,7 +239,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Parsed: ${propertyName}, Rating: ${aggregatedRating}, Reviews: ${reviewCount}, Extracted ${reviews.length} review texts`);
+    console.log(`Parsed: ${propertyName}, Rating: ${aggregatedRating}, Reviews: ${reviewCount}, City: ${city}, State: ${state}`);
 
     // Calculate platform breakdown from reviews
     const platformBreakdown: Record<string, number> = {};
@@ -215,6 +254,7 @@ serve(async (req) => {
           name: propertyName || slug?.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
           url: propertyUrl,
           slug,
+          address,
           city,
           state,
           aggregatedRating,
