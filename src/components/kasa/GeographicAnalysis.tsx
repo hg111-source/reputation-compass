@@ -1,24 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { MapPin, Building2, Map } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { getScoreColor } from '@/lib/scoring';
+import { MapPin, Map } from 'lucide-react';
 import { USStateMap } from './USStateMap';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  Cell,
-  ScatterChart,
-  Scatter,
-  ZAxis,
-  Legend,
-} from 'recharts';
 
 interface Property {
   id: string;
@@ -38,16 +21,6 @@ interface KasaSnapshot {
 interface GeographicAnalysisProps {
   properties: Property[];
   snapshots: Record<string, KasaSnapshot>;
-}
-
-// Get color for score
-function getBarColor(score: number): string {
-  if (score >= 9.5) return '#059669';
-  if (score >= 9) return '#10b981';
-  if (score >= 8) return '#3b82f6';
-  if (score >= 7) return '#eab308';
-  if (score >= 6) return '#f97316';
-  return '#ef4444';
 }
 
 export function GeographicAnalysis({ properties, snapshots }: GeographicAnalysisProps) {
@@ -98,69 +71,6 @@ export function GeographicAnalysis({ properties, snapshots }: GeographicAnalysis
       .sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
   }, [properties, snapshots]);
 
-  // Calculate city-level metrics
-  const cityMetrics = useMemo(() => {
-    const cityData: Record<string, { state: string; scores: number[]; properties: number; totalReviews: number }> = {};
-    
-    properties.forEach(p => {
-      const snapshot = snapshots[p.id];
-      const score5 = snapshot?.score_raw ?? p.kasa_aggregated_score;
-      const score10 = score5 ? Number(score5) * 2 : null;
-      const reviews = snapshot?.review_count ?? p.kasa_review_count ?? 0;
-      const key = `${p.city}, ${p.state}`;
-      
-      if (!cityData[key]) {
-        cityData[key] = { state: p.state, scores: [], properties: 0, totalReviews: 0 };
-      }
-      cityData[key].properties++;
-      cityData[key].totalReviews += reviews;
-      if (score10 !== null) {
-        cityData[key].scores.push(score10);
-      }
-    });
-    
-    return Object.entries(cityData)
-      .map(([city, data]) => ({
-        city,
-        state: data.state,
-        avgScore: data.scores.length > 0 
-          ? data.scores.reduce((a, b) => a + b, 0) / data.scores.length 
-          : null,
-        propertyCount: data.properties,
-        totalReviews: data.totalReviews,
-      }))
-      .filter(c => c.avgScore !== null)
-      .sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
-  }, [properties, snapshots]);
-
-  // Property scatter data - each property as a point
-  const scatterData = useMemo(() => {
-    return properties
-      .map(p => {
-        const snapshot = snapshots[p.id];
-        const score5 = snapshot?.score_raw ?? p.kasa_aggregated_score;
-        const score10 = score5 ? Number(score5) * 2 : null;
-        const reviews = snapshot?.review_count ?? p.kasa_review_count ?? 0;
-        
-        return {
-          name: p.name,
-          city: p.city,
-          state: p.state,
-          score: score10,
-          reviews,
-          location: `${p.city}, ${p.state}`,
-        };
-      })
-      .filter(p => p.score !== null);
-  }, [properties, snapshots]);
-
-  // Top and bottom cities for chart
-  const topBottomCities = useMemo(() => {
-    const top5 = cityMetrics.slice(0, 5);
-    const bottom5 = [...cityMetrics].sort((a, b) => (a.avgScore ?? 0) - (b.avgScore ?? 0)).slice(0, 5).reverse();
-    return { top5, bottom5 };
-  }, [cityMetrics]);
-
   if (properties.length === 0) return null;
 
   return (
@@ -187,99 +97,6 @@ export function GeographicAnalysis({ properties, snapshots }: GeographicAnalysis
         </CardContent>
       </Card>
 
-
-      {/* Top & Bottom Cities */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Top Cities */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg text-emerald-600">🏆 Top 5 Cities</CardTitle>
-            <CardDescription>Highest average scores</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={topBottomCities.top5} 
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
-                >
-                  <XAxis type="number" domain={[6, 10]} tickCount={5} />
-                  <YAxis 
-                    type="category" 
-                    dataKey="city" 
-                    width={75}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <RechartsTooltip 
-                    content={({ active, payload }) => {
-                      if (!active || !payload?.length) return null;
-                      const data = payload[0].payload;
-                      return (
-                        <div className="bg-background border rounded-lg p-2 shadow-lg">
-                          <p className="font-medium">{data.city}</p>
-                          <p className="text-sm">Score: <span className={getScoreColor(data.avgScore)}>{data.avgScore?.toFixed(2)}</span></p>
-                          <p className="text-xs text-muted-foreground">{data.propertyCount} properties • {data.totalReviews.toLocaleString()} reviews</p>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Bar dataKey="avgScore" radius={[0, 4, 4, 0]}>
-                    {topBottomCities.top5.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={getBarColor(entry.avgScore ?? 0)} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Bottom Cities */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg text-orange-600">⚠️ Bottom 5 Cities</CardTitle>
-            <CardDescription>Lowest average scores - improvement opportunities</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={topBottomCities.bottom5} 
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
-                >
-                  <XAxis type="number" domain={[6, 10]} tickCount={5} />
-                  <YAxis 
-                    type="category" 
-                    dataKey="city" 
-                    width={75}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <RechartsTooltip 
-                    content={({ active, payload }) => {
-                      if (!active || !payload?.length) return null;
-                      const data = payload[0].payload;
-                      return (
-                        <div className="bg-background border rounded-lg p-2 shadow-lg">
-                          <p className="font-medium">{data.city}</p>
-                          <p className="text-sm">Score: <span className={getScoreColor(data.avgScore)}>{data.avgScore?.toFixed(2)}</span></p>
-                          <p className="text-xs text-muted-foreground">{data.propertyCount} properties • {data.totalReviews.toLocaleString()} reviews</p>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Bar dataKey="avgScore" radius={[0, 4, 4, 0]}>
-                    {topBottomCities.bottom5.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={getBarColor(entry.avgScore ?? 0)} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
