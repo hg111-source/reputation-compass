@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { parseCSVFile, parseExcelFile } from '@/lib/csv';
-import { Upload as UploadIcon, FileSpreadsheet, Check, AlertCircle, CloudUpload } from 'lucide-react';
+import { Upload as UploadIcon, FileSpreadsheet, Check, AlertCircle, CloudUpload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Upload() {
@@ -149,25 +149,47 @@ export default function Upload() {
                   result.success > 0 ? 'bg-success/10' : 'bg-destructive/10'
                 }`}>
                   {result.success > 0 ? (
-                    <div className="flex items-center gap-4 text-success">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20">
-                        <Check className="h-5 w-5" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-success">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20">
+                          <Check className="h-5 w-5" />
+                        </div>
+                        <span className="font-medium">
+                          Successfully imported {result.success} properties
+                        </span>
                       </div>
-                      <span className="font-medium">
-                        Successfully imported {result.success} properties
-                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setResult(null)}
+                        className="ml-4"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Upload Another
+                      </Button>
                     </div>
                   ) : (
-                    <div className="flex items-start gap-4 text-destructive">
-                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-destructive/20">
-                        <AlertCircle className="h-5 w-5" />
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4 text-destructive">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-destructive/20">
+                          <AlertCircle className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Import failed</p>
+                          {result.errors.map((error, i) => (
+                            <p key={i} className="mt-1 text-sm">{error}</p>
+                          ))}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">Import failed</p>
-                        {result.errors.map((error, i) => (
-                          <p key={i} className="mt-1 text-sm">{error}</p>
-                        ))}
-                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setResult(null)}
+                        className="ml-4 flex-shrink-0"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Try Again
+                      </Button>
                     </div>
                   )}
                 </div>
