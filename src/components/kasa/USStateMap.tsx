@@ -261,7 +261,7 @@ export function USStateMap({ stateData }: USStateMapProps) {
             </span>
           </div>
           <p className="text-center text-xs text-muted-foreground">
-            Bubble size = property count • Hover for details
+            Bubble size = number of properties (not property size) • Hover for details
           </p>
         </div>
       </div>
