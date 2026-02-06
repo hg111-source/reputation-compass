@@ -8,7 +8,7 @@ import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
 import bookingLogo from '@/assets/logos/booking.png';
 import expediaLogo from '@/assets/logos/expedia.png';
 
-const platformLogos: Record<ReviewSource, string> = {
+const platformLogos: Partial<Record<ReviewSource, string>> = {
   google: googleLogo,
   tripadvisor: tripadvisorLogo,
   booking: bookingLogo,

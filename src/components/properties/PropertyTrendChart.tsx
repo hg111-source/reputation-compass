@@ -20,6 +20,7 @@ const PLATFORM_COLORS: Record<ReviewSource, string> = {
   tripadvisor: 'hsl(139, 100%, 28%)', // TripAdvisor green
   booking: 'hsl(213, 94%, 43%)', // Booking blue
   expedia: 'hsl(45, 100%, 51%)', // Expedia gold
+  kasa: 'hsl(280, 70%, 50%)', // Kasa purple
 };
 
 interface PropertyTrendChartProps {
