@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { useLatestKasaSnapshots } from '@/hooks/useKasaSnapshots';
+import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { KasaBenchmarkTab } from '@/components/kasa/KasaBenchmarkTab';
 
@@ -19,6 +20,9 @@ export default function Insights() {
   
   // Fetch latest Kasa snapshots
   const { data: kasaSnapshots = {} } = useLatestKasaSnapshots(kasaPropertyIds);
+  
+  // Fetch platform scores for all Kasa properties
+  const { data: platformScores = {} } = useLatestPropertyScores(kasaPropertyIds);
 
   if (loading) {
     return (
@@ -49,7 +53,8 @@ export default function Insights() {
         {/* Benchmarking Content */}
         <KasaBenchmarkTab 
           properties={kasaProperties} 
-          snapshots={kasaSnapshots} 
+          snapshots={kasaSnapshots}
+          platformScores={platformScores}
         />
       </div>
     </DashboardLayout>
