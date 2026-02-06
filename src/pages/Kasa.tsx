@@ -19,12 +19,15 @@ import {
   Table, 
   TableBody, 
   TableCell, 
-  TableHead, 
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
 import { Search, Loader2, Star, ExternalLink, TrendingUp } from 'lucide-react';
 import { ReviewSource } from '@/lib/types';
+import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
+import { TableHead } from '@/components/ui/table';
+
+type SortKey = 'name' | 'location' | 'score' | 'reviews' | null;
 
 interface ImportedPropertyData {
   name: string;
@@ -51,6 +54,8 @@ export default function Kasa() {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [currentProperty, setCurrentProperty] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
   // Filter properties that have Kasa data
   const kasaProperties = useMemo(() => {
@@ -100,6 +105,59 @@ export default function Kasa() {
       source: 'properties' as const,
     };
   }, [portfolioStats, kasaProperties]);
+
+  // Sorting handler - same pattern as Properties page
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortDirection === 'desc') {
+        setSortDirection('asc');
+      } else if (sortDirection === 'asc') {
+        setSortKey(null);
+        setSortDirection(null);
+      }
+    } else {
+      setSortKey(key as SortKey);
+      setSortDirection('desc');
+    }
+  };
+
+  // Sorted properties
+  const sortedKasaProperties = useMemo(() => {
+    if (!sortKey || !sortDirection) return kasaProperties;
+
+    return [...kasaProperties].sort((a, b) => {
+      let aVal: number | string = 0;
+      let bVal: number | string = 0;
+
+      switch (sortKey) {
+        case 'name':
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+          break;
+        case 'location':
+          aVal = `${a.city}, ${a.state}`.toLowerCase();
+          bVal = `${b.city}, ${b.state}`.toLowerCase();
+          break;
+        case 'score':
+          const aSnapshot = kasaSnapshots[a.id];
+          const bSnapshot = kasaSnapshots[b.id];
+          aVal = aSnapshot?.score_raw ?? a.kasa_aggregated_score ?? -1;
+          bVal = bSnapshot?.score_raw ?? b.kasa_aggregated_score ?? -1;
+          break;
+        case 'reviews':
+          const aSnap = kasaSnapshots[a.id];
+          const bSnap = kasaSnapshots[b.id];
+          aVal = aSnap?.review_count ?? a.kasa_review_count ?? -1;
+          bVal = bSnap?.review_count ?? b.kasa_review_count ?? -1;
+          break;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return sortDirection === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+    });
+  }, [kasaProperties, kasaSnapshots, sortKey, sortDirection]);
 
   const handleImportFromKasa = async () => {
     setIsImporting(true);
@@ -395,15 +453,47 @@ export default function Kasa() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Property Name</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead className="text-center">Score</TableHead>
-                    <TableHead className="text-center">Reviews</TableHead>
-                    <TableHead className="text-right">Link</TableHead>
+                    <SortableTableHead
+                      sortKey="name"
+                      currentSort={sortKey}
+                      currentDirection={sortDirection}
+                      onSort={handleSort}
+                      className="text-left"
+                    >
+                      Property Name
+                    </SortableTableHead>
+                    <SortableTableHead
+                      sortKey="location"
+                      currentSort={sortKey}
+                      currentDirection={sortDirection}
+                      onSort={handleSort}
+                      className="text-left"
+                    >
+                      Location
+                    </SortableTableHead>
+                    <SortableTableHead
+                      sortKey="score"
+                      currentSort={sortKey}
+                      currentDirection={sortDirection}
+                      onSort={handleSort}
+                      className="text-center"
+                    >
+                      Score
+                    </SortableTableHead>
+                    <SortableTableHead
+                      sortKey="reviews"
+                      currentSort={sortKey}
+                      currentDirection={sortDirection}
+                      onSort={handleSort}
+                      className="text-center"
+                    >
+                      Reviews
+                    </SortableTableHead>
+                    <TableHead className="text-right w-[60px]">Link</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {kasaProperties.map(property => {
+                  {sortedKasaProperties.map(property => {
                     const snapshot = kasaSnapshots[property.id];
                     const score = snapshot?.score_raw ?? property.kasa_aggregated_score;
                     const reviewCount = snapshot?.review_count ?? property.kasa_review_count;
