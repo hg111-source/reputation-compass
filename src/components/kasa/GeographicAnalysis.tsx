@@ -51,9 +51,14 @@ function getBarColor(score: number): string {
 }
 
 export function GeographicAnalysis({ properties, snapshots }: GeographicAnalysisProps) {
-  // Calculate state-level metrics
+  // Calculate state-level metrics with property details
   const stateMetrics = useMemo(() => {
-    const stateData: Record<string, { scores: number[]; properties: number; totalReviews: number }> = {};
+    const stateData: Record<string, { 
+      scores: number[]; 
+      properties: number; 
+      totalReviews: number;
+      propertyList: Array<{ name: string; score: number | null; reviews: number; url?: string | null }>;
+    }> = {};
     
     properties.forEach(p => {
       const snapshot = snapshots[p.id];
@@ -62,10 +67,16 @@ export function GeographicAnalysis({ properties, snapshots }: GeographicAnalysis
       const reviews = snapshot?.review_count ?? p.kasa_review_count ?? 0;
       
       if (!stateData[p.state]) {
-        stateData[p.state] = { scores: [], properties: 0, totalReviews: 0 };
+        stateData[p.state] = { scores: [], properties: 0, totalReviews: 0, propertyList: [] };
       }
       stateData[p.state].properties++;
       stateData[p.state].totalReviews += reviews;
+      stateData[p.state].propertyList.push({
+        name: p.name,
+        score: score10,
+        reviews,
+        url: p.kasa_url,
+      });
       if (score10 !== null) {
         stateData[p.state].scores.push(score10);
       }
@@ -81,6 +92,7 @@ export function GeographicAnalysis({ properties, snapshots }: GeographicAnalysis
         totalReviews: data.totalReviews,
         minScore: data.scores.length > 0 ? Math.min(...data.scores) : null,
         maxScore: data.scores.length > 0 ? Math.max(...data.scores) : null,
+        properties: data.propertyList.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)),
       }))
       .filter(s => s.avgScore !== null)
       .sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
