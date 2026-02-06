@@ -101,18 +101,21 @@ export default function Kasa() {
 
           const propertyInfo: ImportedPropertyData = propData.property;
 
-          // Try to match to existing property - first by URL, then by name
+          // Try to match to existing property - first by URL (both discover and edge function URLs), then by name
           let matchedProperty = properties.find(existing => 
-            existing.kasa_url === propertyInfo.url
+            existing.kasa_url === propertyInfo.url || existing.kasa_url === prop.url
           );
           
           if (!matchedProperty) {
             const normalizedName = normalizeHotelName(prop.name);
+            const normalizedInfoName = normalizeHotelName(propertyInfo.name || '');
             matchedProperty = properties.find(existing => {
               const normalizedExisting = normalizeHotelName(existing.name);
               return normalizedName.includes(normalizedExisting) || 
                      normalizedExisting.includes(normalizedName) ||
-                     normalizedName === normalizedExisting;
+                     normalizedName === normalizedExisting ||
+                     normalizedInfoName.includes(normalizedExisting) ||
+                     normalizedExisting.includes(normalizedInfoName);
             });
           }
 
