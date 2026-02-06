@@ -22,7 +22,7 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Loader2, Star, ExternalLink, TrendingUp } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, TrendingUp, MapPin } from 'lucide-react';
 import { ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { TableHead } from '@/components/ui/table';
@@ -52,6 +52,7 @@ export default function Kasa() {
   const batchSaveSnapshots = useBatchSaveKasaSnapshots();
 
   const [isImporting, setIsImporting] = useState(false);
+  const [isFixingLocations, setIsFixingLocations] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [currentProperty, setCurrentProperty] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>(null);
@@ -121,6 +122,11 @@ export default function Kasa() {
     }
   };
 
+  // Count properties with unknown locations
+  const unknownLocationCount = useMemo(() => {
+    return kasaProperties.filter(p => !p.city || p.city === 'Unknown' || p.city === '').length;
+  }, [kasaProperties]);
+
   // Sorted properties
   const sortedKasaProperties = useMemo(() => {
     if (!sortKey || !sortDirection) return kasaProperties;
@@ -158,6 +164,83 @@ export default function Kasa() {
       return sortDirection === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
     });
   }, [kasaProperties, kasaSnapshots, sortKey, sortDirection]);
+
+  // Fix unknown locations by re-crawling those properties
+  const handleFixUnknownLocations = async () => {
+    const unknownProps = kasaProperties.filter(p => !p.city || p.city === 'Unknown' || p.city === '');
+    
+    if (unknownProps.length === 0) {
+      toast({ title: 'No unknown locations', description: 'All properties have locations.' });
+      return;
+    }
+
+    setIsFixingLocations(true);
+    setImportProgress(0);
+
+    let fixedCount = 0;
+
+    try {
+      for (let i = 0; i < unknownProps.length; i++) {
+        const prop = unknownProps[i];
+        setCurrentProperty(`Fixing location for ${prop.name}...`);
+        setImportProgress(Math.round(((i + 1) / unknownProps.length) * 100));
+
+        try {
+          // Extract slug from URL
+          const slug = prop.kasa_url?.split('/properties/')[1]?.split('?')[0] || '';
+          
+          const { data: propData, error: propError } = await supabase.functions.invoke('fetch-kasa-property', {
+            body: { url: prop.kasa_url, slug },
+          });
+
+          if (propError || !propData?.success) {
+            console.error('Failed to fetch', prop.name, propData?.error || propError?.message);
+            continue;
+          }
+
+          const propertyInfo = propData.property;
+          
+          // Only update if we found a location
+          if (propertyInfo.city && propertyInfo.city !== 'Unknown') {
+            await supabase
+              .from('properties')
+              .update({
+                city: propertyInfo.city,
+                state: propertyInfo.state || prop.state,
+              })
+              .eq('id', prop.id);
+            
+            fixedCount++;
+            console.log(`Fixed location for ${prop.name}: ${propertyInfo.city}, ${propertyInfo.state}`);
+          }
+        } catch (error) {
+          console.error('Error fixing location for', prop.name, error);
+        }
+
+        // Delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+
+      toast({
+        title: 'Location fix complete',
+        description: `Fixed ${fixedCount}/${unknownProps.length} property locations`,
+      });
+
+    } catch (error) {
+      console.error('Fix locations error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Fix failed',
+        description: error instanceof Error ? error.message : 'Failed to fix locations',
+      });
+    } finally {
+      setIsFixingLocations(false);
+      setImportProgress(0);
+      setCurrentProperty(null);
+    }
+  };
 
   const handleImportFromKasa = async () => {
     setIsImporting(true);
@@ -362,23 +445,44 @@ export default function Kasa() {
             </p>
           </div>
 
-          <Button onClick={handleImportFromKasa} disabled={isImporting}>
-            {isImporting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Importing...
-              </>
-            ) : (
-              <>
-                <Search className="mr-2 h-4 w-4" />
-                Import from Kasa.com
-              </>
+          <div className="flex gap-2">
+            {unknownLocationCount > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={handleFixUnknownLocations} 
+                disabled={isImporting || isFixingLocations}
+              >
+                {isFixingLocations ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Fixing...
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="mr-2 h-4 w-4" />
+                    Fix {unknownLocationCount} Unknown Locations
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+            <Button onClick={handleImportFromKasa} disabled={isImporting || isFixingLocations}>
+              {isImporting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Search className="mr-2 h-4 w-4" />
+                  Import from Kasa.com
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
-        {/* Import Progress */}
-        {isImporting && (
+        {/* Import/Fix Progress */}
+        {(isImporting || isFixingLocations) && (
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-3">

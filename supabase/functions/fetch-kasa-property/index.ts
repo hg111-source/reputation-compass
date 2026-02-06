@@ -123,30 +123,123 @@ function parseRating(markdown: string, html: string): { rating: number | null; r
   return { rating: aggregatedRating, reviewCount };
 }
 
-// Parse address from markdown content
-function parseAddress(markdown: string, html: string): { address: string; city: string; state: string } {
+// Known Kasa cities and their states (for slug parsing)
+const KASA_CITIES: Record<string, string> = {
+  'milwaukee': 'WI', 'chicago': 'IL', 'denver': 'CO', 'austin': 'TX', 'dallas': 'TX',
+  'houston': 'TX', 'phoenix': 'AZ', 'seattle': 'WA', 'portland': 'OR', 'nashville': 'TN',
+  'atlanta': 'GA', 'miami': 'FL', 'tampa': 'FL', 'orlando': 'FL', 'charlotte': 'NC',
+  'raleigh': 'NC', 'boston': 'MA', 'philadelphia': 'PA', 'pittsburgh': 'PA', 'cleveland': 'OH',
+  'columbus': 'OH', 'cincinnati': 'OH', 'indianapolis': 'IN', 'minneapolis': 'MN', 'detroit': 'MI',
+  'st-louis': 'MO', 'kansas-city': 'MO', 'san-diego': 'CA', 'los-angeles': 'CA', 'san-francisco': 'CA',
+  'sacramento': 'CA', 'san-jose': 'CA', 'oakland': 'CA', 'las-vegas': 'NV', 'salt-lake-city': 'UT',
+  'new-york': 'NY', 'brooklyn': 'NY', 'manhattan': 'NY', 'queens': 'NY', 'jersey-city': 'NJ',
+  'newark': 'NJ', 'baltimore': 'MD', 'washington': 'DC', 'arlington': 'VA', 'alexandria': 'VA',
+  'richmond': 'VA', 'norfolk': 'VA', 'new-orleans': 'LA', 'memphis': 'TN', 'louisville': 'KY',
+  'birmingham': 'AL', 'jacksonville': 'FL', 'fort-lauderdale': 'FL', 'west-palm-beach': 'FL',
+  'boca-raton': 'FL', 'savannah': 'GA', 'charleston': 'SC', 'greenville': 'SC', 'knoxville': 'TN',
+  'chattanooga': 'TN', 'lexington': 'KY', 'omaha': 'NE', 'tulsa': 'OK', 'oklahoma-city': 'OK',
+  'albuquerque': 'NM', 'tucson': 'AZ', 'scottsdale': 'AZ', 'tempe': 'AZ', 'mesa': 'AZ',
+  'boulder': 'CO', 'colorado-springs': 'CO', 'fort-collins': 'CO', 'boise': 'ID', 'spokane': 'WA',
+  'tacoma': 'WA', 'bellevue': 'WA', 'eugene': 'OR', 'bend': 'OR', 'reno': 'NV',
+  'san-antonio': 'TX', 'fort-worth': 'TX', 'el-paso': 'TX', 'plano': 'TX', 'irving': 'TX',
+  'westown': 'WI', 'third-ward': 'WI', 'east-town': 'WI', 'walker-point': 'WI',
+  'river-north': 'IL', 'lincoln-park': 'IL', 'wicker-park': 'IL', 'logan-square': 'IL',
+  'lodo': 'CO', 'rino': 'CO', 'capitol-hill': 'CO', 'five-points': 'CO',
+  'midtown': 'GA', 'buckhead': 'GA', 'decatur': 'GA', 'sandy-springs': 'GA',
+  'downtown': 'TX', 'uptown': 'TX', 'deep-ellum': 'TX', 'bishop-arts': 'TX',
+};
+
+// Parse address from markdown content with multiple fallback strategies
+function parseAddress(markdown: string, html: string, slug?: string, propertyName?: string): { address: string; city: string; state: string } {
   let address = '';
   let city = '';
   let state = '';
 
-  // Pattern: "123 Street Name, City, ST 12345"
-  const addressPattern = /(\d+\s+[A-Za-z\s]+(?:Ave|Avenue|St|Street|Blvd|Boulevard|Dr|Drive|Rd|Road|Way|Lane|Ln|Pl|Place|Ct|Court)[^,]*),\s*([A-Za-z\s]+),\s*([A-Z]{2})\s*(\d{5})?/i;
-  const addressMatch = markdown.match(addressPattern) || html.match(addressPattern);
+  // Strategy 1: Full address pattern "123 Street Name, City, ST 12345"
+  const addressPattern = /(\d+\s+[A-Za-z\s]+(?:Ave|Avenue|St|Street|Blvd|Boulevard|Dr|Drive|Rd|Road|Way|Lane|Ln|Pl|Place|Ct|Court|Circle|Cir|Terrace|Ter|Pkwy|Parkway)[^,]*),\s*([A-Za-z\s]+),\s*([A-Z]{2})\s*(\d{5})?/gi;
+  const addressMatches = [...markdown.matchAll(addressPattern), ...html.matchAll(addressPattern)];
   
-  if (addressMatch) {
-    address = addressMatch[0].trim();
-    city = addressMatch[2].trim();
-    state = addressMatch[3].toUpperCase();
-    console.log(`Found address: ${address}, City: ${city}, State: ${state}`);
+  if (addressMatches.length > 0) {
+    const match = addressMatches[0];
+    address = match[0].trim();
+    city = match[2].trim();
+    state = match[3].toUpperCase();
+    console.log(`Strategy 1 - Full address: ${address}, City: ${city}, State: ${state}`);
   }
   
-  // If no address found, try simpler city/state pattern from content
+  // Strategy 2: City, ST ZIP pattern
   if (!city) {
-    const cityStatePattern = /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?),\s*([A-Z]{2})\s*\d{5}/;
-    const cityStateMatch = markdown.match(cityStatePattern);
-    if (cityStateMatch) {
-      city = cityStateMatch[1].trim();
-      state = cityStateMatch[2];
+    const cityStateZipPattern = /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})\s+\d{5}/g;
+    const cityMatches = [...markdown.matchAll(cityStateZipPattern)];
+    if (cityMatches.length > 0) {
+      city = cityMatches[0][1].trim();
+      state = cityMatches[0][2];
+      console.log(`Strategy 2 - City/State/ZIP: ${city}, ${state}`);
+    }
+  }
+
+  // Strategy 3: Look for "Located in City" or "in City, ST" patterns
+  if (!city) {
+    const locatedInPattern = /(?:located in|in)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s*([A-Z]{2})?/i;
+    const locatedMatch = markdown.match(locatedInPattern) || html.match(locatedInPattern);
+    if (locatedMatch) {
+      city = locatedMatch[1].trim();
+      state = locatedMatch[2] || '';
+      console.log(`Strategy 3 - Located in: ${city}, ${state}`);
+    }
+  }
+
+  // Strategy 4: Extract from URL slug (e.g., "kasa-westown-milwaukee" → Milwaukee, WI)
+  if (!city && slug) {
+    const slugParts = slug.toLowerCase().replace('kasa-', '').split('-');
+    
+    // Check if any part matches a known city
+    for (const part of slugParts) {
+      if (KASA_CITIES[part]) {
+        city = part.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        state = KASA_CITIES[part];
+        console.log(`Strategy 4 - From slug part "${part}": ${city}, ${state}`);
+        break;
+      }
+    }
+    
+    // Try combining consecutive parts (e.g., "san-diego")
+    if (!city) {
+      for (let i = 0; i < slugParts.length - 1; i++) {
+        const combined = `${slugParts[i]}-${slugParts[i + 1]}`;
+        if (KASA_CITIES[combined]) {
+          city = combined.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          state = KASA_CITIES[combined];
+          console.log(`Strategy 4 - From combined slug "${combined}": ${city}, ${state}`);
+          break;
+        }
+      }
+    }
+  }
+
+  // Strategy 5: Extract from property name (e.g., "Kasa Milwaukee Westown")
+  if (!city && propertyName) {
+    const nameLower = propertyName.toLowerCase().replace(/kasa\s*/i, '');
+    const nameWords = nameLower.split(/\s+/);
+    
+    for (const word of nameWords) {
+      const normalized = word.replace(/[^a-z]/g, '');
+      if (KASA_CITIES[normalized]) {
+        city = word.charAt(0).toUpperCase() + word.slice(1);
+        state = KASA_CITIES[normalized];
+        console.log(`Strategy 5 - From name "${word}": ${city}, ${state}`);
+        break;
+      }
+    }
+  }
+
+  // Strategy 6: Look for state abbreviations with context
+  if (!state && city) {
+    const statePattern = new RegExp(`${city}[,\\s]+([A-Z]{2})\\b`, 'i');
+    const stateMatch = markdown.match(statePattern) || html.match(statePattern);
+    if (stateMatch && US_STATES[stateMatch[1].toUpperCase()]) {
+      state = stateMatch[1].toUpperCase();
+      console.log(`Strategy 6 - Found state for city: ${state}`);
     }
   }
 
@@ -264,8 +357,11 @@ serve(async (req) => {
     // Extract rating and review count
     const { rating: aggregatedRating, reviewCount } = parseRating(markdown, html);
     
-    // Extract address
-    const { address, city, state } = parseAddress(markdown, html);
+    // Extract slug from URL for location parsing
+    const urlSlug = slug || propertyUrl.split('/properties/')[1]?.split('?')[0] || '';
+    
+    // Extract address with all strategies including slug and name
+    const { address, city, state } = parseAddress(markdown, html, urlSlug, propertyName);
     
     // Parse reviews
     const reviews = parseReviews(markdown);
