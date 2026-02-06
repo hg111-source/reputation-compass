@@ -54,8 +54,20 @@ export default function Groups() {
   const [newGroupPublic, setNewGroupPublic] = useState(false);
 
   // Get sorted groups by score
-  const { sortedGroups: sortedMyGroups } = useAllGroupMetrics(myGroups);
-  const { sortedGroups: sortedPublicGroups } = useAllGroupMetrics(publicGroups);
+  const { sortedGroups: sortedMyGroups, refetch: refetchMyGroups } = useAllGroupMetrics(myGroups);
+  const { sortedGroups: sortedPublicGroups, refetch: refetchPublicGroups } = useAllGroupMetrics(publicGroups);
+  const [isResorting, setIsResorting] = useState(false);
+
+  const handleResort = async () => {
+    setIsResorting(true);
+    try {
+      await Promise.all([refetchMyGroups(), refetchPublicGroups()]);
+      toast({ title: 'Groups re-sorted', description: 'Groups are now ordered by current scores.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to re-sort groups.' });
+    }
+    setIsResorting(false);
+  };
 
   // Calculate "All Properties" metrics
   const allPropertiesMetrics = useMemo(() => {
@@ -130,6 +142,16 @@ export default function Groups() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleResort}
+              disabled={isResorting}
+              title="Re-sort groups by current scores"
+            >
+              <RefreshCw className={cn('mr-2 h-4 w-4', isResorting && 'animate-spin')} />
+              Re-sort
+            </Button>
             {properties.length > 0 && (
               <Button 
                 variant="outline" 
