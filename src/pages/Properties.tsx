@@ -52,6 +52,7 @@ import { SortableTableHead, SortDirection } from '@/components/properties/Sortab
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { HotelAutocomplete } from '@/components/properties/HotelAutocomplete';
 import { AirbnbDiscoveryDialog } from '@/components/properties/AirbnbDiscoveryDialog';
+import { KasaImportDialog } from '@/components/properties/KasaImportDialog';
 
 type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 type ViewMode = 'table' | 'card';
@@ -70,6 +71,7 @@ export default function Properties() {
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   const [isAirbnbDiscoveryOpen, setIsAirbnbDiscoveryOpen] = useState(false);
+  const [isKasaImportOpen, setIsKasaImportOpen] = useState(false);
   
   // Form state for controlled inputs
   const [formName, setFormName] = useState('');
@@ -309,6 +311,13 @@ export default function Properties() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsKasaImportOpen(true)}
+            >
+              <Building2 className="mr-2 h-4 w-4" />
+              Import from Kasa
+            </Button>
             <Button
               variant="outline"
               onClick={() => setIsAirbnbDiscoveryOpen(true)}
@@ -655,6 +664,12 @@ export default function Properties() {
         <AirbnbDiscoveryDialog
           open={isAirbnbDiscoveryOpen}
           onOpenChange={setIsAirbnbDiscoveryOpen}
+        />
+
+        {/* Kasa import dialog */}
+        <KasaImportDialog
+          open={isKasaImportOpen}
+          onOpenChange={setIsKasaImportOpen}
         />
       </div>
     </DashboardLayout>

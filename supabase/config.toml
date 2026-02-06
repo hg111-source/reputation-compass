@@ -45,3 +45,9 @@ verify_jwt = false
 
 [functions.fetch-airbnb-reviews]
 verify_jwt = false
+
+[functions.discover-kasa-properties]
+verify_jwt = false
+
+[functions.fetch-kasa-property]
+verify_jwt = false
