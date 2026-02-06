@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGroups, useGroupProperties } from '@/hooks/useGroups';
 import { useProperties } from '@/hooks/useProperties';
 import { useGroupMetrics } from '@/hooks/useGroupMetrics';
+import { useAllGroupMetrics } from '@/hooks/useAllGroupMetrics';
 import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,10 @@ export default function Groups() {
   const [isAutoGroupOpen, setIsAutoGroupOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [newGroupPublic, setNewGroupPublic] = useState(false);
+
+  // Get sorted groups by score
+  const { sortedGroups: sortedMyGroups } = useAllGroupMetrics(myGroups);
+  const { sortedGroups: sortedPublicGroups } = useAllGroupMetrics(publicGroups);
 
   // Calculate "All Properties" metrics
   const allPropertiesMetrics = useMemo(() => {
@@ -261,7 +266,7 @@ export default function Groups() {
               </CardContent>
             </Card>
 
-            {myGroups.map(group => (
+            {sortedMyGroups.map(group => (
               <GroupCard
                 key={group.id}
                 group={group}
@@ -284,7 +289,7 @@ export default function Groups() {
               </p>
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {publicGroups.map(group => (
+              {sortedPublicGroups.map(group => (
                 <GroupCard
                   key={group.id}
                   group={group}
