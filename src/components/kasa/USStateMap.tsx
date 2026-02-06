@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { getScoreColor } from '@/lib/scoring';
 import { ExternalLink } from 'lucide-react';
@@ -74,8 +74,8 @@ const CELL_SIZE = 48;
 const CELL_GAP = 6;
 
 export function USStateMap({ stateData }: USStateMapProps) {
-  const [hoveredState, setHoveredState] = useState<string | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [activeState, setActiveState] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Create lookup for state data
   const stateDataMap = useMemo(() => {
@@ -123,7 +123,7 @@ export function USStateMap({ stateData }: USStateMapProps) {
     });
   }, [stateDataMap, minCount, maxCount]);
 
-  const hoveredStateData = hoveredState ? states.find(s => s.abbrev === hoveredState) : null;
+  const activeStateData = activeState ? states.find(s => s.abbrev === activeState) : null;
 
   // Calculate SVG dimensions
   const maxX = Math.max(...states.map(s => s.x));
@@ -161,20 +161,23 @@ export function USStateMap({ stateData }: USStateMapProps) {
             const cx = state.x * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2 + 30;
             const cy = state.y * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2 + 30;
             const r = state.radius;
-            const isHovered = hoveredState === state.abbrev;
+                const isHovered = activeState === state.abbrev;
             
             return (
               <g 
                 key={state.abbrev}
                 className="cursor-pointer"
-                onMouseEnter={(e) => {
-                  setHoveredState(state.abbrev);
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top });
+                onMouseEnter={() => {
+                  if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                    timeoutRef.current = null;
+                  }
+                  setActiveState(state.abbrev);
                 }}
                 onMouseLeave={() => {
-                  setHoveredState(null);
-                  setTooltipPos(null);
+                  timeoutRef.current = setTimeout(() => {
+                    setActiveState(null);
+                  }, 150);
                 }}
               >
                 {/* Glow effect for states with data */}
@@ -264,7 +267,7 @@ export function USStateMap({ stateData }: USStateMapProps) {
       </div>
 
       {/* Floating tooltip/callout */}
-      {hoveredStateData?.data && (
+      {activeStateData?.data && (
         <div 
           className="absolute z-50 bg-background/95 backdrop-blur-sm border rounded-xl shadow-xl p-4 min-w-[240px] max-w-[320px] animate-scale-in"
           style={{
@@ -272,33 +275,42 @@ export function USStateMap({ stateData }: USStateMapProps) {
             transform: 'translateX(-50%)',
             top: '10px',
           }}
+          onMouseEnter={() => {
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+              timeoutRef.current = null;
+            }
+          }}
+          onMouseLeave={() => {
+            setActiveState(null);
+          }}
         >
           <div className="flex items-center justify-between mb-3">
-            <h4 className="font-bold text-lg">{hoveredStateData.name}</h4>
+            <h4 className="font-bold text-lg">{activeStateData.name}</h4>
             <span 
-              className={cn('text-xl font-bold', getScoreColor(hoveredStateData.data.avgScore))}
+              className={cn('text-xl font-bold', getScoreColor(activeStateData.data.avgScore))}
             >
-              {hoveredStateData.data.avgScore?.toFixed(2)}
+              {activeStateData.data.avgScore?.toFixed(2)}
             </span>
           </div>
           
           <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
             <div className="bg-muted/50 rounded-lg p-2 text-center">
-              <div className="text-lg font-bold">{hoveredStateData.data.propertyCount}</div>
+              <div className="text-lg font-bold">{activeStateData.data.propertyCount}</div>
               <div className="text-xs text-muted-foreground">Properties</div>
             </div>
             <div className="bg-muted/50 rounded-lg p-2 text-center">
-              <div className="text-lg font-bold">{hoveredStateData.data.totalReviews.toLocaleString()}</div>
+              <div className="text-lg font-bold">{activeStateData.data.totalReviews.toLocaleString()}</div>
               <div className="text-xs text-muted-foreground">Reviews</div>
             </div>
           </div>
           
           {/* Property list */}
-          {hoveredStateData.data.properties && hoveredStateData.data.properties.length > 0 && (
+          {activeStateData.data.properties && activeStateData.data.properties.length > 0 && (
             <div className="border-t pt-3">
               <p className="text-xs font-medium text-muted-foreground mb-2">Properties:</p>
-              <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
-                {hoveredStateData.data.properties.slice(0, 8).map((prop, i) => (
+              <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
+                {activeStateData.data.properties.map((prop, i) => (
                   <div key={i} className="flex items-center justify-between text-sm gap-2">
                     <span className="truncate flex-1" title={prop.name}>
                       {prop.name.replace(/by Kasa$/i, '').trim()}
@@ -308,11 +320,6 @@ export function USStateMap({ stateData }: USStateMapProps) {
                     </span>
                   </div>
                 ))}
-                {hoveredStateData.data.properties.length > 8 && (
-                  <p className="text-xs text-muted-foreground text-center pt-1">
-                    +{hoveredStateData.data.properties.length - 8} more
-                  </p>
-                )}
               </div>
             </div>
           )}
