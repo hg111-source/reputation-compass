@@ -84,6 +84,9 @@ export function normalizeHotelName(name: string, keepBrandPrefix = false): strin
  * Returns null if no recognizable brand.
  */
 export function extractBrandPrefix(name: string): string | null {
+  // Strip "The " prefix before brand matching
+  const cleanName = name.replace(/^the\s+/i, '');
+  
   const brandPatterns = [
     /^(andaz|thompson|alila|park hyatt|grand hyatt|hyatt regency|hyatt centric|hyatt place|hyatt house)/i,
     /^(jw marriott|marriott|sheraton|westin|le meridien|st\. regis|st regis|w hotel|edition|moxy|aloft|element|ac hotel)/i,
@@ -92,12 +95,25 @@ export function extractBrandPrefix(name: string): string | null {
     /^(four seasons|ritz[- ]carlton|peninsula|mandarin oriental|rosewood|fairmont|sofitel|nobu)/i,
   ];
   
+  // Try prefix match first
   for (const pattern of brandPatterns) {
-    const match = name.match(pattern);
+    const match = cleanName.match(pattern);
     if (match) {
       return match[1].toLowerCase();
     }
   }
+  
+  // Also check if brand appears anywhere in name (e.g., "Mystic Marriott Hotel")
+  const anywherePatterns = [
+    /\b(marriott|sheraton|westin|hilton|hyatt|doubletree|hampton|holiday inn|crowne plaza|fairmont|sofitel)\b/i,
+  ];
+  for (const pattern of anywherePatterns) {
+    const match = cleanName.match(pattern);
+    if (match) {
+      return match[1].toLowerCase();
+    }
+  }
+  
   return null;
 }
 
@@ -228,10 +244,16 @@ export function analyzeHotelMatch(searchName: string, resultName: string): Match
     reason = 'Exact match after normalization';
   } else if (normalizedSearch.includes(normalizedResult) || normalizedResult.includes(normalizedSearch)) {
     // Additional check: the containing name shouldn't be too short
+    // But if brands match, be more lenient (e.g., "Westin Sacramento" vs "Westin Sacramento Riverfront")
     const shorter = normalizedSearch.length < normalizedResult.length ? normalizedSearch : normalizedResult;
-    if (shorter.split(' ').filter(w => w.length > 2).length >= 2) {
+    const shorterSignificant = shorter.split(' ').filter(w => w.length > 2);
+    if (shorterSignificant.length >= 2) {
       isMatch = true;
       reason = 'One name contains the other';
+    } else if (searchBrand && resultBrand && searchBrand === resultBrand) {
+      // Same brand + containment = good enough match
+      isMatch = true;
+      reason = `Same brand "${searchBrand}" + containment match`;
     } else {
       isMatch = false;
       reason = `Containment match rejected: "${shorter}" is too generic`;
