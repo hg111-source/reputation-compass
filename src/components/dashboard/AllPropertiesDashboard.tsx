@@ -14,7 +14,11 @@ import { calculatePropertyMetrics, getScoreColor } from '@/lib/scoring';
 import { cn } from '@/lib/utils';
 import { UnifiedRefreshDialog } from '@/components/properties/UnifiedRefreshDialog';
 
-export function AllPropertiesDashboard() {
+interface AllPropertiesDashboardProps {
+  groupSelector?: React.ReactNode;
+}
+
+export function AllPropertiesDashboard({ groupSelector }: AllPropertiesDashboardProps) {
   const { properties, isLoading: propertiesLoading } = useProperties();
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {}, isLoading: scoresLoading } = useLatestPropertyScores(propertyIds);
@@ -96,11 +100,9 @@ export function AllPropertiesDashboard() {
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
             <TrendingUp className="h-7 w-7 text-primary-foreground" />
           </div>
-          <div>
+          <div className="flex items-center gap-4">
             <h2 className="text-3xl font-bold">All Properties</h2>
-            <p className="mt-1 text-muted-foreground">
-              {properties.length} {properties.length === 1 ? 'property' : 'properties'} in your portfolio
-            </p>
+            {groupSelector}
           </div>
         </div>
         <div className="flex gap-2">

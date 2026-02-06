@@ -47,34 +47,34 @@ export default function Dashboard() {
 
   const selectedGroup = groups.find(g => g.id === selectedGroupId);
 
+  // Group selector dropdown component
+  const GroupSelector = () => (
+    <Select
+      value={selectedGroupId}
+      onValueChange={(value) => setSelectedGroupId(value)}
+    >
+      <SelectTrigger className="h-11 min-w-[220px] rounded-lg border-2 border-primary bg-primary text-primary-foreground font-semibold shadow-kasa hover:bg-primary/90 transition-colors">
+        <SelectValue placeholder="Select a group" />
+      </SelectTrigger>
+      <SelectContent className="rounded-lg border-border bg-card shadow-kasa-hover">
+        <SelectItem value="all" className="font-medium">
+          All Properties ({properties.length})
+        </SelectItem>
+        {groups.map(group => (
+          <SelectItem key={group.id} value={group.id} className="font-medium">
+            {group.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-10">
         {/* Header */}
         <div>
-          <div className="flex items-center gap-4">
-            <h1 className="text-4xl font-bold tracking-tight">Dashboard</h1>
-            {(groups.length > 0 || properties.length > 0) && (
-              <Select
-                value={selectedGroupId}
-                onValueChange={(value) => setSelectedGroupId(value)}
-              >
-                <SelectTrigger className="h-11 min-w-[220px] rounded-lg border-2 border-primary/20 bg-card font-semibold shadow-kasa hover:border-primary/40 transition-colors">
-                  <SelectValue placeholder="Select a group" />
-                </SelectTrigger>
-                <SelectContent className="rounded-lg border-border bg-card shadow-kasa-hover">
-                  <SelectItem value="all" className="font-medium">
-                    All Properties ({properties.length})
-                  </SelectItem>
-                  {groups.map(group => (
-                    <SelectItem key={group.id} value={group.id} className="font-medium">
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+          <h1 className="text-4xl font-bold tracking-tight">Dashboard</h1>
           <p className="mt-2 text-muted-foreground">
             View and track reputation scores across your property groups
           </p>
@@ -104,9 +104,9 @@ export default function Dashboard() {
             </div>
           </div>
         ) : selectedGroupId === 'all' ? (
-          <AllPropertiesDashboard />
+          <AllPropertiesDashboard groupSelector={<GroupSelector />} />
         ) : selectedGroup ? (
-          <GroupDashboard group={selectedGroup} />
+          <GroupDashboard group={selectedGroup} groupSelector={<GroupSelector />} />
         ) : (
           <div className="rounded-xl border border-dashed border-border bg-card p-20 text-center shadow-kasa">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-muted">

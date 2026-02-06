@@ -19,9 +19,10 @@ import { format } from 'date-fns';
 
 interface GroupDashboardProps {
   group: Group;
+  groupSelector?: React.ReactNode;
 }
 
-export function GroupDashboard({ group }: GroupDashboardProps) {
+export function GroupDashboard({ group, groupSelector }: GroupDashboardProps) {
   const { properties, isLoading: propertiesLoading, removePropertyFromGroup } = useGroupProperties(group.id);
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {}, isLoading: scoresLoading } = useLatestPropertyScores(propertyIds);
@@ -150,11 +151,9 @@ export function GroupDashboard({ group }: GroupDashboardProps) {
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
             <TrendingUp className="h-7 w-7 text-primary-foreground" />
           </div>
-          <div>
+          <div className="flex items-center gap-4">
             <h2 className="text-3xl font-bold">{group.name}</h2>
-            <p className="mt-1 text-muted-foreground">
-              {properties.length} {properties.length === 1 ? 'property' : 'properties'}
-            </p>
+            {groupSelector}
           </div>
         </div>
         <div className="flex gap-2">
