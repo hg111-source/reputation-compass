@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { useUnifiedRefresh, Platform } from '@/hooks/useUnifiedRefresh';
+import { useGroups } from '@/hooks/useGroups';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -44,12 +52,13 @@ import { SortableTableHead, SortDirection } from '@/components/properties/Sortab
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { HotelAutocomplete } from '@/components/properties/HotelAutocomplete';
 
-type SortKey = 'name' | 'location' | 'group' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
+type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 type ViewMode = 'table' | 'card';
 
 export default function Properties() {
   const { user, loading } = useAuth();
   const { properties, isLoading, createProperty, deleteProperty } = useProperties();
+  const { groups } = useGroups();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefreshDialogOpen, setIsRefreshDialogOpen] = useState(false);
@@ -58,6 +67,7 @@ export default function Properties() {
   const [historyProperty, setHistoryProperty] = useState<Property | null>(null);
   const [insightsProperty, setInsightsProperty] = useState<Property | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   
   // Form state for controlled inputs
   const [formName, setFormName] = useState('');
@@ -69,28 +79,25 @@ export default function Properties() {
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
   
-  // Fetch property-to-group mappings
-  const { data: propertyGroups = {} } = useQuery({
-    queryKey: ['property-groups-mapping', user?.id],
+  // Fetch property-to-group mappings (property_id -> group_ids)
+  const { data: propertyGroupIds = {} } = useQuery({
+    queryKey: ['property-groups-ids', user?.id],
     queryFn: async () => {
       if (!user) return {};
       const { data, error } = await supabase
         .from('group_properties')
-        .select(`
-          property_id,
-          groups:group_id (id, name)
-        `);
+        .select('property_id, group_id');
       if (error) throw error;
       
-      // Build a map of property_id -> array of group names
+      // Build a map of property_id -> array of group_ids
       const mapping: Record<string, string[]> = {};
       data?.forEach((gp: any) => {
         const propId = gp.property_id;
-        const groupName = gp.groups?.name;
-        if (groupName) {
+        const groupId = gp.group_id;
+        if (groupId) {
           if (!mapping[propId]) mapping[propId] = [];
-          if (!mapping[propId].includes(groupName)) {
-            mapping[propId].push(groupName);
+          if (!mapping[propId].includes(groupId)) {
+            mapping[propId].push(groupId);
           }
         }
       });
@@ -98,6 +105,17 @@ export default function Properties() {
     },
     enabled: !!user,
   });
+
+  // Calculate property count per group
+  const groupPropertyCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    Object.values(propertyGroupIds).forEach((groupIds) => {
+      groupIds.forEach((groupId) => {
+        counts[groupId] = (counts[groupId] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [propertyGroupIds]);
   
   // Unified refresh hook - handles URL resolution + fetching in one flow
   const {
@@ -129,10 +147,16 @@ export default function Properties() {
     }
   };
 
-  const sortedProperties = useMemo(() => {
-    if (!sortKey || !sortDirection) return properties;
+  // Filter properties by selected group
+  const filteredProperties = useMemo(() => {
+    if (selectedGroupFilter === 'all') return properties;
+    return properties.filter(p => propertyGroupIds[p.id]?.includes(selectedGroupFilter));
+  }, [properties, propertyGroupIds, selectedGroupFilter]);
 
-    return [...properties].sort((a, b) => {
+  const sortedProperties = useMemo(() => {
+    if (!sortKey || !sortDirection) return filteredProperties;
+
+    return [...filteredProperties].sort((a, b) => {
       let aVal: number | string = 0;
       let bVal: number | string = 0;
 
@@ -144,10 +168,6 @@ export default function Properties() {
         case 'location':
           aVal = `${a.city}, ${a.state}`.toLowerCase();
           bVal = `${b.city}, ${b.state}`.toLowerCase();
-          break;
-        case 'group':
-          aVal = (propertyGroups[a.id] || []).sort().join(', ').toLowerCase();
-          bVal = (propertyGroups[b.id] || []).sort().join(', ').toLowerCase();
           break;
         case 'avgScore':
           const aMetrics = calculatePropertyMetrics(scores[a.id]);
@@ -175,7 +195,7 @@ export default function Properties() {
       }
       return sortDirection === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
     });
-  }, [properties, scores, propertyGroups, sortKey, sortDirection]);
+  }, [filteredProperties, scores, sortKey, sortDirection]);
 
   if (loading) {
     return (
@@ -398,22 +418,37 @@ export default function Properties() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <ToggleGroup 
-                type="single" 
-                value={viewMode} 
-                onValueChange={(v) => v && setViewMode(v as ViewMode)}
-                className="bg-muted p-1 rounded-lg"
-              >
-                <ToggleGroupItem value="table" aria-label="Table view" className="data-[state=on]:bg-background data-[state=on]:text-foreground text-muted-foreground">
-                  <TableIcon className="h-4 w-4 mr-1.5" />
-                  Table
-                </ToggleGroupItem>
-                <ToggleGroupItem value="card" aria-label="Card view" className="data-[state=on]:bg-background data-[state=on]:text-foreground text-muted-foreground">
-                  <LayoutGrid className="h-4 w-4 mr-1.5" />
-                  Cards
-                </ToggleGroupItem>
-              </ToggleGroup>
+          <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
+                  <SelectTrigger className="h-10 w-[220px] rounded-lg border-border bg-card shadow-kasa">
+                    <SelectValue placeholder="All Properties" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg border-border bg-card shadow-kasa-hover">
+                    <SelectItem value="all">All Properties ({properties.length})</SelectItem>
+                    {groups.map(group => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name} ({groupPropertyCounts[group.id] || 0})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <ToggleGroup 
+                  type="single" 
+                  value={viewMode} 
+                  onValueChange={(v) => v && setViewMode(v as ViewMode)}
+                  className="bg-muted p-1 rounded-lg"
+                >
+                  <ToggleGroupItem value="table" aria-label="Table view" className="data-[state=on]:bg-background data-[state=on]:text-foreground text-muted-foreground">
+                    <TableIcon className="h-4 w-4 mr-1.5" />
+                    Table
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="card" aria-label="Card view" className="data-[state=on]:bg-background data-[state=on]:text-foreground text-muted-foreground">
+                    <LayoutGrid className="h-4 w-4 mr-1.5" />
+                    Cards
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
               <ScoreLegend className="ml-auto" />
             </div>
             
@@ -439,15 +474,6 @@ export default function Properties() {
                     className="font-semibold text-left"
                   >
                     Location
-                  </SortableTableHead>
-                  <SortableTableHead
-                    sortKey="group"
-                    currentSort={sortKey}
-                    currentDirection={sortDirection}
-                    onSort={handleSort}
-                    className="font-semibold text-left"
-                  >
-                    Groups
                   </SortableTableHead>
                   <SortableTableHead
                     sortKey="avgScore"
@@ -556,7 +582,6 @@ export default function Properties() {
                     key={property.id}
                     property={property}
                     scores={scores[property.id]}
-                    groups={propertyGroups[property.id] || []}
                     onDelete={handleDelete}
                     onRefreshPlatform={(p, platform) => handleRefreshSingleCell(p, platform as Platform)}
                     onRefreshAllPlatforms={handleRefreshSingleRow}
