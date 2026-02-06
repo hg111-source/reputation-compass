@@ -1,14 +1,13 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Info, AlertTriangle, Star, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
+import { Trophy, AlertTriangle, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getScoreColor } from '@/lib/scoring';
 import { GeographicAnalysis } from './GeographicAnalysis';
 import { KasaOTAPlatformCard } from './KasaOTAPlatformCard';
+import { SwotAnalysis } from './SwotAnalysis';
 import {
   BarChart,
   Bar,
@@ -243,56 +242,8 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
         </Card>
       )}
 
-      {/* Key Insights Grid */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Strengths */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-emerald-500" />
-              Strengths
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {insights.strengths.length > 0 ? (
-              <ul className="space-y-2">
-                {insights.strengths.map((strength, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm">
-                    <span className="text-emerald-500 mt-0.5">✓</span>
-                    {strength}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">No significant strengths identified</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Opportunities */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-orange-500" />
-              Opportunities
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {insights.opportunities.length > 0 ? (
-              <ul className="space-y-2">
-                {insights.opportunities.map((opportunity, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm">
-                    <span className="text-orange-500 mt-0.5">!</span>
-                    {opportunity}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">No significant opportunities identified</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* SWOT Analysis */}
+      <SwotAnalysis properties={properties} snapshots={snapshots} />
 
       {/* Kasa Portfolio by Platform - Dynamic benchmarking against non-Kasa properties */}
       <KasaOTAPlatformCard />
