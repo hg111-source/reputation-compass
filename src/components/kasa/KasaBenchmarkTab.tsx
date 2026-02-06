@@ -301,11 +301,11 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Google */}
+            {/* Google - 4.64/5 = 9.28/10 */}
             <div className="p-4 rounded-lg border text-center bg-emerald-100 dark:bg-emerald-900/30">
               <p className="text-sm font-medium text-muted-foreground mb-1">Google</p>
-              <p className="text-2xl font-bold text-emerald-600">4.64</p>
-              <p className="text-xs text-muted-foreground">/5 scale</p>
+              <p className="text-2xl font-bold text-emerald-600">9.28</p>
+              <p className="text-xs text-muted-foreground">/10 scale</p>
               <Badge variant="outline" className="mt-2 text-xs text-emerald-600">
                 Top 1%
               </Badge>
@@ -331,11 +331,11 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
               </Badge>
             </div>
             
-            {/* TripAdvisor */}
+            {/* TripAdvisor - 4.61/5 = 9.22/10 */}
             <div className="p-4 rounded-lg border text-center bg-emerald-100 dark:bg-emerald-900/30">
               <p className="text-sm font-medium text-muted-foreground mb-1">TripAdvisor</p>
-              <p className="text-2xl font-bold text-emerald-600">4.61</p>
-              <p className="text-xs text-muted-foreground">/5 scale</p>
+              <p className="text-2xl font-bold text-emerald-600">9.22</p>
+              <p className="text-xs text-muted-foreground">/10 scale</p>
               <Badge variant="outline" className="mt-2 text-xs text-emerald-600">
                 Top 5%
               </Badge>
