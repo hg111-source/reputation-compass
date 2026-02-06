@@ -79,10 +79,10 @@ serve(async (req) => {
       throw new Error('RAPIDAPI_KEY is not configured');
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { propertyId } = await req.json();
 
@@ -106,52 +106,154 @@ serve(async (req) => {
       throw new Error('Database error');
     }
 
-    // No alias found - need to run URL resolution first
+    // No alias found - auto-resolve by looking up the property and calling resolve-hotel-urls
     if (!alias) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          status: 'no_alias', 
-          message: 'No Expedia alias found. Run "Resolve URLs" first.' 
+      console.log('No Expedia alias found, auto-resolving...');
+
+      // Get property details for resolution
+      const { data: property, error: propError } = await supabase
+        .from('properties')
+        .select('name, city, state')
+        .eq('id', propertyId)
+        .single();
+
+      if (propError || !property) {
+        throw new Error('Could not find property for auto-resolution');
+      }
+
+      console.log(`Auto-resolving Expedia URL for: ${property.name}, ${property.city}, ${property.state}`);
+
+      // Call resolve-hotel-urls edge function for expedia only
+      const resolveResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-hotel-urls`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          hotelName: property.name,
+          city: property.city,
+          state: property.state,
+          platforms: ['expedia'],
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      });
 
-    // Hotel marked as not listed on platform
-    if (alias.resolution_status === 'not_listed') {
-      return new Response(
-        JSON.stringify({ success: true, status: 'not_listed' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      const resolveData = await resolveResponse.json();
+      console.log('Resolve result:', JSON.stringify(resolveData));
 
-    // Get hotel_id - either from platform_id or extract from URL
-    let hotelId = alias.platform_id;
-    
-    if (!hotelId && alias.platform_url) {
-      hotelId = extractHotelId(alias.platform_url);
-      
-      // Save the extracted ID for next time
-      if (hotelId) {
-        console.log(`Extracted hotel_id ${hotelId} from URL, saving to alias`);
-        await supabase
-          .from('hotel_aliases')
-          .update({ platform_id: hotelId })
+      if (!resolveData.success || !resolveData.urls?.expedia_url) {
+        // Save alias as not_listed so we don't retry every time
+        await supabase.from('hotel_aliases').insert({
+          property_id: propertyId,
+          source: 'expedia',
+          resolution_status: 'not_listed',
+          last_resolved_at: new Date().toISOString(),
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            status: 'not_found',
+            message: `Could not find ${property.name} on Expedia`,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Save the resolved alias
+      const expediaHotelId = resolveData.hotelIds?.expedia_hotel_id || null;
+      await supabase.from('hotel_aliases').insert({
+        property_id: propertyId,
+        source: 'expedia',
+        platform_url: resolveData.urls.expedia_url,
+        platform_id: expediaHotelId,
+        resolution_status: 'resolved',
+        last_resolved_at: new Date().toISOString(),
+      });
+
+      console.log(`Saved Expedia alias: URL=${resolveData.urls.expedia_url}, hotel_id=${expediaHotelId}`);
+
+      // If we got the hotel_id, proceed to fetch rating below
+      // Otherwise, try to extract from URL
+      if (!expediaHotelId) {
+        const extracted = extractHotelId(resolveData.urls.expedia_url);
+        if (!extracted) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              status: 'no_hotel_id',
+              message: 'Found Expedia URL but could not extract hotel ID',
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        // Save extracted ID and continue
+        await supabase.from('hotel_aliases')
+          .update({ platform_id: extracted })
           .eq('property_id', propertyId)
           .eq('source', 'expedia');
       }
-    }
-    
-    if (!hotelId) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          status: 'no_hotel_id', 
-          message: 'No hotel ID found. Re-run "Resolve URLs" to extract ID.' 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+
+      // Re-fetch the alias we just created
+      const { data: newAlias } = await supabase
+        .from('hotel_aliases')
+        .select('platform_id, platform_url, resolution_status')
+        .eq('property_id', propertyId)
+        .eq('source', 'expedia')
+        .maybeSingle();
+
+      if (!newAlias || !newAlias.platform_id) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            status: 'no_hotel_id',
+            message: 'Could not resolve Expedia hotel ID',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Use the newly resolved alias - skip to fetching rating with this hotel ID
+      var hotelId: string = newAlias.platform_id;
+      console.log(`Auto-resolved hotel_id: ${hotelId}`);
+    } else {
+      // Alias exists - check its status
+
+      // Hotel marked as not listed on platform
+      if (alias.resolution_status === 'not_listed') {
+        return new Response(
+          JSON.stringify({ success: true, status: 'not_listed' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get hotel_id - either from platform_id or extract from URL
+      var hotelId: string = alias.platform_id || '';
+      
+      if (!hotelId && alias.platform_url) {
+        hotelId = extractHotelId(alias.platform_url) || '';
+        
+        // Save the extracted ID for next time
+        if (hotelId) {
+          console.log(`Extracted hotel_id ${hotelId} from URL, saving to alias`);
+          await supabase
+            .from('hotel_aliases')
+            .update({ platform_id: hotelId })
+            .eq('property_id', propertyId)
+            .eq('source', 'expedia');
+        }
+      }
+      
+      if (!hotelId) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            status: 'no_hotel_id', 
+            message: 'No hotel ID found. Re-run "Resolve URLs" to extract ID.' 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     console.log(`Fetching Expedia rating for hotel_id: ${hotelId}`);
