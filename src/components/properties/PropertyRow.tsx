@@ -27,6 +27,7 @@ interface PropertyRowProps {
   onViewHistory: (property: Property) => void;
   onAnalyzeReviews: (property: Property) => void;
   isRefreshing: boolean;
+  refreshingPropertyId: string | null;
   currentPlatform: Platform | null;
 }
 
@@ -39,8 +40,11 @@ export function PropertyRow({
   onViewHistory,
   onAnalyzeReviews,
   isRefreshing,
+  refreshingPropertyId,
   currentPlatform,
 }: PropertyRowProps) {
+  // Only show refresh state if THIS property is the one being refreshed
+  const isThisRefreshing = isRefreshing && refreshingPropertyId === property.id;
   // Calculate weighted average and total reviews using centralized logic
   const { avgScore: weightedAvg, totalReviews } = calculatePropertyMetrics(scores);
 
@@ -56,7 +60,7 @@ export function PropertyRow({
 
   const renderPlatformCell = (platform: ReviewSource) => {
     const data = scores?.[platform];
-    const isRefreshingThis = isRefreshing && currentPlatform === platform;
+    const isRefreshingThis = isThisRefreshing && currentPlatform === platform;
     
     // Check if URL is missing for OTA platforms
     const hasUrl = platform === 'google' 
@@ -103,7 +107,7 @@ export function PropertyRow({
           {/* Hover refresh button */}
           <button
             onClick={() => onRefreshPlatform(property, platform as Platform)}
-            disabled={isRefreshing}
+            disabled={isThisRefreshing}
             className={cn(
               'absolute -right-1 top-1/2 -translate-y-1/2 rounded-full p-0.5 opacity-0 transition-opacity',
               'bg-background shadow-sm border border-border',
@@ -137,11 +141,11 @@ export function PropertyRow({
           </a>
           <button
             onClick={() => onRefreshAllPlatforms(property)}
-            disabled={isRefreshing}
+            disabled={isThisRefreshing}
             className="p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted disabled:opacity-50"
             title="Refresh all platforms"
           >
-            <RefreshCw className={cn('h-3 w-3 text-muted-foreground', isRefreshing && 'animate-spin text-primary')} />
+            <RefreshCw className={cn('h-3 w-3 text-muted-foreground', isThisRefreshing && 'animate-spin text-primary')} />
           </button>
         </div>
       </TableCell>

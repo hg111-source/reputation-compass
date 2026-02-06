@@ -602,6 +602,7 @@ export default function Properties() {
                     onViewHistory={setHistoryProperty}
                     onAnalyzeReviews={setInsightsProperty}
                     isRefreshing={isRunning}
+                    refreshingPropertyId={propertyStates.find(ps => ps.phase === 'fetching' || ps.phase === 'resolving')?.property.id ?? null}
                     currentPlatform={currentPlatform}
                   />
                 ))}
