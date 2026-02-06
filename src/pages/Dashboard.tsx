@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useGroups } from '@/hooks/useGroups';
+import { useProperties } from '@/hooks/useProperties';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GroupDashboard } from '@/components/dashboard/GroupDashboard';
+import { AllPropertiesDashboard } from '@/components/dashboard/AllPropertiesDashboard';
 import {
   Select,
   SelectContent,
@@ -18,7 +20,15 @@ import { Button } from '@/components/ui/button';
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const { groups, isLoading: groupsLoading } = useGroups();
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const { properties } = useProperties();
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
+
+  // Default to "all" once we know there are properties
+  useEffect(() => {
+    if (!groupsLoading && properties.length > 0) {
+      setSelectedGroupId('all');
+    }
+  }, [groupsLoading, properties.length]);
 
   if (loading) {
     return (
@@ -49,15 +59,18 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {groups.length > 0 && (
+          {(groups.length > 0 || properties.length > 0) && (
             <Select
-              value={selectedGroupId || ''}
-              onValueChange={(value) => setSelectedGroupId(value || null)}
+              value={selectedGroupId}
+              onValueChange={(value) => setSelectedGroupId(value)}
             >
               <SelectTrigger className="h-12 w-[260px] rounded-lg border-border bg-card shadow-kasa">
                 <SelectValue placeholder="Select a group" />
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card shadow-kasa-hover">
+                <SelectItem value="all">
+                  All Properties ({properties.length})
+                </SelectItem>
                 {groups.map(group => (
                   <SelectItem key={group.id} value={group.id}>
                     {group.name}
@@ -73,25 +86,29 @@ export default function Dashboard() {
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
             <span>Loading groups...</span>
           </div>
-        ) : groups.length === 0 ? (
+        ) : properties.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-card p-20 text-center shadow-kasa">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
               <FolderOpen className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="mt-8 text-2xl font-semibold">No groups yet</h3>
+            <h3 className="mt-8 text-2xl font-semibold">No properties yet</h3>
             <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-              Create a group and add properties to start tracking your reputation scores.
+              Add properties to start tracking your reputation scores.
             </p>
             <div className="mt-10 flex justify-center gap-4">
               <Button asChild variant="secondary">
-                <Link to="/groups">Create Group</Link>
+                <Link to="/properties">Add Properties</Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link to="/upload">Upload Properties</Link>
+                <Link to="/upload">Upload CSV</Link>
               </Button>
             </div>
           </div>
-        ) : !selectedGroupId ? (
+        ) : selectedGroupId === 'all' ? (
+          <AllPropertiesDashboard />
+        ) : selectedGroup ? (
+          <GroupDashboard group={selectedGroup} />
+        ) : (
           <div className="rounded-xl border border-dashed border-border bg-card p-20 text-center shadow-kasa">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
               <TrendingUp className="h-8 w-8 text-muted-foreground" />
@@ -101,8 +118,6 @@ export default function Dashboard() {
               Choose a group from the dropdown above to view reputation scores.
             </p>
           </div>
-        ) : (
-          <GroupDashboard group={selectedGroup!} />
         )}
       </div>
     </DashboardLayout>
