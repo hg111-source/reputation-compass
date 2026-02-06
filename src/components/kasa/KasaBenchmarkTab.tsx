@@ -178,49 +178,60 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
     const strengths: string[] = [];
     const opportunities: string[] = [];
     
-    if (kasaPercentile !== null) {
-      if (kasaPercentile >= 90) {
-        strengths.push('Portfolio average ranks in the Top 10% of the industry');
-      } else if (kasaPercentile >= 75) {
-        strengths.push('Portfolio average ranks in the Top 25% of the industry');
-      } else if (kasaPercentile < 50) {
-        opportunities.push('Portfolio average is below industry median');
-      }
+    // Count properties by tier
+    const veryGoodPlus = metrics.scores.filter(s => s >= 8.0).length;
+    const veryGoodPlusPercent = Math.round((veryGoodPlus / metrics.scores.length) * 100);
+    
+    if (veryGoodPlusPercent >= 90) {
+      strengths.push(`${veryGoodPlusPercent}% of properties rated "Very Good" or higher`);
+    } else if (veryGoodPlusPercent >= 75) {
+      strengths.push(`${veryGoodPlusPercent}% of properties rated "Very Good" or higher`);
     }
     
     if (topPerformers.length > 0) {
-      strengths.push(`${topPerformers.length} properties scoring 9.5+ (Wonderful)`);
+      strengths.push(`${topPerformers.length} properties scoring 9.5+ (Exceptional)`);
     }
     
     const excellent = metrics.scores.filter(s => s >= 9).length;
     if (excellent > metrics.scores.length * 0.5) {
-      strengths.push(`${Math.round(excellent / metrics.scores.length * 100)}% of properties rate as "Wonderful"`);
+      strengths.push(`${Math.round(excellent / metrics.scores.length * 100)}% of properties rate as "Wonderful" or better`);
     }
     
     if (needsAttention.length > 0) {
-      opportunities.push(`${needsAttention.length} properties scoring below 7.0 need attention`);
+      opportunities.push(`${needsAttention.length} ${needsAttention.length === 1 ? 'property has' : 'properties have'} clear improvement path`);
     }
     
-    const belowAvg = metrics.scores.filter(s => s < 8).length;
-    if (belowAvg > 0 && belowAvg < metrics.scores.length) {
-      opportunities.push(`${belowAvg} properties below "Very Good" threshold`);
+    const closeToVeryGood = metrics.scores.filter(s => s >= 7.5 && s < 8.0).length;
+    if (closeToVeryGood > 0) {
+      opportunities.push(`${closeToVeryGood} ${closeToVeryGood === 1 ? 'property' : 'properties'} within reach of "Very Good"`);
     }
     
-    // Executive summary
+    // Executive summary - optimistic framing
     let summary = '';
-    if (metrics.avg !== null && kasaPercentile !== null) {
-      const tier = getPercentileTier(kasaPercentile);
-      summary = `Kasa portfolio averages ${metrics.avg.toFixed(2)}/10, ranking in the ${tier.label} of industry benchmarks. `;
-      if (topPerformers.length > 0) {
-        summary += `${topPerformers.length} properties are top performers. `;
+    if (metrics.avg !== null) {
+      summary = `Kasa portfolio averages ${metrics.avg.toFixed(2)}/10 across ${metrics.scores.length} properties. `;
+      
+      if (veryGoodPlusPercent >= 90) {
+        summary += `${veryGoodPlusPercent}% rated "Very Good" or higher — exceptional consistency at scale. `;
+      } else if (veryGoodPlusPercent >= 75) {
+        summary += `${veryGoodPlusPercent}% rated "Very Good" or higher. `;
       }
-      if (needsAttention.length > 0) {
-        summary += `${needsAttention.length} properties need improvement.`;
+      
+      if (topPerformers.length > 0) {
+        summary += `${topPerformers.length} ${topPerformers.length === 1 ? 'property achieves' : 'properties achieve'} "Exceptional" status. `;
+      }
+      
+      if (needsAttention.length === 0) {
+        summary += `All properties scoring 7.0 or above.`;
+      } else if (needsAttention.length === 1) {
+        summary += `1 property on improvement path.`;
+      } else {
+        summary += `${needsAttention.length} properties on improvement path.`;
       }
     }
     
     return { strengths, opportunities, summary };
-  }, [kasaPercentile, topPerformers, needsAttention, metrics]);
+  }, [topPerformers, needsAttention, metrics]);
 
   if (properties.length === 0) {
     return (
