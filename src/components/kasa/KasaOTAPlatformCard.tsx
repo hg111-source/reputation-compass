@@ -44,11 +44,22 @@ export function KasaOTAPlatformCard() {
   const { data: benchmark, isLoading } = usePortfolioBenchmark();
 
   const platformData = useMemo(() => {
-    if (!benchmark) return [];
+    if (!benchmark?.distributions) return [];
     
     return PLATFORM_ORDER.map(platform => {
       const kasaScore = KASA_OTA_SCORES[platform];
       const dist = benchmark.distributions[platform];
+      
+      if (!dist) {
+        return {
+          platform,
+          ...PLATFORM_INFO[platform],
+          kasaScore,
+          portfolioAvg: null,
+          portfolioCount: 0,
+          percentile: null,
+        };
+      }
       
       const percentile = dist.scores.length > 0
         ? calculatePercentileInDistribution(kasaScore, dist.scores)
