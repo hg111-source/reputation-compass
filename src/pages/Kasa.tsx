@@ -152,6 +152,7 @@ export default function Kasa() {
   const batchSaveSnapshots = useBatchSaveKasaSnapshots();
 
   const [isImporting, setIsImporting] = useState(false);
+  const [isUpdatingMissing, setIsUpdatingMissing] = useState(false);
   const [isFixingLocations, setIsFixingLocations] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [currentProperty, setCurrentProperty] = useState<string | null>(null);
@@ -227,6 +228,15 @@ export default function Kasa() {
   const unknownLocationCount = useMemo(() => {
     return kasaProperties.filter(p => !p.city || p.city === 'Unknown' || p.city === '').length;
   }, [kasaProperties]);
+
+  // Count properties with missing scores (no snapshot and no property score)
+  const propertiesWithMissingScores = useMemo(() => {
+    return kasaProperties.filter(p => {
+      const snapshot = kasaSnapshots[p.id];
+      const hasScore = snapshot?.score_raw != null || p.kasa_aggregated_score != null;
+      return !hasScore;
+    });
+  }, [kasaProperties, kasaSnapshots]);
 
   // Compute locations with property counts for dropdown
   const locationOptions = useMemo(() => {
@@ -549,6 +559,141 @@ export default function Kasa() {
     }
   };
 
+  // Update only properties with missing scores
+  const handleUpdateMissing = async () => {
+    if (propertiesWithMissingScores.length === 0) {
+      toast({ title: 'All complete', description: 'No properties with missing scores found.' });
+      return;
+    }
+
+    setIsUpdatingMissing(true);
+    setImportProgress(0);
+
+    const snapshotsToSave: Array<{
+      propertyId: string;
+      rating: number | null;
+      reviewCount: number;
+    }> = [];
+
+    let successCount = 0;
+    const errors: Array<{ name: string; error: string }> = [];
+
+    try {
+      for (let i = 0; i < propertiesWithMissingScores.length; i++) {
+        const prop = propertiesWithMissingScores[i];
+        setCurrentProperty(`Updating ${prop.name}...`);
+        setImportProgress(Math.round(((i + 1) / propertiesWithMissingScores.length) * 100));
+
+        try {
+          // Extract slug from URL
+          const slug = prop.kasa_url?.split('/properties/')[1]?.split('?')[0] || '';
+          
+          if (!slug) {
+            errors.push({ name: prop.name, error: 'No Kasa URL found' });
+            console.warn(`⚠️ ${prop.name}: No Kasa URL, skipping`);
+            continue;
+          }
+
+          console.log(`🔄 Fetching ${prop.name} (slug: ${slug})`);
+          
+          const { data: propData, error: propError } = await supabase.functions.invoke('fetch-kasa-property', {
+            body: { url: prop.kasa_url, slug },
+          });
+
+          if (propError) {
+            const errorMsg = propError.message || 'Edge function error';
+            errors.push({ name: prop.name, error: errorMsg });
+            console.error(`❌ ${prop.name}: ${errorMsg}`);
+            continue;
+          }
+
+          if (!propData?.success) {
+            const errorMsg = propData?.error || 'Unknown fetch error';
+            // Check for 404 specifically
+            if (errorMsg.includes('404') || errorMsg.includes('not found')) {
+              errors.push({ name: prop.name, error: 'Property page not found (404) - URL may have changed' });
+              console.error(`❌ ${prop.name}: 404 - URL may have changed`);
+            } else {
+              errors.push({ name: prop.name, error: errorMsg });
+              console.error(`❌ ${prop.name}: ${errorMsg}`);
+            }
+            continue;
+          }
+
+          const propertyInfo: ImportedPropertyData = propData.property;
+          
+          // Update property record
+          await supabase
+            .from('properties')
+            .update({
+              kasa_aggregated_score: propertyInfo.aggregatedRating,
+              kasa_review_count: propertyInfo.reviewCount,
+              city: propertyInfo.city || prop.city,
+              state: propertyInfo.state || prop.state,
+            })
+            .eq('id', prop.id);
+
+          // Queue snapshot
+          snapshotsToSave.push({
+            propertyId: prop.id,
+            rating: propertyInfo.aggregatedRating,
+            reviewCount: propertyInfo.reviewCount,
+          });
+
+          successCount++;
+          console.log(`✅ ${prop.name}: ${propertyInfo.aggregatedRating} (${propertyInfo.reviewCount} reviews)`);
+          
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          errors.push({ name: prop.name, error: errorMsg });
+          console.error(`❌ ${prop.name}:`, error);
+        }
+
+        // Delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
+      // Batch save snapshots
+      if (snapshotsToSave.length > 0) {
+        try {
+          await batchSaveSnapshots.mutateAsync(snapshotsToSave);
+          console.log(`💾 Saved ${snapshotsToSave.length} snapshots`);
+        } catch (err) {
+          console.error('Failed to save snapshots:', err);
+        }
+      }
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+      queryClient.invalidateQueries({ queryKey: ['kasa-snapshots'] });
+
+      // Log errors summary
+      if (errors.length > 0) {
+        console.group('⚠️ Failed properties:');
+        errors.forEach(e => console.error(`  ${e.name}: ${e.error}`));
+        console.groupEnd();
+      }
+
+      toast({
+        title: 'Update complete',
+        description: `${successCount}/${propertiesWithMissingScores.length} updated successfully${errors.length > 0 ? `, ${errors.length} failed` : ''}`,
+        variant: errors.length > 0 ? 'default' : 'default',
+      });
+
+    } catch (error) {
+      console.error('Update missing error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Failed to update properties',
+      });
+    } finally {
+      setIsUpdatingMissing(false);
+      setImportProgress(0);
+      setCurrentProperty(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -596,7 +741,26 @@ export default function Kasa() {
                 )}
               </Button>
             )}
-            <Button onClick={handleImportFromKasa} disabled={isImporting || isFixingLocations}>
+            {propertiesWithMissingScores.length > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={handleUpdateMissing} 
+                disabled={isImporting || isFixingLocations || isUpdatingMissing}
+              >
+                {isUpdatingMissing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="mr-2 h-4 w-4" />
+                    Update {propertiesWithMissingScores.length} Missing
+                  </>
+                )}
+              </Button>
+            )}
+            <Button onClick={handleImportFromKasa} disabled={isImporting || isFixingLocations || isUpdatingMissing}>
               {isImporting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -612,8 +776,8 @@ export default function Kasa() {
           </div>
         </div>
 
-        {/* Import/Fix Progress */}
-        {(isImporting || isFixingLocations) && (
+        {/* Import/Fix/Update Progress */}
+        {(isImporting || isFixingLocations || isUpdatingMissing) && (
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-3">
