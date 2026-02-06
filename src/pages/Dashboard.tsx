@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useGroups } from '@/hooks/useGroups';
 import { useProperties } from '@/hooks/useProperties';
@@ -21,14 +21,18 @@ export default function Dashboard() {
   const { user, loading } = useAuth();
   const { groups, isLoading: groupsLoading } = useGroups();
   const { properties } = useProperties();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
 
-  // Default to "all" once we know there are properties
+  // Read group from URL on mount, default to "all"
   useEffect(() => {
-    if (!groupsLoading && properties.length > 0) {
+    const groupFromUrl = searchParams.get('group');
+    if (groupFromUrl && groups.some(g => g.id === groupFromUrl)) {
+      setSelectedGroupId(groupFromUrl);
+    } else if (!groupsLoading && properties.length > 0) {
       setSelectedGroupId('all');
     }
-  }, [groupsLoading, properties.length]);
+  }, [searchParams, groups, groupsLoading, properties.length]);
 
   if (loading) {
     return (
@@ -47,11 +51,21 @@ export default function Dashboard() {
 
   const selectedGroup = groups.find(g => g.id === selectedGroupId);
 
+  // Update URL when group changes
+  const handleGroupChange = (value: string) => {
+    setSelectedGroupId(value);
+    if (value === 'all') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ group: value });
+    }
+  };
+
   // Group selector dropdown component
   const GroupSelector = () => (
     <Select
       value={selectedGroupId}
-      onValueChange={(value) => setSelectedGroupId(value)}
+      onValueChange={handleGroupChange}
     >
       <SelectTrigger className="h-11 min-w-[220px] rounded-lg border-2 border-primary bg-primary text-primary-foreground font-semibold shadow-kasa hover:bg-primary/90 transition-colors">
         <SelectValue placeholder="Select a group" />
