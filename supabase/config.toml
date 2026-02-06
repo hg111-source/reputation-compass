@@ -39,3 +39,9 @@ verify_jwt = false
 
 [functions.fetch-rating-by-alias]
 verify_jwt = false
+
+[functions.discover-airbnb-listings]
+verify_jwt = false
+
+[functions.fetch-airbnb-reviews]
+verify_jwt = false
