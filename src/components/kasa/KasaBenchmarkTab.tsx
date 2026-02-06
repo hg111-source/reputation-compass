@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Trophy, Info, AlertTriangle, Star, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getScoreColor } from '@/lib/scoring';
+import { GeographicAnalysis } from './GeographicAnalysis';
 import {
   BarChart,
   Bar,
@@ -465,6 +466,9 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
           </div>
         </CardContent>
       </Card>
+
+      {/* Geographic Analysis */}
+      <GeographicAnalysis properties={properties} snapshots={snapshots} />
 
       {/* Top Performers & Needs Attention */}
       <div className="grid gap-4 md:grid-cols-2">
