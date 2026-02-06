@@ -187,59 +187,6 @@ export function GeographicAnalysis({ properties, snapshots }: GeographicAnalysis
         </CardContent>
       </Card>
 
-      {/* State Rankings Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            State Rankings
-          </CardTitle>
-          <CardDescription>
-            {stateMetrics.length} states ranked by average score
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead className="text-center">Properties</TableHead>
-                  <TableHead className="text-center">Avg Score</TableHead>
-                  <TableHead className="text-center">Range</TableHead>
-                  <TableHead className="text-right">Reviews</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stateMetrics.map((state, idx) => (
-                  <TableRow key={state.state}>
-                    <TableCell className="font-medium text-muted-foreground">{idx + 1}</TableCell>
-                    <TableCell className="font-medium">{state.state}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary">{state.propertyCount}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span 
-                        className={cn('font-bold px-2 py-1 rounded', getScoreColor(state.avgScore))}
-                        style={{ backgroundColor: `${getBarColor(state.avgScore ?? 0)}20` }}
-                      >
-                        {state.avgScore?.toFixed(2)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center text-sm text-muted-foreground">
-                      {state.minScore?.toFixed(1)} - {state.maxScore?.toFixed(1)}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {state.totalReviews.toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Top & Bottom Cities */}
       <div className="grid gap-4 md:grid-cols-2">
