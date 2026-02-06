@@ -101,23 +101,31 @@ export default function Kasa() {
 
           const propertyInfo: ImportedPropertyData = propData.property;
 
-          // Try to match to existing property
-          const normalizedName = normalizeHotelName(prop.name);
-          let matchedProperty = properties.find(existing => {
-            const normalizedExisting = normalizeHotelName(existing.name);
-            return normalizedName.includes(normalizedExisting) || 
-                   normalizedExisting.includes(normalizedName) ||
-                   normalizedName === normalizedExisting;
-          });
+          // Try to match to existing property - first by URL, then by name
+          let matchedProperty = properties.find(existing => 
+            existing.kasa_url === propertyInfo.url
+          );
+          
+          if (!matchedProperty) {
+            const normalizedName = normalizeHotelName(prop.name);
+            matchedProperty = properties.find(existing => {
+              const normalizedExisting = normalizeHotelName(existing.name);
+              return normalizedName.includes(normalizedExisting) || 
+                     normalizedExisting.includes(normalizedName) ||
+                     normalizedName === normalizedExisting;
+            });
+          }
 
           if (matchedProperty) {
-            // Update existing property
+            // Update existing property with all data including city/state
             await supabase
               .from('properties')
               .update({
                 kasa_aggregated_score: propertyInfo.aggregatedRating,
                 kasa_review_count: propertyInfo.reviewCount,
                 kasa_url: propertyInfo.url,
+                city: propertyInfo.city || matchedProperty.city,
+                state: propertyInfo.state || matchedProperty.state,
               })
               .eq('id', matchedProperty.id);
           } else {
