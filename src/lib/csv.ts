@@ -80,8 +80,24 @@ export async function parseExcelFile(file: File): Promise<ParsedProperty[]> {
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json<CSVProperty>(firstSheet);
         
+        console.log(`[Excel Parser] Total rows read: ${jsonData.length}`);
+        
+        // Log first few rows to debug column names
+        if (jsonData.length > 0) {
+          console.log('[Excel Parser] Column names detected:', Object.keys(jsonData[0]));
+          console.log('[Excel Parser] First row sample:', jsonData[0]);
+        }
+        
         const properties = jsonData
-          .filter(row => row['Hotel Name'] && row.City && row.State)
+          .filter((row, index) => {
+            const hasName = !!row['Hotel Name'];
+            const hasCity = !!row.City;
+            const hasState = !!row.State;
+            if (!hasName || !hasCity || !hasState) {
+              console.log(`[Excel Parser] Row ${index + 2} skipped - missing: ${!hasName ? 'Hotel Name' : ''} ${!hasCity ? 'City' : ''} ${!hasState ? 'State' : ''}`.trim());
+            }
+            return hasName && hasCity && hasState;
+          })
           .map(row => {
             const prop: ParsedProperty = {
               name: String(row['Hotel Name']).trim(),
@@ -115,6 +131,8 @@ export async function parseExcelFile(file: File): Promise<ParsedProperty[]> {
             
             return prop;
           });
+        
+        console.log(`[Excel Parser] Valid properties after filtering: ${properties.length}`);
         resolve(properties);
       } catch (error) {
         reject(error);
