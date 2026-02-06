@@ -54,46 +54,56 @@ export function useAutoGroup() {
       }));
   };
 
+  // Score Legend tiers matching the UI
+  const SCORE_TIERS = [
+    { name: 'Wonderful (9+)', min: 9.0 },
+    { name: 'Very Good (8+)', min: 8.0 },
+    { name: 'Good (7+)', min: 7.0 },
+    { name: 'Pleasant (6+)', min: 6.0 },
+    { name: 'Needs Work (<6)', min: 0 },
+  ];
+
   const groupByScore = (properties: Property[], scores: ScoreData): GroupDefinition[] => {
-    return groupByScoreWithThresholds(properties, scores, { elite: 9.0, strong: 8.0, attention: 0 });
+    const buckets: Map<string, string[]> = new Map();
+    
+    // Initialize all buckets
+    for (const tier of SCORE_TIERS) {
+      buckets.set(tier.name, []);
+    }
+
+    for (const property of properties) {
+      const { avgScore } = calculatePropertyMetrics(scores[property.id]);
+      
+      // Find the right tier
+      let tierName = 'Needs Work (<6)';
+      if (avgScore !== null) {
+        for (const tier of SCORE_TIERS) {
+          if (avgScore >= tier.min) {
+            tierName = tier.name;
+            break;
+          }
+        }
+      }
+      
+      buckets.get(tierName)!.push(property.id);
+    }
+
+    // Return only non-empty groups, in order
+    return SCORE_TIERS
+      .map(tier => ({
+        name: tier.name,
+        propertyIds: buckets.get(tier.name) || [],
+      }))
+      .filter(g => g.propertyIds.length > 0);
   };
 
   const groupByScoreWithThresholds = (
     properties: Property[], 
     scores: ScoreData,
-    thresholds: { elite: number; strong: number; attention: number }
+    _thresholds: { elite: number; strong: number; attention: number }
   ): GroupDefinition[] => {
-    const topPerformers: string[] = [];
-    const strong: string[] = [];
-    const needsAttention: string[] = [];
-
-    for (const property of properties) {
-      const { avgScore } = calculatePropertyMetrics(scores[property.id]);
-      
-      if (avgScore === null) {
-        needsAttention.push(property.id);
-      } else if (avgScore >= thresholds.elite) {
-        topPerformers.push(property.id);
-      } else if (avgScore >= thresholds.strong) {
-        strong.push(property.id);
-      } else {
-        needsAttention.push(property.id);
-      }
-    }
-
-    const groups: GroupDefinition[] = [];
-    
-    if (topPerformers.length > 0) {
-      groups.push({ name: `Top Performers (${thresholds.elite}+)`, propertyIds: topPerformers });
-    }
-    if (strong.length > 0) {
-      groups.push({ name: `Strong (${thresholds.strong}-${(thresholds.elite - 0.1).toFixed(1)})`, propertyIds: strong });
-    }
-    if (needsAttention.length > 0) {
-      groups.push({ name: `Needs Attention (below ${thresholds.strong})`, propertyIds: needsAttention });
-    }
-
-    return groups;
+    // Now uses the standard 5-tier system regardless of thresholds
+    return groupByScore(properties, scores);
   };
 
   const generateGroupsWithThresholds = (
