@@ -1,21 +1,22 @@
 import { useState, useCallback } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { parseCSVFile, parseExcelFile } from '@/lib/csv';
-import { Upload as UploadIcon, FileSpreadsheet, Check, AlertCircle, CloudUpload, X } from 'lucide-react';
+import { Upload as UploadIcon, FileSpreadsheet, Check, AlertCircle, CloudUpload, X, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Upload() {
   const { user, loading } = useAuth();
   const { createManyProperties } = useProperties();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [result, setResult] = useState<{ success: number; errors: string[] } | null>(null);
+  const [result, setResult] = useState<{ success: number; skipped: number; errors: string[] } | null>(null);
 
   const processFile = useCallback(async (file: File) => {
     setIsProcessing(true);
@@ -32,17 +33,28 @@ export default function Upload() {
       }
 
       if (properties.length === 0) {
-        throw new Error('No valid properties found. Ensure columns: Hotel Name, City, State');
+        throw new Error('No valid properties found. Ensure columns: Name, City, State');
       }
 
-      await createManyProperties.mutateAsync(properties);
-      setResult({ success: properties.length, errors: [] });
-      toast({
-        title: 'Upload successful',
-        description: `${properties.length} properties have been imported.`,
-      });
+      const result = await createManyProperties.mutateAsync(properties);
+      const createdCount = result.created?.length || 0;
+      const skippedCount = result.skipped || 0;
+      
+      setResult({ success: createdCount, skipped: skippedCount, errors: [] });
+      
+      if (createdCount > 0) {
+        toast({
+          title: 'Upload successful',
+          description: `${createdCount} properties imported${skippedCount > 0 ? `, ${skippedCount} duplicates skipped` : ''}.`,
+        });
+      } else if (skippedCount > 0) {
+        toast({
+          title: 'No new properties',
+          description: `All ${skippedCount} properties already exist.`,
+        });
+      }
     } catch (error: any) {
-      setResult({ success: 0, errors: [error.message] });
+      setResult({ success: 0, skipped: 0, errors: [error.message] });
       toast({
         variant: 'destructive',
         title: 'Upload failed',
@@ -146,27 +158,44 @@ export default function Upload() {
 
               {result && (
                 <div className={`mt-6 rounded-xl p-5 ${
-                  result.success > 0 ? 'bg-success/10' : 'bg-destructive/10'
+                  result.success > 0 || result.skipped > 0 ? 'bg-success/10' : 'bg-destructive/10'
                 }`}>
-                  {result.success > 0 ? (
-                    <div className="flex items-center justify-between">
+                  {result.success > 0 || result.skipped > 0 ? (
+                    <div className="space-y-4">
                       <div className="flex items-center gap-4 text-success">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20">
                           <Check className="h-5 w-5" />
                         </div>
-                        <span className="font-medium">
-                          Successfully imported {result.success} properties
-                        </span>
+                        <div>
+                          <span className="font-medium">
+                            {result.success > 0 
+                              ? `Successfully imported ${result.success} properties`
+                              : 'No new properties to import'}
+                          </span>
+                          {result.skipped > 0 && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {result.skipped} duplicate{result.skipped !== 1 ? 's' : ''} skipped
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setResult(null)}
-                        className="ml-4"
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Upload Another
-                      </Button>
+                      <div className="flex items-center gap-3 pt-2 border-t border-success/20">
+                        <Button
+                          onClick={() => navigate('/properties')}
+                          className="flex-1"
+                        >
+                          <ArrowRight className="h-4 w-4 mr-2" />
+                          Push Data
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setResult(null)}
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Upload Another
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-start justify-between">

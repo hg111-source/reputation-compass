@@ -49,15 +49,39 @@ export function useProperties() {
     mutationFn: async (props: ParsedProperty[]) => {
       if (!user) throw new Error('Not authenticated');
       
-      // Insert properties
+      // First, fetch existing properties to check for duplicates
+      const { data: existingProps } = await supabase
+        .from('properties')
+        .select('id, name, city, state');
+      
+      const existingKeys = new Set(
+        (existingProps || []).map(p => `${p.name.toLowerCase()}|${p.city.toLowerCase()}|${p.state.toLowerCase()}`)
+      );
+      
+      // Filter out duplicates
+      const newProps = props.filter(p => {
+        const key = `${p.name.toLowerCase()}|${p.city.toLowerCase()}|${p.state.toLowerCase()}`;
+        return !existingKeys.has(key);
+      });
+      
+      const skippedCount = props.length - newProps.length;
+      if (skippedCount > 0) {
+        console.log(`[Upload] Skipped ${skippedCount} duplicate properties`);
+      }
+      
+      if (newProps.length === 0) {
+        // All properties already exist
+        return { created: [], skipped: skippedCount };
+      }
+      
+      // Insert new properties only
       const { data: createdProperties, error } = await supabase
         .from('properties')
-        .insert(props.map(p => ({ 
+        .insert(newProps.map(p => ({ 
           name: p.name, 
           city: p.city, 
           state: p.state,
           user_id: user.id,
-          // Also store legacy URL fields for backward compatibility
           google_place_id: p.sourceIds?.google || null,
           tripadvisor_url: p.sourceIds?.tripadvisor || null,
           booking_url: p.sourceIds?.booking || null,
@@ -79,8 +103,8 @@ export function useProperties() {
         last_verified_at: string;
       }> = [];
       
-      for (let i = 0; i < props.length; i++) {
-        const prop = props[i];
+      for (let i = 0; i < newProps.length; i++) {
+        const prop = newProps[i];
         const created = createdProperties[i];
         
         if (prop.sourceIds) {
@@ -95,7 +119,7 @@ export function useProperties() {
                 platform_id: source === 'google' ? sourceId : undefined,
                 platform_url: source !== 'google' ? sourceId : undefined,
                 resolution_status: 'resolved',
-                confidence_score: 1.0, // CSV import = user-provided = full confidence
+                confidence_score: 1.0,
                 last_resolved_at: new Date().toISOString(),
                 last_verified_at: new Date().toISOString(),
               });
@@ -111,11 +135,10 @@ export function useProperties() {
           .insert(aliasInserts);
         if (aliasError) {
           console.error('Error creating aliases from CSV:', aliasError);
-          // Don't fail the whole upload, just log
         }
       }
       
-      return createdProperties as Property[];
+      return { created: createdProperties as Property[], skipped: skippedCount };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['properties'] });
