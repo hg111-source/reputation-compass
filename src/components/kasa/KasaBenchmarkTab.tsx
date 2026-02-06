@@ -246,9 +246,9 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
     <div className="space-y-6">
       {/* Executive Summary */}
       {insights.summary && (
-        <Card className="border-l-4 border-l-primary">
+        <Card className="border-l-4 border-l-teal-500 bg-teal-50/50 dark:bg-teal-950/20">
           <CardContent className="pt-6">
-            <p className="text-lg font-medium">{insights.summary}</p>
+            <p className="text-lg font-medium text-teal-900 dark:text-teal-100">{insights.summary}</p>
           </CardContent>
         </Card>
       )}
