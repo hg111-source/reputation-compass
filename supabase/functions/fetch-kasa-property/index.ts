@@ -123,30 +123,133 @@ function parseRating(markdown: string, html: string): { rating: number | null; r
   return { rating: aggregatedRating, reviewCount };
 }
 
-// Known Kasa cities and their states (for slug parsing)
-const KASA_CITIES: Record<string, string> = {
-  'milwaukee': 'WI', 'chicago': 'IL', 'denver': 'CO', 'austin': 'TX', 'dallas': 'TX',
-  'houston': 'TX', 'phoenix': 'AZ', 'seattle': 'WA', 'portland': 'OR', 'nashville': 'TN',
-  'atlanta': 'GA', 'miami': 'FL', 'tampa': 'FL', 'orlando': 'FL', 'charlotte': 'NC',
-  'raleigh': 'NC', 'boston': 'MA', 'philadelphia': 'PA', 'pittsburgh': 'PA', 'cleveland': 'OH',
-  'columbus': 'OH', 'cincinnati': 'OH', 'indianapolis': 'IN', 'minneapolis': 'MN', 'detroit': 'MI',
-  'st-louis': 'MO', 'kansas-city': 'MO', 'san-diego': 'CA', 'los-angeles': 'CA', 'san-francisco': 'CA',
-  'sacramento': 'CA', 'san-jose': 'CA', 'oakland': 'CA', 'las-vegas': 'NV', 'salt-lake-city': 'UT',
-  'new-york': 'NY', 'brooklyn': 'NY', 'manhattan': 'NY', 'queens': 'NY', 'jersey-city': 'NJ',
-  'newark': 'NJ', 'baltimore': 'MD', 'washington': 'DC', 'arlington': 'VA', 'alexandria': 'VA',
-  'richmond': 'VA', 'norfolk': 'VA', 'new-orleans': 'LA', 'memphis': 'TN', 'louisville': 'KY',
-  'birmingham': 'AL', 'jacksonville': 'FL', 'fort-lauderdale': 'FL', 'west-palm-beach': 'FL',
-  'boca-raton': 'FL', 'savannah': 'GA', 'charleston': 'SC', 'greenville': 'SC', 'knoxville': 'TN',
-  'chattanooga': 'TN', 'lexington': 'KY', 'omaha': 'NE', 'tulsa': 'OK', 'oklahoma-city': 'OK',
-  'albuquerque': 'NM', 'tucson': 'AZ', 'scottsdale': 'AZ', 'tempe': 'AZ', 'mesa': 'AZ',
-  'boulder': 'CO', 'colorado-springs': 'CO', 'fort-collins': 'CO', 'boise': 'ID', 'spokane': 'WA',
-  'tacoma': 'WA', 'bellevue': 'WA', 'eugene': 'OR', 'bend': 'OR', 'reno': 'NV',
-  'san-antonio': 'TX', 'fort-worth': 'TX', 'el-paso': 'TX', 'plano': 'TX', 'irving': 'TX',
-  'westown': 'WI', 'third-ward': 'WI', 'east-town': 'WI', 'walker-point': 'WI',
-  'river-north': 'IL', 'lincoln-park': 'IL', 'wicker-park': 'IL', 'logan-square': 'IL',
-  'lodo': 'CO', 'rino': 'CO', 'capitol-hill': 'CO', 'five-points': 'CO',
-  'midtown': 'GA', 'buckhead': 'GA', 'decatur': 'GA', 'sandy-springs': 'GA',
-  'downtown': 'TX', 'uptown': 'TX', 'deep-ellum': 'TX', 'bishop-arts': 'TX',
+// DEFINITIVE slug-to-location mapping from kasa.com/locations (Jan 2025)
+// This is the authoritative source - use this first before any parsing
+const SLUG_TO_LOCATION: Record<string, { city: string; state: string }> = {
+  // Alexandria, VA
+  'kasa-alexandria-washington': { city: 'Alexandria', state: 'VA' },
+  'kasa-del-ray-alexandria': { city: 'Alexandria', state: 'VA' },
+  'the-king-street-house-by-kasa-hotels-alexandria': { city: 'Alexandria', state: 'VA' },
+  // Athens, GA
+  'the-bell-athens-by-kasa': { city: 'Athens', state: 'GA' },
+  // Austin, TX
+  'kasa-at-the-waller-apartment-austin': { city: 'Austin', state: 'TX' },
+  'studio-haus-east-6th-austin-by-kasa-hotel': { city: 'Austin', state: 'TX' },
+  'kasa-downtown-austin': { city: 'Austin', state: 'TX' },
+  'kasa-lady-bird-lake-austin': { city: 'Austin', state: 'TX' },
+  'kasa-2nd-street-austin': { city: 'Austin', state: 'TX' },
+  // Bellevue, WA
+  'kasa-bellevue-seattle': { city: 'Bellevue', state: 'WA' },
+  // Boise, ID
+  'kasa-at-cortland-on-the-river-boise': { city: 'Boise', state: 'ID' },
+  // Charlotte, NC
+  'kasa-edison-house-charlotte': { city: 'Charlotte', state: 'NC' },
+  'kasa-kasa-dilworth-charlotte': { city: 'Charlotte', state: 'NC' },
+  'kasa-freemorewest-charlotte': { city: 'Charlotte', state: 'NC' },
+  'kasa-at-cortland-noda-charlotte': { city: 'Charlotte', state: 'NC' },
+  // Chicago, IL
+  'kasa-south-loop-chicago': { city: 'Chicago', state: 'IL' },
+  'kasa-river-north-chicago': { city: 'Chicago', state: 'IL' },
+  'kasa-magnificent-mile-chicago': { city: 'Chicago', state: 'IL' },
+  // Dallas, TX
+  'kasa-love-field-medical-district-dallas': { city: 'Dallas', state: 'TX' },
+  'mint-house-dallas-downtown-by-kasa': { city: 'Dallas', state: 'TX' },
+  // Davie, FL (Fort Lauderdale area)
+  'tucker-at-palm-trace-landings-fort-lauderdale': { city: 'Davie', state: 'FL' },
+  // Denver, CO
+  'kasa-union-station-denver': { city: 'Denver', state: 'CO' },
+  'kasa-rino-denver': { city: 'Denver', state: 'CO' },
+  // Des Moines, IA
+  'kasa-downtown-des-moines': { city: 'Des Moines', state: 'IA' },
+  // Detroit, MI
+  'kasa-cadillac-square-detroit': { city: 'Detroit', state: 'MI' },
+  // Elk Rapids, MI
+  'the-dexter-elk-rapids-hotel-by-kasa': { city: 'Elk Rapids', state: 'MI' },
+  // Greenville, SC
+  'mint-house-greenville-downtown-by-kasa': { city: 'Greenville', state: 'SC' },
+  // Hillsboro Beach, FL
+  'hillsboro-beach-resort-by-kasa-hotel': { city: 'Hillsboro Beach', state: 'FL' },
+  // Hollywood, FL
+  'kasa-at-cortland-hollywood-ft-lauderdale': { city: 'Hollywood', state: 'FL' },
+  // Long Beach, CA
+  'city-center-hotel-by-kasa-long-beach': { city: 'Long Beach', state: 'CA' },
+  // Los Angeles, CA
+  'stile-downtown-los-angeles-by-kasa': { city: 'Los Angeles', state: 'CA' },
+  'kasa-sunset-los-angeles': { city: 'Los Angeles', state: 'CA' },
+  // Menlo Park, CA
+  'mint-house-menlo-park-by-kasa': { city: 'Menlo Park', state: 'CA' },
+  // Miami Beach, FL
+  'kasa-collins-park-miami-beach-convention-center': { city: 'Miami Beach', state: 'FL' },
+  'kasa-la-flora-miami-beach': { city: 'Miami Beach', state: 'FL' },
+  'kasa-impala-miami-beach': { city: 'Miami Beach', state: 'FL' },
+  'kasa-el-paseo-miami-beach': { city: 'Miami Beach', state: 'FL' },
+  // Miami, FL
+  'tucker-at-palmer-dadeland-miami': { city: 'Miami', state: 'FL' },
+  'kasa-wynwood-miami': { city: 'Miami', state: 'FL' },
+  // Milwaukee, WI
+  'kasa-westown-milwaukee': { city: 'Milwaukee', state: 'WI' },
+  // Mineral, VA
+  'boardwalk-hotel-on-lake-anna-by-kasa': { city: 'Mineral', state: 'VA' },
+  // Minneapolis, MN
+  'kasa-bryn-mawr-minneapolis': { city: 'Minneapolis', state: 'MN' },
+  // Nashville, TN
+  'kasa-at-artisan-music-row-nashville': { city: 'Nashville', state: 'TN' },
+  'kasa-capitol-hill-downtown-nashville': { city: 'Nashville', state: 'TN' },
+  'the-eighteen-by-kasa-nashville': { city: 'Nashville', state: 'TN' },
+  'mint-house-nashville-marathon-village-by-kasa': { city: 'Nashville', state: 'TN' },
+  // New Orleans, LA
+  'the-lafayette-new-orleans-by-kasa': { city: 'New Orleans', state: 'LA' },
+  'the-frenchmen-new-orleans-by-kasa': { city: 'New Orleans', state: 'LA' },
+  // New York City, NY
+  'mint-house-at-70-pine-by-kasa-new-york-city': { city: 'New York', state: 'NY' },
+  'kasa-lantern-les': { city: 'New York', state: 'NY' },
+  // Philadelphia, PA
+  'kasa-the-niche-university-city-philadelphia': { city: 'Philadelphia', state: 'PA' },
+  // Pittsburgh, PA
+  'kasa-the-maverick-pittsburgh': { city: 'Pittsburgh', state: 'PA' },
+  'kasa-south-side-pittsburgh': { city: 'Pittsburgh', state: 'PA' },
+  // Portland, OR
+  'the-clyde-hotel-portland-by-kasa': { city: 'Portland', state: 'OR' },
+  // Raleigh, NC
+  'kasa-at-berkshire-village-district-raleigh': { city: 'Raleigh', state: 'NC' },
+  // Redwood City, CA
+  'kasa-niche-hotel-redwood-city': { city: 'Redwood City', state: 'CA' },
+  // Reno, NV
+  'kasa-archive-reno-tahoe': { city: 'Reno', state: 'NV' },
+  // San Diego, CA
+  'kasa-gaslamp-quarter-san-diego': { city: 'San Diego', state: 'CA' },
+  'kasa-little-italy-san-diego': { city: 'San Diego', state: 'CA' },
+  'the-davis-downtown-san-diego-hotel': { city: 'San Diego', state: 'CA' },
+  // San Francisco, CA
+  'kasa-la-monarca-san-francisco': { city: 'San Francisco', state: 'CA' },
+  'kasa-la-monarca-residential-san-francisco': { city: 'San Francisco', state: 'CA' },
+  'kasa-the-hotel-castro-san-francisco': { city: 'San Francisco', state: 'CA' },
+  'kasa-the-addison-san-francisco': { city: 'San Francisco', state: 'CA' },
+  // Santa Clara, CA
+  'kasa-university-airport-santa-clara': { city: 'Santa Clara', state: 'CA' },
+  // Savannah, GA
+  'kasa-jules-savannah': { city: 'Savannah', state: 'GA' },
+  'kasa-altmayer-savannah': { city: 'Savannah', state: 'GA' },
+  // Scottsdale, AZ
+  'kasa-scottsdale-quarter-phoenix': { city: 'Scottsdale', state: 'AZ' },
+  // Skowhegan, ME
+  'the-skowhegan-by-kasa': { city: 'Skowhegan', state: 'ME' },
+  // St Petersburg, FL
+  'mint-house-st-petersburg-downtown-by-kasa': { city: 'St Petersburg', state: 'FL' },
+  // Tampa, FL
+  'mint-house-tampa-downtown-by-kasa': { city: 'Tampa', state: 'FL' },
+  // Traverse City, MI
+  'kasa-gold-coast-inn-traverse-city': { city: 'Traverse City', state: 'MI' },
+  'kasa-539-bay-street-traverse-city': { city: 'Traverse City', state: 'MI' },
+  'the-loop-downtown-traverse-city-apartments-by-kasa': { city: 'Traverse City', state: 'MI' },
+  'boardwalk-suites-and-residences-by-kasa-traverse-city': { city: 'Traverse City', state: 'MI' },
+  'the-vic-hotel-by-kasa-traverse-city': { city: 'Traverse City', state: 'MI' },
+  // Washington, DC
+  'mint-house-washington-dc-downtown-by-kasa': { city: 'Washington', state: 'DC' },
+  // Wellington, FL
+  'kasa-wellington-south-florida': { city: 'Wellington', state: 'FL' },
+  // Wilmington, NC
+  'kasa-southside-wilmington': { city: 'Wilmington', state: 'NC' },
 };
 
 // Parse address from markdown content with multiple fallback strategies
@@ -154,6 +257,15 @@ function parseAddress(markdown: string, html: string, slug?: string, propertyNam
   let address = '';
   let city = '';
   let state = '';
+
+  // Strategy 0: DEFINITIVE lookup from official Kasa locations page
+  if (slug && SLUG_TO_LOCATION[slug]) {
+    const loc = SLUG_TO_LOCATION[slug];
+    city = loc.city;
+    state = loc.state;
+    console.log(`Strategy 0 - Definitive slug lookup: ${city}, ${state}`);
+    return { address, city, state };
+  }
 
   // Strategy 1: Full address pattern "123 Street Name, City, ST 12345"
   const addressPattern = /(\d+\s+[A-Za-z\s]+(?:Ave|Avenue|St|Street|Blvd|Boulevard|Dr|Drive|Rd|Road|Way|Lane|Ln|Pl|Place|Ct|Court|Circle|Cir|Terrace|Ter|Pkwy|Parkway)[^,]*),\s*([A-Za-z\s]+),\s*([A-Z]{2})\s*(\d{5})?/gi;
@@ -186,60 +298,6 @@ function parseAddress(markdown: string, html: string, slug?: string, propertyNam
       city = locatedMatch[1].trim();
       state = locatedMatch[2] || '';
       console.log(`Strategy 3 - Located in: ${city}, ${state}`);
-    }
-  }
-
-  // Strategy 4: Extract from URL slug (e.g., "kasa-westown-milwaukee" → Milwaukee, WI)
-  if (!city && slug) {
-    const slugParts = slug.toLowerCase().replace('kasa-', '').split('-');
-    
-    // Check if any part matches a known city
-    for (const part of slugParts) {
-      if (KASA_CITIES[part]) {
-        city = part.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        state = KASA_CITIES[part];
-        console.log(`Strategy 4 - From slug part "${part}": ${city}, ${state}`);
-        break;
-      }
-    }
-    
-    // Try combining consecutive parts (e.g., "san-diego")
-    if (!city) {
-      for (let i = 0; i < slugParts.length - 1; i++) {
-        const combined = `${slugParts[i]}-${slugParts[i + 1]}`;
-        if (KASA_CITIES[combined]) {
-          city = combined.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-          state = KASA_CITIES[combined];
-          console.log(`Strategy 4 - From combined slug "${combined}": ${city}, ${state}`);
-          break;
-        }
-      }
-    }
-  }
-
-  // Strategy 5: Extract from property name (e.g., "Kasa Milwaukee Westown")
-  if (!city && propertyName) {
-    const nameLower = propertyName.toLowerCase().replace(/kasa\s*/i, '');
-    const nameWords = nameLower.split(/\s+/);
-    
-    for (const word of nameWords) {
-      const normalized = word.replace(/[^a-z]/g, '');
-      if (KASA_CITIES[normalized]) {
-        city = word.charAt(0).toUpperCase() + word.slice(1);
-        state = KASA_CITIES[normalized];
-        console.log(`Strategy 5 - From name "${word}": ${city}, ${state}`);
-        break;
-      }
-    }
-  }
-
-  // Strategy 6: Look for state abbreviations with context
-  if (!state && city) {
-    const statePattern = new RegExp(`${city}[,\\s]+([A-Z]{2})\\b`, 'i');
-    const stateMatch = markdown.match(statePattern) || html.match(statePattern);
-    if (stateMatch && US_STATES[stateMatch[1].toUpperCase()]) {
-      state = stateMatch[1].toUpperCase();
-      console.log(`Strategy 6 - Found state for city: ${state}`);
     }
   }
 
