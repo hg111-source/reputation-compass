@@ -36,8 +36,29 @@ serve(async (req) => {
     const propertyUrl = url || `https://kasa.com/properties/${slug}`;
     console.log(`Scraping Kasa property: ${propertyUrl}`);
 
-    // Scrape the property page
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    // Helper function to fetch with retry
+    const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 3): Promise<Response> => {
+      let lastError: Error | null = null;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          if (attempt > 0) {
+            // Exponential backoff: 1s, 2s, 4s
+            const delay = Math.pow(2, attempt) * 1000;
+            console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms delay`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          const response = await fetch(url, options);
+          return response;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          console.error(`Fetch attempt ${attempt + 1} failed:`, lastError.message);
+        }
+      }
+      throw lastError || new Error('All retry attempts failed');
+    };
+
+    // Scrape the property page with retry logic
+    const response = await fetchWithRetry('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
