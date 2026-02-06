@@ -22,7 +22,7 @@ export function useAllGroupMetrics(groups: Group[]) {
   const groupIds = groups.map(g => g.id);
 
   // Fetch all group-property mappings at once
-  const { data: allGroupProperties = [], isLoading: propertiesLoading } = useQuery({
+  const { data: allGroupProperties = [], isLoading: propertiesLoading, refetch: refetchProperties } = useQuery({
     queryKey: ['all-group-properties', groupIds.join(',')],
     queryFn: async () => {
       if (groupIds.length === 0) return [];
@@ -48,7 +48,12 @@ export function useAllGroupMetrics(groups: Group[]) {
   }, [allGroupProperties]);
 
   // Fetch scores for all properties at once
-  const { data: scores = {}, isLoading: scoresLoading } = useLatestPropertyScores(allPropertyIds);
+  const { data: scores = {}, isLoading: scoresLoading, refetch: refetchScores } = useLatestPropertyScores(allPropertyIds);
+
+  // Refetch function to re-sort groups
+  const refetch = async () => {
+    await Promise.all([refetchProperties(), refetchScores()]);
+  };
 
   // Calculate metrics for each group
   const groupMetrics = useMemo(() => {
@@ -101,5 +106,6 @@ export function useAllGroupMetrics(groups: Group[]) {
     groupMetrics,
     sortedGroups,
     isLoading: propertiesLoading || scoresLoading,
+    refetch,
   };
 }
