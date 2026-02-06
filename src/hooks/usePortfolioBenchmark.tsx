@@ -3,37 +3,47 @@ import { supabase } from '@/integrations/supabase/client';
 
 type Platform = 'google' | 'tripadvisor' | 'booking' | 'expedia';
 
-interface PlatformStats {
+interface PlatformDistribution {
+  scores: number[];
   avg: number | null;
   count: number;
-  scores: number[]; // For percentile calculation
 }
 
 interface PortfolioBenchmark {
-  kasa: Record<Platform, PlatformStats>;
-  nonKasa: Record<Platform, PlatformStats>;
-  kasaPropertyCount: number;
-  nonKasaPropertyCount: number;
+  distributions: Record<Platform, PlatformDistribution>;
+  totalProperties: number;
 }
 
 export function usePortfolioBenchmark() {
   return useQuery({
     queryKey: ['portfolio-benchmark'],
     queryFn: async (): Promise<PortfolioBenchmark> => {
-      // Get all properties to separate Kasa vs non-Kasa
+      // Get non-Kasa properties
       const { data: properties, error: propError } = await supabase
         .from('properties')
         .select('id, kasa_url');
       
       if (propError) throw propError;
       
-      const kasaPropertyIds = properties?.filter(p => p.kasa_url).map(p => p.id) || [];
       const nonKasaPropertyIds = properties?.filter(p => !p.kasa_url).map(p => p.id) || [];
       
-      // Get latest snapshots for each property/platform combination
+      if (nonKasaPropertyIds.length === 0) {
+        return {
+          distributions: {
+            google: { scores: [], avg: null, count: 0 },
+            tripadvisor: { scores: [], avg: null, count: 0 },
+            booking: { scores: [], avg: null, count: 0 },
+            expedia: { scores: [], avg: null, count: 0 },
+          },
+          totalProperties: 0,
+        };
+      }
+      
+      // Get latest snapshots for non-Kasa properties
       const { data: snapshots, error: snapError } = await supabase
         .from('source_snapshots')
         .select('property_id, source, normalized_score_0_10, collected_at')
+        .in('property_id', nonKasaPropertyIds)
         .in('source', ['google', 'tripadvisor', 'booking', 'expedia'])
         .not('normalized_score_0_10', 'is', null)
         .order('collected_at', { ascending: false });
@@ -41,58 +51,51 @@ export function usePortfolioBenchmark() {
       if (snapError) throw snapError;
       
       // Get latest snapshot per property/platform
-      const latestSnapshots = new Map<string, typeof snapshots[0]>();
+      const latestSnapshots = new Map<string, number>();
       snapshots?.forEach(snap => {
         const key = `${snap.property_id}-${snap.source}`;
-        if (!latestSnapshots.has(key)) {
-          latestSnapshots.set(key, snap);
+        if (!latestSnapshots.has(key) && snap.normalized_score_0_10 != null) {
+          latestSnapshots.set(key, Number(snap.normalized_score_0_10));
         }
       });
       
-      // Calculate stats for each platform
+      // Build distributions for each platform
       const platforms: Platform[] = ['google', 'tripadvisor', 'booking', 'expedia'];
+      const distributions: Record<Platform, PlatformDistribution> = {
+        google: { scores: [], avg: null, count: 0 },
+        tripadvisor: { scores: [], avg: null, count: 0 },
+        booking: { scores: [], avg: null, count: 0 },
+        expedia: { scores: [], avg: null, count: 0 },
+      };
       
-      const calculateStats = (propertyIds: string[]): Record<Platform, PlatformStats> => {
-        const stats: Record<Platform, PlatformStats> = {
-          google: { avg: null, count: 0, scores: [] },
-          tripadvisor: { avg: null, count: 0, scores: [] },
-          booking: { avg: null, count: 0, scores: [] },
-          expedia: { avg: null, count: 0, scores: [] },
-        };
-        
-        platforms.forEach(platform => {
-          const scores: number[] = [];
-          propertyIds.forEach(propId => {
-            const snap = latestSnapshots.get(`${propId}-${platform}`);
-            if (snap?.normalized_score_0_10 != null) {
-              scores.push(Number(snap.normalized_score_0_10));
-            }
-          });
-          
-          if (scores.length > 0) {
-            stats[platform] = {
-              avg: scores.reduce((a, b) => a + b, 0) / scores.length,
-              count: scores.length,
-              scores: scores.sort((a, b) => a - b),
-            };
+      platforms.forEach(platform => {
+        const scores: number[] = [];
+        nonKasaPropertyIds.forEach(propId => {
+          const score = latestSnapshots.get(`${propId}-${platform}`);
+          if (score !== undefined) {
+            scores.push(score);
           }
         });
         
-        return stats;
-      };
+        if (scores.length > 0) {
+          distributions[platform] = {
+            scores: scores.sort((a, b) => a - b),
+            avg: scores.reduce((a, b) => a + b, 0) / scores.length,
+            count: scores.length,
+          };
+        }
+      });
       
       return {
-        kasa: calculateStats(kasaPropertyIds),
-        nonKasa: calculateStats(nonKasaPropertyIds),
-        kasaPropertyCount: kasaPropertyIds.length,
-        nonKasaPropertyCount: nonKasaPropertyIds.length,
+        distributions,
+        totalProperties: nonKasaPropertyIds.length,
       };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-// Calculate percentile of a score within a distribution
+// Calculate percentile of a score within a sorted distribution
 export function calculatePercentileInDistribution(score: number, sortedScores: number[]): number {
   if (sortedScores.length === 0) return 0;
   
