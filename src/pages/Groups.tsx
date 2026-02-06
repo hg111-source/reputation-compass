@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useGroups, useGroupProperties } from '@/hooks/useGroups';
 import { useProperties } from '@/hooks/useProperties';
@@ -48,6 +48,7 @@ export default function Groups() {
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAutoGroupOpen, setIsAutoGroupOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -221,7 +222,10 @@ export default function Groups() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {/* All Properties Card */}
-            <Card className="shadow-kasa transition-all hover:shadow-kasa-hover border-2 border-dashed border-accent/30">
+            <Card 
+              className="shadow-kasa transition-all hover:shadow-kasa-hover border-2 border-dashed border-accent/30 cursor-pointer"
+              onClick={() => navigate('/dashboard')}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <CardTitle className="flex items-center gap-2 text-xl font-semibold">
                   <Globe className="h-5 w-5 text-accent" />
@@ -280,11 +284,9 @@ export default function Groups() {
                   </div>
                 </div>
 
-                <Link to="/properties" className="mt-5 block">
-                  <Button variant="outline" size="sm" className="w-full">
-                    View All Properties
-                  </Button>
-                </Link>
+                <div className="mt-5 text-xs text-muted-foreground text-center">
+                  Click to view dashboard
+                </div>
               </CardContent>
             </Card>
 
@@ -367,6 +369,7 @@ function GroupCard({
   isOwner?: boolean;
   onCopy?: (name: string) => void;
 }) {
+  const navigate = useNavigate();
   const { avgScore, totalProperties, totalReviews, isLoading, properties, scores } = useGroupMetrics(group.id);
   const { updateGroup } = useGroups();
   const { toast } = useToast();
@@ -375,6 +378,15 @@ function GroupCard({
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [copyName, setCopyName] = useState(`${group.name} (Copy)`);
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('[role="menuitem"]')) {
+      return;
+    }
+    navigate(`/dashboard?group=${group.id}`);
+  };
 
   const handleRename = async () => {
     if (!newName.trim() || newName === group.name) {
@@ -420,11 +432,14 @@ function GroupCard({
 
   return (
     <>
-      <Card className={cn(
-        'shadow-kasa transition-all hover:shadow-kasa-hover',
-        isSelected && 'ring-2 ring-accent',
-        isPrivate && 'bg-muted/60'
-      )}>
+      <Card 
+        className={cn(
+          'shadow-kasa transition-all hover:shadow-kasa-hover cursor-pointer',
+          isSelected && 'ring-2 ring-accent',
+          isPrivate && 'bg-muted/60'
+        )}
+        onClick={handleCardClick}
+      >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           {isRenaming ? (
             <div className="flex items-center gap-2 flex-1 mr-2">
