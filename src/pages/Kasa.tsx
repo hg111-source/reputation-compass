@@ -21,13 +21,18 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Loader2, Check, AlertCircle, Building2, Link2, Star, RefreshCw, ExternalLink } from 'lucide-react';
+import { Search, Loader2, Check, AlertCircle, Building2, Link2, Star, RefreshCw, ExternalLink, Hotel, Home } from 'lucide-react';
 import { ReviewSource } from '@/lib/types';
 
 interface DiscoveredProperty {
   url: string;
   slug: string;
   name: string;
+  city: string;
+  state: string;
+  type: 'hotel' | 'apartment' | 'unknown';
+  rating: number | null;
+  reviewCount: number | null;
   selected: boolean;
   matchedPropertyId?: string;
   matchedPropertyName?: string;
@@ -91,7 +96,16 @@ export default function Kasa() {
       }
 
       // Match discovered properties to existing ones
-      const matched: DiscoveredProperty[] = data.properties.map((prop: { url: string; slug: string; name: string }) => {
+      const matched: DiscoveredProperty[] = data.properties.map((prop: { 
+        url: string; 
+        slug: string; 
+        name: string;
+        city?: string;
+        state?: string;
+        type?: 'hotel' | 'apartment' | 'unknown';
+        rating?: number | null;
+        reviewCount?: number | null;
+      }) => {
         const normalizedDiscoveredName = normalizeHotelName(prop.name);
         
         let matchedProperty = null;
@@ -118,6 +132,11 @@ export default function Kasa() {
 
         return {
           ...prop,
+          city: prop.city || '',
+          state: prop.state || '',
+          type: prop.type || 'unknown',
+          rating: prop.rating ?? null,
+          reviewCount: prop.reviewCount ?? null,
           selected: true,
           matchedPropertyId: matchedProperty?.id,
           matchedPropertyName: matchedProperty?.name,
@@ -411,45 +430,86 @@ export default function Kasa() {
                 </Button>
               </div>
 
-              <ScrollArea className="h-[400px] border rounded-lg">
-                <div className="p-2 space-y-1">
-                  {discoveredProperties.map(prop => (
-                    <label
-                      key={prop.slug}
-                      className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                        prop.selected ? 'bg-primary/5 border border-primary/20' : 'hover:bg-muted/50'
-                      }`}
-                    >
-                      <Checkbox
-                        checked={prop.selected}
-                        onCheckedChange={() => toggleProperty(prop.slug)}
-                        className="mt-0.5"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium truncate">{prop.name}</span>
-                          {prop.matchedPropertyId && (
-                            <Badge variant="secondary" className="shrink-0">
-                              <Link2 className="h-3 w-3 mr-1" />
-                              Matched
-                            </Badge>
-                          )}
-                        </div>
-                        {prop.matchedPropertyName && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Will update: {prop.matchedPropertyName}
-                          </p>
-                        )}
-                        {!prop.matchedPropertyId && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Will create new property
-                          </p>
-                        )}
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </ScrollArea>
+              <div className="border rounded-lg overflow-hidden">
+                <ScrollArea className="h-[450px]">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead className="w-12"></TableHead>
+                        <TableHead>Property Name</TableHead>
+                        <TableHead>City</TableHead>
+                        <TableHead>State</TableHead>
+                        <TableHead className="text-center">Rating</TableHead>
+                        <TableHead className="text-center">Type</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {discoveredProperties.map(prop => (
+                        <TableRow 
+                          key={prop.slug}
+                          className={`cursor-pointer ${prop.selected ? 'bg-primary/5' : ''}`}
+                          onClick={() => toggleProperty(prop.slug)}
+                        >
+                          <TableCell>
+                            <Checkbox
+                              checked={prop.selected}
+                              onCheckedChange={() => toggleProperty(prop.slug)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium max-w-[250px]">
+                            <span className="truncate block">{prop.name}</span>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {prop.city || '—'}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {prop.state || '—'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {prop.rating ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+                                <span className="font-medium">{prop.rating.toFixed(1)}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {prop.type === 'hotel' ? (
+                              <Badge variant="secondary" className="gap-1">
+                                <Hotel className="h-3 w-3" />
+                                Hotel
+                              </Badge>
+                            ) : prop.type === 'apartment' ? (
+                              <Badge variant="outline" className="gap-1">
+                                <Home className="h-3 w-3" />
+                                Apt
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {prop.matchedPropertyId ? (
+                              <Badge variant="secondary" className="shrink-0">
+                                <Link2 className="h-3 w-3 mr-1" />
+                                Matched
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="shrink-0">
+                                New
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              </div>
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={resetImport}>
