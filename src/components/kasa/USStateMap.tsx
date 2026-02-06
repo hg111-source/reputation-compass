@@ -62,12 +62,12 @@ function getGlowColor(score: number | null): string {
 // Grid-based cartogram positions (approximating US geography)
 const STATE_POSITIONS: Record<string, { x: number; y: number }> = {
   AK: { x: 0, y: 0 }, ME: { x: 10, y: 0 },
-  WA: { x: 1, y: 1 }, MT: { x: 3, y: 1 }, ND: { x: 5, y: 1 }, MN: { x: 6, y: 1 }, WI: { x: 7, y: 1 }, MI: { x: 8, y: 1 }, VT: { x: 9, y: 1 }, NH: { x: 10, y: 1 },
-  OR: { x: 1, y: 2 }, ID: { x: 2, y: 2 }, WY: { x: 3, y: 2 }, SD: { x: 5, y: 2 }, IA: { x: 6, y: 2 }, IL: { x: 7, y: 2 }, IN: { x: 8, y: 2 }, NY: { x: 9, y: 2 }, MA: { x: 10, y: 2 },
-  NV: { x: 1, y: 3 }, UT: { x: 2, y: 3 }, CO: { x: 3, y: 3 }, NE: { x: 5, y: 3 }, KS: { x: 6, y: 3 }, MO: { x: 7, y: 3 }, OH: { x: 8, y: 3 }, PA: { x: 9, y: 3 }, NJ: { x: 10, y: 3 }, CT: { x: 11, y: 3 }, RI: { x: 11, y: 2 },
-  CA: { x: 0, y: 4 }, AZ: { x: 2, y: 4 }, NM: { x: 3, y: 4 }, OK: { x: 5, y: 4 }, AR: { x: 6, y: 4 }, KY: { x: 7, y: 4 }, WV: { x: 8, y: 4 }, VA: { x: 9, y: 4 }, MD: { x: 10, y: 4 }, DE: { x: 11, y: 4 },
-  HI: { x: 0, y: 6 }, TX: { x: 4, y: 5 }, LA: { x: 6, y: 5 }, MS: { x: 7, y: 5 }, TN: { x: 7, y: 4.5 }, NC: { x: 9, y: 5 }, SC: { x: 9, y: 5.5 }, DC: { x: 10, y: 5 },
-  AL: { x: 7, y: 6 }, GA: { x: 8, y: 6 }, FL: { x: 9, y: 7 },
+  WA: { x: 1, y: 1 }, MT: { x: 3, y: 1 }, ND: { x: 4, y: 1 }, MN: { x: 5, y: 1 }, WI: { x: 6, y: 1 }, MI: { x: 7, y: 1 }, VT: { x: 9, y: 1 }, NH: { x: 10, y: 1 },
+  OR: { x: 1, y: 2 }, ID: { x: 2, y: 2 }, WY: { x: 3, y: 2 }, SD: { x: 4, y: 2 }, IA: { x: 5, y: 2 }, IL: { x: 6, y: 2 }, IN: { x: 7, y: 2 }, OH: { x: 8, y: 2 }, NY: { x: 9, y: 2 }, MA: { x: 10, y: 2 }, RI: { x: 11, y: 2 },
+  NV: { x: 1, y: 3 }, UT: { x: 2, y: 3 }, CO: { x: 3, y: 3 }, NE: { x: 4, y: 3 }, KS: { x: 5, y: 3 }, MO: { x: 6, y: 3 }, KY: { x: 7, y: 3 }, WV: { x: 8, y: 3 }, PA: { x: 9, y: 3 }, NJ: { x: 10, y: 3 }, CT: { x: 11, y: 3 },
+  CA: { x: 0, y: 4 }, AZ: { x: 2, y: 4 }, NM: { x: 3, y: 4 }, OK: { x: 4, y: 4 }, AR: { x: 5, y: 4 }, TN: { x: 6, y: 4 }, VA: { x: 8, y: 4 }, MD: { x: 9, y: 4 }, DE: { x: 10, y: 4 }, DC: { x: 11, y: 4 },
+  HI: { x: 0, y: 6 }, TX: { x: 3, y: 5 }, LA: { x: 5, y: 5 }, MS: { x: 6, y: 5 }, AL: { x: 7, y: 5 }, GA: { x: 8, y: 5 }, NC: { x: 9, y: 5 }, SC: { x: 10, y: 5 },
+  FL: { x: 9, y: 6 },
 };
 
 const CELL_SIZE = 48;
