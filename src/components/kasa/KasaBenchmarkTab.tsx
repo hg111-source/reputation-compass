@@ -147,14 +147,18 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
       .sort((a, b) => (b.score10 ?? 0) - (a.score10 ?? 0));
   }, [properties, snapshots]);
 
-  // Score distribution for histogram
+  // Score distribution for histogram - granular 0.5 intervals
   const distribution = useMemo(() => {
     const ranges = [
       { label: '<6', min: 0, max: 6, count: 0 },
-      { label: '6-7', min: 6, max: 7, count: 0 },
-      { label: '7-8', min: 7, max: 8, count: 0 },
-      { label: '8-9', min: 8, max: 9, count: 0 },
-      { label: '9-10', min: 9, max: 10.01, count: 0 },
+      { label: '6.0-6.5', min: 6, max: 6.5, count: 0 },
+      { label: '6.5-7.0', min: 6.5, max: 7, count: 0 },
+      { label: '7.0-7.5', min: 7, max: 7.5, count: 0 },
+      { label: '7.5-8.0', min: 7.5, max: 8, count: 0 },
+      { label: '8.0-8.5', min: 8, max: 8.5, count: 0 },
+      { label: '8.5-9.0', min: 8.5, max: 9, count: 0 },
+      { label: '9.0-9.5', min: 9, max: 9.5, count: 0 },
+      { label: '9.5-10', min: 9.5, max: 10.01, count: 0 },
     ];
     
     metrics.scores.forEach(score => {
@@ -438,6 +442,7 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
                     <Cell 
                       key={`cell-${index}`} 
                       fill={
+                        entry.min >= 9.5 ? '#059669' :
                         entry.min >= 9 ? '#10b981' :
                         entry.min >= 8 ? '#3b82f6' :
                         entry.min >= 7 ? '#eab308' :
@@ -450,12 +455,13 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-4 mt-4 text-xs">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500" /> Needs Work</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500" /> Pleasant</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-500" /> Good</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500" /> Very Good</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500" /> Wonderful</span>
+          <div className="flex flex-wrap justify-center gap-4 mt-4 text-xs">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500" /> &lt;6 Needs Work</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500" /> 6-7 Pleasant</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-500" /> 7-8 Good</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500" /> 8-9 Very Good</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500" /> 9-9.5 Wonderful</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-600" /> 9.5+ Exceptional</span>
           </div>
         </CardContent>
       </Card>
