@@ -141,10 +141,18 @@ export async function parseExcelFile(file: File): Promise<ParsedProperty[]> {
         }
         
         // Parse data rows starting after the header (skip hidden rows)
+        // Limit to 100 properties maximum
+        const MAX_PROPERTIES = 100;
         const properties: ParsedProperty[] = [];
         let hiddenCount = 0;
         
         for (let i = headerRowIndex + 1; i < rawData.length; i++) {
+          // Stop if we've reached the limit
+          if (properties.length >= MAX_PROPERTIES) {
+            console.log(`[Excel Parser] Reached limit of ${MAX_PROPERTIES} properties, stopping`);
+            break;
+          }
+          
           // Skip hidden rows
           if (isRowHidden(i)) {
             hiddenCount++;
