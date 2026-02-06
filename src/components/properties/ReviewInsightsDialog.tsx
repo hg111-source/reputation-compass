@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { 
   Sparkles, MessageSquareText, ThumbsUp, AlertTriangle, 
-  Loader2, Download, RefreshCw, FileText
+  Loader2, Download, RefreshCw, FileText, CheckCircle2
 } from 'lucide-react';
 import {
   Dialog,
@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { useFetchReviews } from '@/hooks/useReviewAnalysis';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   usePropertyKeywordAnalysis, 
   usePropertyReviewCount 
@@ -25,6 +25,8 @@ interface ReviewInsightsDialogProps {
   onOpenChange: (open: boolean) => void;
   property: Property | null;
 }
+
+type FetchStep = 'idle' | 'tripadvisor' | 'google' | 'analyzing' | 'complete';
 
 const THEME_ICONS: Record<string, string> = {
   'clean': '🧹',
@@ -55,6 +57,14 @@ function getThemeIcon(theme: string): string {
   return THEME_ICONS.default;
 }
 
+const STEP_MESSAGES: Record<FetchStep, string> = {
+  idle: '',
+  tripadvisor: 'Fetching TripAdvisor reviews...',
+  google: 'Fetching Google reviews...',
+  analyzing: 'Analyzing keyword patterns...',
+  complete: 'Analysis complete!',
+};
+
 export function ReviewInsightsDialog({ 
   open, 
   onOpenChange, 
@@ -62,47 +72,81 @@ export function ReviewInsightsDialog({
 }: ReviewInsightsDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isFetching, setIsFetching] = useState(false);
+  const [step, setStep] = useState<FetchStep>('idle');
   const [progress, setProgress] = useState(0);
+  const [platformResults, setPlatformResults] = useState<{ platform: string; count: number }[]>([]);
 
   const { data: analysis, isLoading: analysisLoading, refetch: refetchAnalysis } = usePropertyKeywordAnalysis(property?.id ?? null);
   const { data: reviewCount = 0 } = usePropertyReviewCount(property?.id ?? null);
-  const fetchReviews = useFetchReviews();
 
   const handleFetchReviews = async () => {
     if (!property) return;
 
     try {
-      setIsFetching(true);
+      setPlatformResults([]);
+      
+      // Step 1: Fetch TripAdvisor reviews
+      setStep('tripadvisor');
       setProgress(10);
       
-      const progressInterval = setInterval(() => {
-        setProgress(p => Math.min(p + 5, 90));
-      }, 3000);
-
-      await fetchReviews.mutateAsync({
-        propertyId: property.id,
-        hotelName: property.name,
-        city: property.city,
-        platform: 'all',
-        maxReviews: 30,
+      const tripResponse = await supabase.functions.invoke('fetch-reviews', {
+        body: { 
+          propertyId: property.id,
+          hotelName: property.name,
+          city: property.city,
+          platform: 'tripadvisor',
+          maxReviews: 25,
+        },
       });
 
-      clearInterval(progressInterval);
-      setProgress(100);
+      if (tripResponse.data?.platforms) {
+        setPlatformResults(prev => [...prev, ...tripResponse.data.platforms]);
+      }
+      setProgress(35);
+
+      // Step 2: Fetch Google reviews
+      setStep('google');
+      
+      const googleResponse = await supabase.functions.invoke('fetch-reviews', {
+        body: { 
+          propertyId: property.id,
+          hotelName: property.name,
+          city: property.city,
+          platform: 'google',
+          maxReviews: 25,
+        },
+      });
+
+      if (googleResponse.data?.platforms) {
+        setPlatformResults(prev => [...prev, ...googleResponse.data.platforms]);
+      }
+      setProgress(70);
+
+      // Step 3: Analyze with keywords
+      setStep('analyzing');
+      setProgress(85);
 
       // Invalidate and refetch keyword analysis
       await queryClient.invalidateQueries({ queryKey: ['keyword-analysis', property.id] });
       await queryClient.invalidateQueries({ queryKey: ['review-count', property.id] });
       await refetchAnalysis();
 
+      setProgress(100);
+      setStep('complete');
+
+      const totalReviews = platformResults.reduce((sum, p) => sum + p.count, 0) + 
+        (tripResponse.data?.reviewCount || 0) + (googleResponse.data?.reviewCount || 0);
+
       toast({
-        title: 'Reviews fetched',
-        description: 'Keyword analysis has been updated.',
+        title: 'Reviews fetched & analyzed',
+        description: `Found ${totalReviews} reviews across platforms.`,
       });
 
-      setIsFetching(false);
-      setProgress(0);
+      // Reset after a moment
+      setTimeout(() => {
+        setStep('idle');
+        setProgress(0);
+      }, 1500);
 
     } catch (error) {
       console.error('Fetch error:', error);
@@ -111,7 +155,7 @@ export function ReviewInsightsDialog({
         title: 'Fetch failed',
         description: error instanceof Error ? error.message : 'Unknown error',
       });
-      setIsFetching(false);
+      setStep('idle');
       setProgress(0);
     }
   };
@@ -123,6 +167,8 @@ export function ReviewInsightsDialog({
       description: 'Keyword counts have been recalculated.',
     });
   };
+
+  const isFetching = step !== 'idle' && step !== 'complete';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -141,20 +187,79 @@ export function ReviewInsightsDialog({
 
         {/* Fetching State */}
         {isFetching && (
-          <div className="py-8 text-center space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-accent mx-auto" />
-            <div className="space-y-2">
-              <p className="font-medium">Fetching reviews from TripAdvisor & Google...</p>
-              <p className="text-sm text-muted-foreground">
-                This may take 60-90 seconds
-              </p>
+          <div className="py-8 space-y-6">
+            <div className="text-center space-y-4">
+              <Loader2 className="h-12 w-12 animate-spin text-accent mx-auto" />
+              <div className="space-y-2">
+                <p className="font-medium text-lg">{STEP_MESSAGES[step]}</p>
+                <p className="text-sm text-muted-foreground">
+                  This may take 60-90 seconds per platform
+                </p>
+              </div>
             </div>
+            
             <Progress value={progress} className="w-64 mx-auto" />
+
+            {/* Progress steps */}
+            <div className="max-w-xs mx-auto space-y-2">
+              <div className="flex items-center gap-3 text-sm">
+                {step === 'tripadvisor' ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                ) : platformResults.some(p => p.platform === 'tripadvisor') ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                ) : (
+                  <div className="h-4 w-4 rounded-full border-2 border-muted" />
+                )}
+                <span className={step === 'tripadvisor' ? 'text-foreground font-medium' : 'text-muted-foreground'}>
+                  TripAdvisor reviews
+                  {platformResults.find(p => p.platform === 'tripadvisor')?.count !== undefined && (
+                    <span className="ml-2 text-emerald-600">
+                      ({platformResults.find(p => p.platform === 'tripadvisor')?.count} found)
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                {step === 'google' ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                ) : platformResults.some(p => p.platform === 'google') ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                ) : (
+                  <div className="h-4 w-4 rounded-full border-2 border-muted" />
+                )}
+                <span className={step === 'google' ? 'text-foreground font-medium' : 'text-muted-foreground'}>
+                  Google reviews
+                  {platformResults.find(p => p.platform === 'google')?.count !== undefined && (
+                    <span className="ml-2 text-emerald-600">
+                      ({platformResults.find(p => p.platform === 'google')?.count} found)
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                {step === 'analyzing' ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                ) : (
+                  <div className="h-4 w-4 rounded-full border-2 border-muted" />
+                )}
+                <span className={step === 'analyzing' ? 'text-foreground font-medium' : 'text-muted-foreground'}>
+                  Keyword analysis
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Complete State (brief) */}
+        {step === 'complete' && (
+          <div className="py-8 text-center space-y-4">
+            <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto" />
+            <p className="font-medium text-lg">Analysis complete!</p>
           </div>
         )}
 
         {/* No Reviews Yet */}
-        {!isFetching && !analysis && reviewCount === 0 && (
+        {step === 'idle' && !analysis && reviewCount === 0 && (
           <div className="py-8 text-center space-y-6">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
               <MessageSquareText className="h-8 w-8 text-muted-foreground" />
@@ -169,11 +274,14 @@ export function ReviewInsightsDialog({
               <Download className="mr-2 h-4 w-4" />
               Fetch Reviews
             </Button>
+            <p className="text-xs text-muted-foreground">
+              Fetches ~25 recent reviews from TripAdvisor & Google
+            </p>
           </div>
         )}
 
         {/* Has Reviews but No Significant Keywords */}
-        {!isFetching && !analysis && reviewCount > 0 && (
+        {step === 'idle' && !analysis && reviewCount > 0 && (
           <div className="py-8 text-center space-y-6">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
               <FileText className="h-8 w-8 text-muted-foreground" />
@@ -192,7 +300,7 @@ export function ReviewInsightsDialog({
         )}
 
         {/* Analysis Results */}
-        {!isFetching && analysis && (
+        {(step === 'idle' || step === 'complete') && analysis && (
           <div className="space-y-6">
             {/* Summary */}
             <div className="rounded-lg border bg-muted/30 p-4">
