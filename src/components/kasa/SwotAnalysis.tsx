@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles, Target, AlertTriangle, Shield } from 'lucide-react';
+import { Sparkles, Target, AlertTriangle, Shield, ExternalLink, Trophy, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getScoreColor } from '@/lib/scoring';
 
 interface Property {
   id: string;
@@ -32,16 +33,21 @@ const TIERS = {
   pleasant: { min: 6.0, label: 'Pleasant' },
 };
 
+interface PropertyWithScore extends Property {
+  score10: number | null;
+  reviewCount: number;
+}
+
 export function SwotAnalysis({ properties, snapshots }: SwotAnalysisProps) {
   // Calculate all metrics for SWOT
   const swotData = useMemo(() => {
-    const propertyScores = properties.map(p => {
+    const propertyScores: PropertyWithScore[] = properties.map(p => {
       const snapshot = snapshots[p.id];
       const score5 = snapshot?.score_raw ?? p.kasa_aggregated_score;
       const score10 = score5 ? Number(score5) * 2 : null;
       const reviewCount = snapshot?.review_count ?? p.kasa_review_count ?? 0;
       return { ...p, score10, reviewCount };
-    }).filter(p => p.score10 !== null);
+    }).filter(p => p.score10 !== null) as PropertyWithScore[];
 
     // Count by tier
     const exceptional = propertyScores.filter(p => p.score10! >= 9.5);
@@ -104,10 +110,6 @@ export function SwotAnalysis({ properties, snapshots }: SwotAnalysisProps) {
       items.push(`${swotData.veryGoodPlus.length} of ${swotData.total} properties rated "Very Good" or higher (${swotData.veryGoodPlusPercent}%)`);
     }
 
-    if (swotData.exceptional.length > 0) {
-      items.push(`${swotData.exceptional.length} properties achieving "Exceptional" status (9.5+)`);
-    }
-
     if (swotData.avgScore >= 9.0) {
       items.push(`Portfolio average of ${swotData.avgScore.toFixed(2)} ranks in elite tier`);
     } else if (swotData.avgScore >= 8.5) {
@@ -143,60 +145,12 @@ export function SwotAnalysis({ properties, snapshots }: SwotAnalysisProps) {
       items.push(`${swotData.closeToExceptional.length} ${swotData.closeToExceptional.length === 1 ? 'property' : 'properties'} approaching "Exceptional" — within 0.5 points`);
     }
 
-    if (swotData.belowGood.length > 0 && swotData.belowGood.length <= 3) {
-      const lowest = swotData.belowGood[0];
-      items.push(`${lowest.name} at ${lowest.score10?.toFixed(1)} has clear improvement path`);
-    }
-
     if (swotData.lowReviewCount.length > 0 && swotData.lowReviewCount.length <= 5) {
       items.push(`${swotData.lowReviewCount.length} newer properties building review momentum`);
     }
 
     if (items.length === 0) {
       items.push('All properties performing strongly — focus on maintaining excellence');
-    }
-
-    return items.slice(0, 4);
-  }, [swotData]);
-
-  // Generate dynamic areas to watch
-  const areasToWatch = useMemo(() => {
-    const items: { text: string; context?: string }[] = [];
-
-    // Add lowest performers with context
-    swotData.lowestPerformers.forEach((p, i) => {
-      if (p.score10 && p.score10 < 8.0 && i < 2) {
-        let context = '';
-        if (p.reviewCount < 50) {
-          context = 'newer property, still ramping up';
-        } else if (p.reviewCount < 100) {
-          context = 'building review base';
-        }
-        items.push({ 
-          text: `${p.name} (${p.score10.toFixed(1)})`,
-          context 
-        });
-      }
-    });
-
-    // Low review count properties
-    if (swotData.lowReviewCount.length > 0) {
-      items.push({ 
-        text: `${swotData.lowReviewCount.length} ${swotData.lowReviewCount.length === 1 ? 'property' : 'properties'} with <50 reviews`,
-        context: 'need volume for reliable scores'
-      });
-    }
-
-    // Properties just above threshold
-    if (swotData.good.length > 0) {
-      items.push({
-        text: `${swotData.good.length} ${swotData.good.length === 1 ? 'property' : 'properties'} in "Good" tier (7.0-8.0)`,
-        context: 'platform-specific focus may help'
-      });
-    }
-
-    if (items.length === 0) {
-      items.push({ text: 'No significant concerns identified', context: 'maintain current standards' });
     }
 
     return items.slice(0, 4);
@@ -225,6 +179,33 @@ export function SwotAnalysis({ properties, snapshots }: SwotAnalysisProps) {
     return null;
   }
 
+  // Property row component for Top Performers and Areas to Watch
+  const PropertyRow = ({ property, variant }: { property: PropertyWithScore; variant: 'success' | 'warning' }) => {
+    const bgColor = variant === 'success' 
+      ? 'bg-emerald-100/50 dark:bg-emerald-900/30' 
+      : 'bg-amber-100/50 dark:bg-amber-900/30';
+    
+    return (
+      <div className={cn('flex items-center justify-between p-2 rounded-md mt-2', bgColor)}>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{property.name}</p>
+          <p className="text-xs text-muted-foreground">{property.city}, {property.state}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <p className={cn('text-sm font-semibold', getScoreColor(property.score10))}>{property.score10?.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">{property.reviewCount?.toLocaleString()} reviews</p>
+          </div>
+          {property.kasa_url && (
+            <a href={property.kasa_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -249,6 +230,26 @@ export function SwotAnalysis({ properties, snapshots }: SwotAnalysisProps) {
                 </li>
               ))}
             </ul>
+            
+            {/* Top Performers inline */}
+            {swotData.exceptional.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-emerald-200 dark:border-emerald-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    Top Performers (9.5+)
+                  </span>
+                </div>
+                <div className="max-h-32 overflow-y-auto">
+                  {swotData.exceptional.slice(0, 3).map(p => (
+                    <PropertyRow key={p.id} property={p} variant="success" />
+                  ))}
+                  {swotData.exceptional.length > 3 && (
+                    <p className="text-xs text-emerald-600 mt-2">+ {swotData.exceptional.length - 3} more</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Opportunities - Blue */}
@@ -273,19 +274,39 @@ export function SwotAnalysis({ properties, snapshots }: SwotAnalysisProps) {
               <AlertTriangle className="h-5 w-5 text-amber-600" />
               <h3 className="font-semibold text-amber-700 dark:text-amber-400">Areas to Watch</h3>
             </div>
-            <ul className="space-y-2">
-              {areasToWatch.map((item, i) => (
-                <li key={i} className="text-sm flex items-start gap-2">
-                  <span className="text-amber-600 mt-0.5">•</span>
-                  <span className="text-amber-900 dark:text-amber-100">
-                    {item.text}
-                    {item.context && (
-                      <span className="text-amber-600 dark:text-amber-400"> — {item.context}</span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            
+            {swotData.belowGood.length > 0 ? (
+              <>
+                <p className="text-sm text-amber-900 dark:text-amber-100 mb-2">
+                  {swotData.belowGood.length} {swotData.belowGood.length === 1 ? 'property' : 'properties'} scoring below 7.0
+                </p>
+                <div className="max-h-40 overflow-y-auto">
+                  {swotData.belowGood.map(p => (
+                    <PropertyRow key={p.id} property={p} variant="warning" />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-amber-900 dark:text-amber-100">
+                🎉 All properties scoring 7.0 or above!
+              </p>
+            )}
+            
+            {swotData.lowReviewCount.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  • {swotData.lowReviewCount.length} {swotData.lowReviewCount.length === 1 ? 'property' : 'properties'} with &lt;50 reviews — need volume for reliable scores
+                </p>
+              </div>
+            )}
+            
+            {swotData.good.length > 0 && (
+              <div className="mt-2">
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  • {swotData.good.length} {swotData.good.length === 1 ? 'property' : 'properties'} in "Good" tier (7.0-8.0) — platform focus may help
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Competitive Advantage - Teal */}
