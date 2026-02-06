@@ -184,11 +184,9 @@ export default function Upload() {
               </CardTitle>
               <CardDescription>
                 Required columns: <strong>Hotel Name</strong>, <strong>City</strong>, <strong>State</strong>
-                <br />
-                <span className="text-xs">Optional: Google Place ID, TripAdvisor URL, Booking URL, Expedia URL</span>
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-5">
               <div className="overflow-hidden rounded-xl border border-border">
                 <table className="w-full text-sm">
                   <thead className="bg-muted">
@@ -196,6 +194,7 @@ export default function Upload() {
                       <th className="px-5 py-4 text-left font-semibold">Hotel Name</th>
                       <th className="px-5 py-4 text-left font-semibold">City</th>
                       <th className="px-5 py-4 text-left font-semibold">State</th>
+                      <th className="px-5 py-4 text-left font-semibold text-muted-foreground">Website URL <span className="text-xs">(optional)</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -203,21 +202,36 @@ export default function Upload() {
                       <td className="px-5 py-4">The Grand Hotel</td>
                       <td className="px-5 py-4">New York</td>
                       <td className="px-5 py-4">NY</td>
+                      <td className="px-5 py-4 text-muted-foreground">https://...</td>
                     </tr>
                     <tr className="border-t border-border bg-muted/30">
                       <td className="px-5 py-4">Seaside Resort</td>
                       <td className="px-5 py-4">Miami</td>
                       <td className="px-5 py-4">FL</td>
+                      <td className="px-5 py-4 text-muted-foreground"></td>
                     </tr>
                     <tr className="border-t border-border">
                       <td className="px-5 py-4">Mountain Lodge</td>
                       <td className="px-5 py-4">Denver</td>
                       <td className="px-5 py-4">CO</td>
+                      <td className="px-5 py-4 text-muted-foreground">https://...</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              <p className="mt-5 text-sm text-muted-foreground">
+              
+              <div className="rounded-lg bg-muted/50 p-4">
+                <p className="text-sm font-medium mb-2">Optional columns:</p>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>• <strong>Website or known OTA URL(s)</strong> — Hotel website or any OTA link</li>
+                  <li>• <strong>Google Place ID</strong> — Direct Google Maps identifier</li>
+                  <li>• <strong>TripAdvisor URL</strong> — TripAdvisor property page</li>
+                  <li>• <strong>Booking URL</strong> — Booking.com property page</li>
+                  <li>• <strong>Expedia URL</strong> — Expedia property page</li>
+                </ul>
+              </div>
+              
+              <p className="text-xs text-muted-foreground">
                 Column headers must match exactly. Additional columns will be ignored.
               </p>
             </CardContent>
