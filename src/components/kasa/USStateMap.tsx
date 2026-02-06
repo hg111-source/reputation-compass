@@ -242,9 +242,6 @@ export function USStateMap({ stateData }: USStateMapProps) {
         <div className="space-y-3 mt-6">
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
             <span className="flex items-center gap-1.5">
-              <span className="w-3.5 h-3.5 rounded-full shadow-sm" style={{ backgroundColor: '#059669' }} /> 9.5+ Exceptional
-            </span>
-            <span className="flex items-center gap-1.5">
               <span className="w-3.5 h-3.5 rounded-full shadow-sm" style={{ backgroundColor: '#10b981' }} /> 9+ Wonderful
             </span>
             <span className="flex items-center gap-1.5">
