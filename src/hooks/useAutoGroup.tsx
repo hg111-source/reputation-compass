@@ -54,13 +54,13 @@ export function useAutoGroup() {
       }));
   };
 
-  // Score Legend tiers matching the UI
+  // Score Legend tiers with exact ranges
   const SCORE_TIERS = [
-    { name: 'Wonderful (9+)', min: 9.0 },
-    { name: 'Very Good (8+)', min: 8.0 },
-    { name: 'Good (7+)', min: 7.0 },
-    { name: 'Pleasant (6+)', min: 6.0 },
-    { name: 'Needs Work (<6)', min: 0 },
+    { name: 'Wonderful (9.0+)', min: 9.0, max: 10 },
+    { name: 'Very Good (8.0-8.99)', min: 8.0, max: 8.99 },
+    { name: 'Good (7.0-7.99)', min: 7.0, max: 7.99 },
+    { name: 'Pleasant (6.0-6.99)', min: 6.0, max: 6.99 },
+    { name: 'Needs Work (0-5.99)', min: 0, max: 5.99 },
   ];
 
   const groupByScore = (properties: Property[], scores: ScoreData): GroupDefinition[] => {
@@ -74,27 +74,30 @@ export function useAutoGroup() {
     for (const property of properties) {
       const { avgScore } = calculatePropertyMetrics(scores[property.id]);
       
-      // Find the right tier
-      let tierName = 'Needs Work (<6)';
+      // Find the right tier based on score
+      let tierName = 'Needs Work (0-5.99)';
       if (avgScore !== null) {
-        for (const tier of SCORE_TIERS) {
-          if (avgScore >= tier.min) {
-            tierName = tier.name;
-            break;
-          }
+        if (avgScore >= 9.0) {
+          tierName = 'Wonderful (9.0+)';
+        } else if (avgScore >= 8.0) {
+          tierName = 'Very Good (8.0-8.99)';
+        } else if (avgScore >= 7.0) {
+          tierName = 'Good (7.0-7.99)';
+        } else if (avgScore >= 6.0) {
+          tierName = 'Pleasant (6.0-6.99)';
+        } else {
+          tierName = 'Needs Work (0-5.99)';
         }
       }
       
       buckets.get(tierName)!.push(property.id);
     }
 
-    // Return only non-empty groups, in order
-    return SCORE_TIERS
-      .map(tier => ({
-        name: tier.name,
-        propertyIds: buckets.get(tier.name) || [],
-      }))
-      .filter(g => g.propertyIds.length > 0);
+    // Return ALL groups including empty ones (for future use)
+    return SCORE_TIERS.map(tier => ({
+      name: tier.name,
+      propertyIds: buckets.get(tier.name) || [],
+    }));
   };
 
   const groupByScoreWithThresholds = (
