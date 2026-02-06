@@ -10,6 +10,9 @@ export interface Property {
   tripadvisor_url?: string | null;
   expedia_url?: string | null;
   google_place_id?: string | null;
+  kasa_aggregated_score?: number | null;
+  kasa_review_count?: number | null;
+  kasa_url?: string | null;
 }
  
 export interface Group {
