@@ -333,48 +333,6 @@ export function GeographicAnalysis({ properties, snapshots }: GeographicAnalysis
           </CardContent>
         </Card>
       </div>
-
-      {/* City Breakdown Full Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Cities Breakdown</CardTitle>
-          <CardDescription>Complete city-by-city performance ({cityMetrics.length} cities)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="max-h-96 overflow-y-auto">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background">
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>City</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead className="text-center">Props</TableHead>
-                  <TableHead className="text-center">Avg Score</TableHead>
-                  <TableHead className="text-right">Reviews</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cityMetrics.map((city, idx) => (
-                  <TableRow key={city.city}>
-                    <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                    <TableCell className="font-medium">{city.city.split(',')[0]}</TableCell>
-                    <TableCell className="text-muted-foreground">{city.state}</TableCell>
-                    <TableCell className="text-center">{city.propertyCount}</TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn('font-semibold', getScoreColor(city.avgScore))}>
-                        {city.avgScore?.toFixed(2)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {city.totalReviews.toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
