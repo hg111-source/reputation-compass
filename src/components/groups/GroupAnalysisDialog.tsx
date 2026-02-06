@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, ThumbsUp, AlertTriangle, Loader2, FileText } from 'lucide-react';
+import { Sparkles, ThumbsUp, AlertTriangle, Loader2, FileText, RefreshCw, Download } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -7,15 +7,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { useGroupReviewAnalysis } from '@/hooks/useReviewAnalysis';
-
-interface ThemeResult {
-  theme: string;
-  count: number;
-  quote: string;
-}
+import { 
+  useGroupKeywordAnalysis, 
+  useGroupReviewCount 
+} from '@/hooks/useKeywordAnalysis';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface GroupAnalysisDialogProps {
   open: boolean;
@@ -26,21 +23,22 @@ interface GroupAnalysisDialogProps {
 
 const THEME_ICONS: Record<string, string> = {
   'clean': '🧹',
-  'room': '🏨',
   'staff': '👤',
   'location': '📍',
-  'breakfast': '🍳',
-  'amenities': '🛁',
-  'wifi': '📶',
-  'parking': '🅿️',
-  'noise': '🔊',
-  'price': '💰',
-  'service': '🛎️',
-  'bed': '🛏️',
-  'bathroom': '🚿',
-  'view': '🌅',
-  'pool': '🏊',
+  'comfortable': '🛏️',
   'food': '🍽️',
+  'quiet': '🔇',
+  'spacious': '📐',
+  'modern': '✨',
+  'cozy': '🏠',
+  'service': '🛎️',
+  'noise': '🔊',
+  'temperature': '🌡️',
+  'price': '💰',
+  'room': '🚪',
+  'outdated': '📅',
+  'crowded': '👥',
+  'odor': '👃',
   'default': '📝',
 };
 
@@ -59,50 +57,31 @@ export function GroupAnalysisDialog({
   groupName,
 }: GroupAnalysisDialogProps) {
   const { toast } = useToast();
-  const { analyze, isAnalyzing } = useGroupReviewAnalysis(groupId);
-  const [progress, setProgress] = useState(0);
-  const [analysis, setAnalysis] = useState<{
-    positive_themes: ThemeResult[];
-    negative_themes: ThemeResult[];
-    summary: string;
-    review_count: number;
-    breakdown?: {
-      positive_reviews: number;
-      negative_reviews: number;
-      neutral_reviews: number;
-    };
-  } | null>(null);
+  const queryClient = useQueryClient();
+  
+  const { data: analysis, isLoading, refetch } = useGroupKeywordAnalysis(groupId);
+  const { data: reviewCount = 0 } = useGroupReviewCount(groupId);
 
-  const handleAnalyze = async () => {
-    try {
-      setProgress(10);
-      const interval = setInterval(() => {
-        setProgress(p => Math.min(p + 5, 90));
-      }, 2000);
-
-      const result = await analyze();
-      
-      clearInterval(interval);
-      setProgress(100);
-
-      if (result?.analysis) {
-        setAnalysis(result.analysis);
-        toast({
-          title: 'Analysis complete',
-          description: `Analyzed reviews across the group.`,
-        });
-      }
-      
-      setTimeout(() => setProgress(0), 500);
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Analysis failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-      });
-      setProgress(0);
-    }
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['group-keyword-analysis', groupId] });
+    refetch();
+    toast({
+      title: 'Analysis refreshed',
+      description: 'Portfolio keyword analysis has been recalculated.',
+    });
   };
+
+  // Generate portfolio summary from themes
+  const getPortfolioSummary = () => {
+    if (!analysis) return null;
+    
+    const strengths = analysis.positiveThemes.slice(0, 3).map(t => t.theme);
+    const concerns = analysis.negativeThemes.slice(0, 3).map(t => t.theme);
+    
+    return { strengths, concerns };
+  };
+
+  const summary = getPortfolioSummary();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -110,77 +89,92 @@ export function GroupAnalysisDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-accent" />
-            Group Review Analysis
+            Portfolio Review Analysis
             <span className="text-muted-foreground font-normal">
               — {groupName}
             </span>
           </DialogTitle>
         </DialogHeader>
 
-        {/* Analyzing State */}
-        {isAnalyzing && (
+        {/* Loading State */}
+        {isLoading && (
           <div className="py-8 text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-accent mx-auto" />
-            <div className="space-y-2">
-              <p className="font-medium">Analyzing reviews with AI...</p>
-              <p className="text-sm text-muted-foreground">
-                This may take 15-30 seconds
-              </p>
-            </div>
-            <Progress value={progress} className="w-64 mx-auto" />
+            <p className="text-muted-foreground">Analyzing reviews across portfolio...</p>
           </div>
         )}
 
-        {/* No Analysis Yet */}
-        {!isAnalyzing && !analysis && (
+        {/* No Reviews */}
+        {!isLoading && reviewCount === 0 && (
           <div className="py-8 text-center space-y-6">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
               <Sparkles className="h-8 w-8 text-muted-foreground" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-semibold">Analyze Portfolio Themes</h3>
+              <h3 className="text-xl font-semibold">No reviews in portfolio</h3>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Identify common themes across all properties in this group to understand portfolio-wide trends.
+                Fetch reviews for individual properties first to see portfolio-wide analysis.
               </p>
             </div>
-            <Button variant="secondary" size="lg" onClick={handleAnalyze}>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Analyze Group Reviews
+          </div>
+        )}
+
+        {/* Has Reviews but No Patterns */}
+        {!isLoading && !analysis && reviewCount > 0 && (
+          <div className="py-8 text-center space-y-6">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <FileText className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold">{reviewCount} reviews available</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                No significant keyword patterns detected across the portfolio.
+              </p>
+            </div>
+            <Button variant="outline" onClick={handleRefresh}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry Analysis
             </Button>
-            <p className="text-xs text-muted-foreground">
-              Requires reviews to be fetched for properties in this group first
-            </p>
           </div>
         )}
 
         {/* Analysis Results */}
-        {!isAnalyzing && analysis && (
+        {!isLoading && analysis && (
           <div className="space-y-6">
-            {/* Summary */}
+            {/* Portfolio Summary */}
             <div className="rounded-lg border bg-muted/30 p-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10">
                   <FileText className="h-5 w-5 text-accent" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium">📝 Portfolio Assessment</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {analysis.summary || 'No summary available.'}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
-                      {analysis.review_count} reviews analyzed
-                    </span>
-                    {analysis.breakdown && (
-                      <>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5">
-                          {analysis.breakdown.positive_reviews} positive
+                  <p className="font-medium">📊 Portfolio Assessment</p>
+                  <div className="mt-3 space-y-2">
+                    {summary && summary.strengths.length > 0 && (
+                      <p className="text-sm">
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                          Portfolio Strengths:
+                        </span>{' '}
+                        <span className="text-muted-foreground">
+                          {summary.strengths.join(', ')}
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 px-2 py-0.5">
-                          {analysis.breakdown.negative_reviews} negative
-                        </span>
-                      </>
+                      </p>
                     )}
+                    {summary && summary.concerns.length > 0 && (
+                      <p className="text-sm">
+                        <span className="font-medium text-orange-600 dark:text-orange-400">
+                          Portfolio Concerns:
+                        </span>{' '}
+                        <span className="text-muted-foreground">
+                          {summary.concerns.join(', ')}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
+                      {analysis.totalReviews} reviews analyzed
+                    </span>
                   </div>
                 </div>
               </div>
@@ -193,8 +187,8 @@ export function GroupAnalysisDialog({
                 <h4 className="font-semibold">✅ Portfolio Strengths</h4>
               </div>
               <div className="space-y-2">
-                {analysis.positive_themes.length > 0 ? (
-                  analysis.positive_themes.map((item, idx) => (
+                {analysis.positiveThemes.length > 0 ? (
+                  analysis.positiveThemes.map((item, idx) => (
                     <div
                       key={idx}
                       className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 p-3"
@@ -208,15 +202,17 @@ export function GroupAnalysisDialog({
                           {item.count} mentions
                         </span>
                       </div>
-                      {item.quote && (
-                        <p className="mt-2 text-sm text-muted-foreground italic border-l-2 border-emerald-300 dark:border-emerald-700 pl-3">
-                          "{item.quote}"
+                      {item.exampleReview && (
+                        <p className="mt-2 text-sm text-muted-foreground italic border-l-2 border-emerald-300 dark:border-emerald-700 pl-3 line-clamp-2">
+                          "{item.exampleReview}..."
                         </p>
                       )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No positive themes found.</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    No positive patterns detected across portfolio.
+                  </p>
                 )}
               </div>
             </div>
@@ -228,8 +224,8 @@ export function GroupAnalysisDialog({
                 <h4 className="font-semibold">⚠️ Portfolio-Wide Issues</h4>
               </div>
               <div className="space-y-2">
-                {analysis.negative_themes.length > 0 ? (
-                  analysis.negative_themes.map((item, idx) => (
+                {analysis.negativeThemes.length > 0 ? (
+                  analysis.negativeThemes.map((item, idx) => (
                     <div
                       key={idx}
                       className="rounded-lg border border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/30 p-3"
@@ -243,24 +239,26 @@ export function GroupAnalysisDialog({
                           {item.count} mentions
                         </span>
                       </div>
-                      {item.quote && (
-                        <p className="mt-2 text-sm text-muted-foreground italic border-l-2 border-orange-300 dark:border-orange-700 pl-3">
-                          "{item.quote}"
+                      {item.exampleReview && (
+                        <p className="mt-2 text-sm text-muted-foreground italic border-l-2 border-orange-300 dark:border-orange-700 pl-3 line-clamp-2">
+                          "{item.exampleReview}..."
                         </p>
                       )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No negative themes found.</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    No negative patterns detected across portfolio.
+                  </p>
                 )}
               </div>
             </div>
 
             {/* Re-analyze button */}
             <div className="pt-2 border-t">
-              <Button variant="outline" size="sm" onClick={handleAnalyze}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Re-analyze
+              <Button variant="outline" size="sm" onClick={handleRefresh}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh Analysis
               </Button>
             </div>
           </div>
