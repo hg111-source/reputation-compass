@@ -758,13 +758,14 @@ export default function Kasa() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedKasaProperties.map(property => {
+                {sortedKasaProperties.map(property => {
                     const snapshot = kasaSnapshots[property.id];
                     const score = snapshot?.score_raw ?? property.kasa_aggregated_score;
                     const reviewCount = snapshot?.review_count ?? property.kasa_review_count;
+                    const isHotel = getPropertyType(property.kasa_url) === 'Hotel';
                     
                     return (
-                      <TableRow key={property.id}>
+                      <TableRow key={property.id} className={isHotel ? 'bg-muted/30' : ''}>
                         <TableCell className="font-medium">{property.name}</TableCell>
                         <TableCell className="text-muted-foreground">
                           {property.city}{property.state ? `, ${property.state}` : ''}
