@@ -2,9 +2,10 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Building2 } from 'lucide-react';
+import { MapPin, Building2, Map } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getScoreColor } from '@/lib/scoring';
+import { USStateMap } from './USStateMap';
 import {
   BarChart,
   Bar,
@@ -158,12 +159,28 @@ export function GeographicAnalysis({ properties, snapshots }: GeographicAnalysis
         <h2 className="text-xl font-semibold">Geographic Analysis</h2>
       </div>
 
-      {/* State Heatmap Table */}
+      {/* US State Map */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Map className="h-5 w-5" />
+            Performance by State
+          </CardTitle>
+          <CardDescription>
+            Hover over states to see details • {stateMetrics.length} states with properties
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <USStateMap stateData={stateMetrics} />
+        </CardContent>
+      </Card>
+
+      {/* State Rankings Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5" />
-            Performance by State
+            State Rankings
           </CardTitle>
           <CardDescription>
             {stateMetrics.length} states ranked by average score
