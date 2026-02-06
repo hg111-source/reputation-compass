@@ -183,7 +183,7 @@ export default function Upload() {
                 File Format
               </CardTitle>
               <CardDescription>
-                Required columns: <strong>Name</strong> (or Hotel Name), <strong>City</strong>, <strong>State</strong>
+                Required columns: <strong>Name</strong>, <strong>City</strong>, <strong>State</strong>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
