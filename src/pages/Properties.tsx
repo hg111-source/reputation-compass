@@ -34,7 +34,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Plus, Building2, RefreshCw, Download, LayoutGrid, TableIcon } from 'lucide-react';
+import { Plus, Building2, RefreshCw, Download, LayoutGrid, TableIcon, Home } from 'lucide-react';
 import googleLogo from '@/assets/logos/google.svg';
 import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
 import bookingLogo from '@/assets/logos/booking.png';
@@ -51,6 +51,7 @@ import { calculatePropertyMetrics } from '@/lib/scoring';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { HotelAutocomplete } from '@/components/properties/HotelAutocomplete';
+import { AirbnbDiscoveryDialog } from '@/components/properties/AirbnbDiscoveryDialog';
 
 type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 type ViewMode = 'table' | 'card';
@@ -68,6 +69,7 @@ export default function Properties() {
   const [insightsProperty, setInsightsProperty] = useState<Property | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
+  const [isAirbnbDiscoveryOpen, setIsAirbnbDiscoveryOpen] = useState(false);
   
   // Form state for controlled inputs
   const [formName, setFormName] = useState('');
@@ -307,6 +309,13 @@ export default function Properties() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsAirbnbDiscoveryOpen(true)}
+            >
+              <Home className="mr-2 h-4 w-4" />
+              Discover Airbnb
+            </Button>
             {properties.length > 0 && (
               <>
                 <Button
@@ -640,6 +649,12 @@ export default function Properties() {
           property={insightsProperty}
           open={!!insightsProperty}
           onOpenChange={(open) => !open && setInsightsProperty(null)}
+        />
+
+        {/* Airbnb discovery dialog */}
+        <AirbnbDiscoveryDialog
+          open={isAirbnbDiscoveryOpen}
+          onOpenChange={setIsAirbnbDiscoveryOpen}
         />
       </div>
     </DashboardLayout>
