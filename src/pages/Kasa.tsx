@@ -29,8 +29,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, Star, ExternalLink, TrendingUp, MapPin, Building2, Home, Info } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ScoreLegend } from '@/components/properties/ScoreLegend';
+
+// Score tier helper function
+function getScoreTier(score10: number): { label: string; bgClass: string; textClass: string } {
+  if (score10 >= 9) return { label: 'Wonderful', bgClass: 'bg-emerald-50 dark:bg-emerald-950/30', textClass: 'text-emerald-700 dark:text-emerald-400' };
+  if (score10 >= 8) return { label: 'Very Good', bgClass: 'bg-teal-50 dark:bg-teal-950/30', textClass: 'text-teal-700 dark:text-teal-400' };
+  if (score10 >= 7) return { label: 'Good', bgClass: 'bg-yellow-50 dark:bg-yellow-950/30', textClass: 'text-yellow-700 dark:text-yellow-400' };
+  if (score10 >= 6) return { label: 'Pleasant', bgClass: 'bg-orange-50 dark:bg-orange-950/30', textClass: 'text-orange-700 dark:text-orange-400' };
+  return { label: 'Needs Work', bgClass: 'bg-red-50 dark:bg-red-950/30', textClass: 'text-red-700 dark:text-red-400' };
+}
 import { ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { TableHead } from '@/components/ui/table';
@@ -820,7 +830,7 @@ export default function Kasa() {
                 {displayStats.avgScore !== null ? (
                   <>
                     <Star className="h-6 w-6 fill-primary text-primary" />
-                    {displayStats.avgScore.toFixed(2)}/5
+                    {(displayStats.avgScore * 2).toFixed(2)}/10
                   </>
                 ) : (
                   '—'
@@ -856,20 +866,23 @@ export default function Kasa() {
                   }
                 </CardDescription>
               </div>
-              <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger className="w-[220px]">
-                  <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <SelectValue placeholder="Filter by location" />
-                </SelectTrigger>
-                <SelectContent className="bg-background">
-                  <SelectItem value="all">All Locations ({kasaProperties.length})</SelectItem>
-                  {locationOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-4">
+                <ScoreLegend />
+                <Select value={locationFilter} onValueChange={setLocationFilter}>
+                  <SelectTrigger className="w-[220px]">
+                    <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Filter by location" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background">
+                    <SelectItem value="all">All Locations ({kasaProperties.length})</SelectItem>
+                    {locationOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -933,12 +946,17 @@ export default function Kasa() {
                 <TableBody>
                 {sortedKasaProperties.map(property => {
                     const snapshot = kasaSnapshots[property.id];
-                    const score = snapshot?.score_raw ?? property.kasa_aggregated_score;
+                    const score5 = snapshot?.score_raw ?? property.kasa_aggregated_score;
+                    const score10 = score5 ? Number(score5) * 2 : null;
                     const reviewCount = snapshot?.review_count ?? property.kasa_review_count;
                     const isHotel = getPropertyType(property.kasa_url) === 'Hotel';
+                    const tier = score10 ? getScoreTier(score10) : null;
                     
                     return (
-                      <TableRow key={property.id} className={isHotel ? 'bg-muted/30' : ''}>
+                      <TableRow 
+                        key={property.id} 
+                        className={tier ? tier.bgClass : (isHotel ? 'bg-muted/30' : '')}
+                      >
                         <TableCell className="font-medium">{property.name}</TableCell>
                         <TableCell className="text-muted-foreground">
                           {property.city}{property.state ? `, ${property.state}` : ''}
@@ -960,10 +978,15 @@ export default function Kasa() {
                           })()}
                         </TableCell>
                         <TableCell className="text-center">
-                          {score ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <Star className="h-4 w-4 fill-primary text-primary" />
-                              <span className="font-medium">{Number(score).toFixed(2)}</span>
+                          {score10 !== null && tier ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <div className="flex items-center gap-1">
+                                <Star className={`h-4 w-4 fill-current ${tier.textClass}`} />
+                                <span className={`font-semibold ${tier.textClass}`}>
+                                  {score10.toFixed(2)}/10
+                                </span>
+                              </div>
+                              <span className={`text-xs ${tier.textClass}`}>{tier.label}</span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">—</span>
