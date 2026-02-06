@@ -33,34 +33,38 @@ export function useLatestPropertyScores(propertyIds: string[]) {
     queryFn: async () => {
       if (propertyIds.length === 0) return {};
       
+      // BATCH QUERY: Fetch ALL snapshots for all properties in ONE call
+      const { data: allSnapshots, error } = await supabase
+        .from('source_snapshots')
+        .select('*')
+        .in('property_id', propertyIds)
+        .order('collected_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Process client-side: group by property and find latest per source
       const results: Record<string, Record<ReviewSource, PlatformScore>> = {};
       
+      // Initialize empty records for all properties
       for (const propertyId of propertyIds) {
-        const { data, error } = await supabase
-          .from('source_snapshots')
-          .select('*')
-          .eq('property_id', propertyId)
-          .order('collected_at', { ascending: false });
-        
-        if (error) throw error;
-        
-        const latestBySource: Record<string, SourceSnapshot & { status?: string }> = {};
-        for (const snapshot of data || []) {
-          if (!latestBySource[snapshot.source]) {
-            latestBySource[snapshot.source] = snapshot as SourceSnapshot & { status?: string };
-          }
-        }
-        
         results[propertyId] = {} as Record<ReviewSource, PlatformScore>;
-        for (const [source, snapshot] of Object.entries(latestBySource)) {
-          const snapshotWithStatus = snapshot as SourceSnapshot & { status?: string };
-          results[propertyId][source as ReviewSource] = {
-            score: snapshotWithStatus.normalized_score_0_10,
-            count: snapshotWithStatus.review_count,
-            updated: snapshotWithStatus.collected_at,
-            status: (snapshotWithStatus.status as 'found' | 'not_listed') || 'found',
-          };
-        }
+      }
+      
+      // Since data is ordered by collected_at desc, first occurrence per property/source is latest
+      const seenKeys = new Set<string>();
+      
+      for (const snapshot of allSnapshots || []) {
+        const key = `${snapshot.property_id}:${snapshot.source}`;
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
+        
+        const snapshotWithStatus = snapshot as SourceSnapshot & { status?: string };
+        results[snapshot.property_id][snapshot.source as ReviewSource] = {
+          score: snapshotWithStatus.normalized_score_0_10,
+          count: snapshotWithStatus.review_count,
+          updated: snapshotWithStatus.collected_at,
+          status: (snapshotWithStatus.status as 'found' | 'not_listed') || 'found',
+        };
       }
       
       return results;
