@@ -29,7 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, Star, ExternalLink, TrendingUp, MapPin, Building2, Home } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, TrendingUp, MapPin, Building2, Home, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { TableHead } from '@/components/ui/table';
@@ -801,7 +802,19 @@ export default function Kasa() {
             <CardHeader className="pb-2">
               <CardDescription className="flex items-center gap-2">
                 Portfolio Average
-                <TrendingUp className="h-3 w-3" />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-sm" side="top">
+                      <p className="font-medium mb-1">Simple average of all property scores.</p>
+                      <p className="text-muted-foreground">
+                        Each property's imported score from Kasa.com is assumed to already be a weighted average of reviews across platforms, so we don't double-weight by review count here.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </CardDescription>
               <CardTitle className="text-3xl flex items-center gap-2">
                 {displayStats.avgScore !== null ? (
