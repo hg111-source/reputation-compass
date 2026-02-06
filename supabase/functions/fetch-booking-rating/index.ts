@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { analyzeHotelMatch, generateSearchQueries } from "../_shared/hotelNameUtils.ts";
 
 const corsHeaders = {
@@ -179,11 +180,61 @@ serve(async (req) => {
       throw new Error('APIFY_API_TOKEN is not configured');
     }
 
-    const { hotelName, city, startUrl } = await req.json();
-    
-    if (!hotelName || !city) {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { propertyId, hotelName: directHotelName, city: directCity, startUrl: directStartUrl } = await req.json();
+
+    let hotelName: string;
+    let city: string;
+    let startUrl: string | null = null;
+
+    // Support both old (hotelName, city) and new (propertyId) interfaces
+    if (propertyId) {
+      // New interface: look up property and alias data
+      const { data: property, error: propError } = await supabase
+        .from('properties')
+        .select('name, city, state')
+        .eq('id', propertyId)
+        .single();
+
+      if (propError || !property) {
+        return new Response(
+          JSON.stringify({ success: false, status: 'no_property', error: 'Property not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      hotelName = property.name;
+      city = `${property.city}, ${property.state}`;
+
+      // Get alias for direct URL if available
+      const { data: alias } = await supabase
+        .from('hotel_aliases')
+        .select('platform_url, resolution_status')
+        .eq('property_id', propertyId)
+        .eq('source', 'booking')
+        .maybeSingle();
+
+      if (alias?.resolution_status === 'not_listed') {
+        return new Response(
+          JSON.stringify({ success: true, status: 'not_listed' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      startUrl = alias?.platform_url || null;
+      console.log(`Booking lookup for property ${propertyId}: ${hotelName} in ${city}, URL: ${startUrl || 'none'}`);
+    } else if (directHotelName && directCity) {
+      // Old interface: direct parameters
+      hotelName = directHotelName;
+      city = directCity;
+      startUrl = directStartUrl || null;
+    } else {
       return new Response(
-        JSON.stringify({ error: 'hotelName and city are required' }),
+        JSON.stringify({ error: 'propertyId OR (hotelName and city) are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -223,10 +274,35 @@ serve(async (req) => {
 
     if (!bestMatch) {
       console.log(`No results found for ${hotelName} after trying all methods`);
+      
+      // Save not_listed status if using propertyId
+      if (propertyId) {
+        await supabase.from('source_snapshots').insert({
+          property_id: propertyId,
+          source: 'booking',
+          score_raw: null,
+          score_scale: 10,
+          review_count: 0,
+          normalized_score_0_10: null,
+          status: 'not_listed',
+        });
+
+        // Update alias status
+        await supabase
+          .from('hotel_aliases')
+          .upsert({
+            property_id: propertyId,
+            source: 'booking',
+            resolution_status: 'not_listed',
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'property_id,source' });
+      }
+
       return new Response(
         JSON.stringify({ 
+          success: true,
           found: false,
-          notListed: true,
+          status: 'not_listed',
           message: 'Hotel not listed on Booking.com' 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -239,9 +315,37 @@ serve(async (req) => {
     const rating = bestMatch.reviewScore || bestMatch.score || bestMatch.rating || null;
     const reviewCount = bestMatch.reviewCount || bestMatch.numberOfReviews || bestMatch.reviews || 0;
 
+    // Save snapshot if using propertyId
+    if (propertyId && rating !== null) {
+      await supabase.from('source_snapshots').insert({
+        property_id: propertyId,
+        source: 'booking',
+        score_raw: rating,
+        score_scale: 10,
+        review_count: reviewCount,
+        normalized_score_0_10: rating, // Booking uses 0-10 scale
+        status: 'found',
+      });
+
+      // Update alias with verified status and URL
+      await supabase
+        .from('hotel_aliases')
+        .upsert({
+          property_id: propertyId,
+          source: 'booking',
+          resolution_status: 'verified',
+          platform_url: bestMatch.url || startUrl,
+          source_name_raw: bestMatch.name,
+          last_verified_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'property_id,source' });
+    }
+
     return new Response(
       JSON.stringify({
+        success: true,
         found: true,
+        status: 'found',
         name: bestMatch.name,
         rating: rating,
         reviewCount: reviewCount,
@@ -254,7 +358,7 @@ serve(async (req) => {
     console.error('Error fetching Booking.com rating:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ success: false, status: 'error', error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
