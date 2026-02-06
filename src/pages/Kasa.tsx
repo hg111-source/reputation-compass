@@ -29,11 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, BarChart3 } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
-import { KasaBenchmarkTab } from '@/components/kasa/KasaBenchmarkTab';
+
 import { getScoreColor } from '@/lib/scoring';
 import { ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
@@ -794,20 +793,8 @@ export default function Kasa() {
           </Card>
         )}
 
-        {/* Tabs */}
-        <Tabs defaultValue="properties" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="properties" className="gap-2">
-              <Building2 className="h-4 w-4" />
-              Properties
-            </TabsTrigger>
-            <TabsTrigger value="insights" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              So What?
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="properties" className="space-y-6">
+        {/* Content */}
+        <div className="space-y-6">
             {/* Stats Row */}
             <div className="grid gap-4 md:grid-cols-3">
               <Card>
@@ -1011,15 +998,7 @@ export default function Kasa() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="insights">
-            <KasaBenchmarkTab 
-              properties={kasaProperties} 
-              snapshots={kasaSnapshots} 
-            />
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Building2, LayoutDashboard, Upload, FolderOpen, LogOut, ChevronRight, Star } from 'lucide-react';
+import { Building2, LayoutDashboard, Upload, FolderOpen, LogOut, ChevronRight, Star, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/groups', label: 'Groups', icon: FolderOpen },
   { href: '/kasa', label: 'Kasa', icon: Star },
+  { href: '/insights', label: 'So What?', icon: BarChart3 },
   { href: '/upload', label: 'Upload', icon: Upload },
 ];
 
