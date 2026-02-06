@@ -1,12 +1,14 @@
 import { ReviewSource, SourceSnapshot } from './types';
 
 export const REVIEW_SOURCES: ReviewSource[] = ['google', 'tripadvisor', 'booking', 'expedia'];
+export const ALL_SOURCES: ReviewSource[] = ['google', 'tripadvisor', 'booking', 'expedia', 'kasa'];
 
 export const SOURCE_LABELS: Record<ReviewSource, string> = {
   google: 'Google',
   tripadvisor: 'TripAdvisor',
   expedia: 'Expedia',
   booking: 'Booking.com',
+  kasa: 'Kasa',
 };
 
 export const SOURCE_SCALES: Record<ReviewSource, number> = {
@@ -14,6 +16,7 @@ export const SOURCE_SCALES: Record<ReviewSource, number> = {
   tripadvisor: 5,
   expedia: 10,
   booking: 10,
+  kasa: 5,
 };
 
 /**

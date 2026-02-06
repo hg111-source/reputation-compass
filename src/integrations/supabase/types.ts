@@ -378,7 +378,7 @@ export type Database = {
       owns_property: { Args: { property_uuid: string }; Returns: boolean }
     }
     Enums: {
-      review_source: "google" | "tripadvisor" | "expedia" | "booking"
+      review_source: "google" | "tripadvisor" | "expedia" | "booking" | "kasa"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -506,7 +506,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      review_source: ["google", "tripadvisor", "expedia", "booking"],
+      review_source: ["google", "tripadvisor", "expedia", "booking", "kasa"],
     },
   },
 } as const

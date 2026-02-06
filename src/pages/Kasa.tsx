@@ -6,6 +6,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeHotelName } from '@/lib/hotelNameUtils';
+import { 
+  useLatestKasaSnapshots, 
+  calculateWeightedAverage,
+  useBatchSaveKasaSnapshots 
+} from '@/hooks/useKasaSnapshots';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -18,7 +23,7 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Loader2, Star, ExternalLink } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, TrendingUp } from 'lucide-react';
 import { ReviewSource } from '@/lib/types';
 
 interface ImportedPropertyData {
@@ -41,6 +46,7 @@ export default function Kasa() {
   const { properties } = useProperties();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const batchSaveSnapshots = useBatchSaveKasaSnapshots();
 
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -51,12 +57,49 @@ export default function Kasa() {
     return properties.filter(p => p.kasa_url || p.kasa_aggregated_score);
   }, [properties]);
 
-  // Calculate average score
-  const avgScore = useMemo(() => {
-    const withScores = kasaProperties.filter(p => p.kasa_aggregated_score);
-    if (withScores.length === 0) return null;
-    return withScores.reduce((acc, p) => acc + (Number(p.kasa_aggregated_score) || 0), 0) / withScores.length;
-  }, [kasaProperties]);
+  const kasaPropertyIds = useMemo(() => kasaProperties.map(p => p.id), [kasaProperties]);
+  
+  // Fetch latest Kasa snapshots for weighted average calculation
+  const { data: kasaSnapshots = {} } = useLatestKasaSnapshots(kasaPropertyIds);
+  
+  // Calculate weighted portfolio stats from snapshots
+  const portfolioStats = useMemo(() => {
+    return calculateWeightedAverage(kasaSnapshots);
+  }, [kasaSnapshots]);
+
+  // Fallback to properties table if no snapshots exist yet
+  const displayStats = useMemo(() => {
+    if (portfolioStats.totalReviews > 0) {
+      return {
+        avgScore: portfolioStats.weightedAverage !== null 
+          ? portfolioStats.weightedAverage / 2 // Convert back to 5-scale for display
+          : null,
+        totalReviews: portfolioStats.totalReviews,
+        source: 'snapshots' as const,
+      };
+    }
+    
+    // Fallback: Calculate from properties table (weighted)
+    const withScores = kasaProperties.filter(p => p.kasa_aggregated_score && p.kasa_review_count);
+    if (withScores.length === 0) {
+      return { avgScore: null, totalReviews: 0, source: 'properties' as const };
+    }
+    
+    let weightedSum = 0;
+    let totalReviews = 0;
+    for (const p of withScores) {
+      const score = Number(p.kasa_aggregated_score) || 0;
+      const count = p.kasa_review_count || 0;
+      weightedSum += score * count;
+      totalReviews += count;
+    }
+    
+    return {
+      avgScore: totalReviews > 0 ? weightedSum / totalReviews : null,
+      totalReviews,
+      source: 'properties' as const,
+    };
+  }, [portfolioStats, kasaProperties]);
 
   const handleImportFromKasa = async () => {
     setIsImporting(true);
@@ -80,6 +123,13 @@ export default function Kasa() {
 
       toast({ title: `Found ${discoveredProperties.length} properties`, description: 'Starting import...' });
 
+      // Collect snapshots to batch insert
+      const snapshotsToSave: Array<{
+        propertyId: string;
+        rating: number | null;
+        reviewCount: number;
+      }> = [];
+
       // Step 2: Import each property
       let successCount = 0;
       let newCount = 0;
@@ -101,7 +151,7 @@ export default function Kasa() {
 
           const propertyInfo: ImportedPropertyData = propData.property;
 
-          // Try to match to existing property - first by URL (both discover and edge function URLs), then by name
+          // Try to match to existing property - first by URL, then by name
           let matchedProperty = properties.find(existing => 
             existing.kasa_url === propertyInfo.url || existing.kasa_url === prop.url
           );
@@ -120,7 +170,7 @@ export default function Kasa() {
           }
 
           if (matchedProperty) {
-            // Update existing property with all data including city/state
+            // Update existing property
             await supabase
               .from('properties')
               .update({
@@ -131,6 +181,13 @@ export default function Kasa() {
                 state: propertyInfo.state || matchedProperty.state,
               })
               .eq('id', matchedProperty.id);
+              
+            // Queue snapshot for batch insert
+            snapshotsToSave.push({
+              propertyId: matchedProperty.id,
+              rating: propertyInfo.aggregatedRating,
+              reviewCount: propertyInfo.reviewCount,
+            });
           } else {
             // Create new property
             const { data: newProp, error: createError } = await supabase
@@ -150,6 +207,13 @@ export default function Kasa() {
             if (!createError && newProp) {
               matchedProperty = newProp;
               newCount++;
+              
+              // Queue snapshot for new property
+              snapshotsToSave.push({
+                propertyId: newProp.id,
+                rating: propertyInfo.aggregatedRating,
+                reviewCount: propertyInfo.reviewCount,
+              });
             }
           }
 
@@ -180,12 +244,23 @@ export default function Kasa() {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
+      // Batch save all snapshots
+      if (snapshotsToSave.length > 0) {
+        try {
+          await batchSaveSnapshots.mutateAsync(snapshotsToSave);
+          console.log(`Saved ${snapshotsToSave.length} Kasa snapshots`);
+        } catch (err) {
+          console.error('Failed to save snapshots:', err);
+        }
+      }
+
       // Refresh data
       queryClient.invalidateQueries({ queryKey: ['properties'] });
+      queryClient.invalidateQueries({ queryKey: ['kasa-snapshots'] });
 
       toast({
         title: 'Import complete',
-        description: `${successCount}/${discoveredProperties.length} properties imported (${newCount} new)`,
+        description: `${successCount}/${discoveredProperties.length} properties imported (${newCount} new), ${snapshotsToSave.length} snapshots saved`,
       });
 
     } catch (error) {
@@ -271,24 +346,32 @@ export default function Kasa() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Average Score</CardDescription>
+              <CardDescription className="flex items-center gap-2">
+                Weighted Average
+                <TrendingUp className="h-3 w-3" />
+              </CardDescription>
               <CardTitle className="text-3xl flex items-center gap-2">
-                {avgScore ? (
+                {displayStats.avgScore !== null ? (
                   <>
                     <Star className="h-6 w-6 fill-primary text-primary" />
-                    {avgScore.toFixed(1)}/5
+                    {displayStats.avgScore.toFixed(2)}/5
                   </>
                 ) : (
                   '—'
                 )}
               </CardTitle>
             </CardHeader>
+            <CardContent className="pt-0">
+              <p className="text-xs text-muted-foreground">
+                Based on {displayStats.totalReviews.toLocaleString()} reviews
+              </p>
+            </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Reviews</CardDescription>
               <CardTitle className="text-3xl">
-                {kasaProperties.reduce((acc, p) => acc + (p.kasa_review_count || 0), 0).toLocaleString()}
+                {displayStats.totalReviews.toLocaleString()}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -314,49 +397,55 @@ export default function Kasa() {
                   <TableRow>
                     <TableHead>Property Name</TableHead>
                     <TableHead>Location</TableHead>
-                    <TableHead className="text-center">Avg Score</TableHead>
+                    <TableHead className="text-center">Score</TableHead>
                     <TableHead className="text-center">Reviews</TableHead>
                     <TableHead className="text-right">Link</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {kasaProperties.map(property => (
-                    <TableRow key={property.id}>
-                      <TableCell className="font-medium">{property.name}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {property.city}{property.state ? `, ${property.state}` : ''}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {property.kasa_aggregated_score ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <Star className="h-4 w-4 fill-primary text-primary" />
-                            <span className="font-medium">{Number(property.kasa_aggregated_score).toFixed(2)}</span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {property.kasa_review_count ? (
-                          <span className="font-medium">{property.kasa_review_count.toLocaleString()}</span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {property.kasa_url && (
-                          <a
-                            href={property.kasa_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {kasaProperties.map(property => {
+                    const snapshot = kasaSnapshots[property.id];
+                    const score = snapshot?.score_raw ?? property.kasa_aggregated_score;
+                    const reviewCount = snapshot?.review_count ?? property.kasa_review_count;
+                    
+                    return (
+                      <TableRow key={property.id}>
+                        <TableCell className="font-medium">{property.name}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {property.city}{property.state ? `, ${property.state}` : ''}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {score ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <Star className="h-4 w-4 fill-primary text-primary" />
+                              <span className="font-medium">{Number(score).toFixed(2)}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {reviewCount ? (
+                            <span className="font-medium">{reviewCount.toLocaleString()}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {property.kasa_url && (
+                            <a
+                              href={property.kasa_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

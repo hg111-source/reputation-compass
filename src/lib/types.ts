@@ -30,7 +30,7 @@ export interface Group {
    created_at: string;
  }
  
- export type ReviewSource = 'google' | 'tripadvisor' | 'expedia' | 'booking';
+ export type ReviewSource = 'google' | 'tripadvisor' | 'expedia' | 'booking' | 'kasa';
  
 export interface SourceSnapshot {
   id: string;

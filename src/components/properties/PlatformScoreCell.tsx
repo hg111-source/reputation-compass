@@ -28,6 +28,7 @@ const PLATFORM_DISPLAY: Record<ReviewSource, string> = {
   tripadvisor: 'TripAdvisor',
   booking: 'Booking.com',
   expedia: 'Expedia',
+  kasa: 'Kasa',
 };
 
 export function PlatformScoreCell({ data, platform, showIcon = false }: PlatformScoreCellProps) {

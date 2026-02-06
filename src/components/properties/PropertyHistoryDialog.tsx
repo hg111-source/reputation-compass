@@ -94,6 +94,7 @@ export function PropertyHistoryDialog({ property, open, onOpenChange }: Property
         tripadvisor: null,
         booking: null,
         expedia: null,
+        kasa: null,
       };
 
       const allScores: { normalized: number; count: number }[] = [];
