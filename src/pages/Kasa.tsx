@@ -304,6 +304,7 @@ export default function Kasa() {
                     <TableHead>Property Name</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead className="text-center">Avg Score</TableHead>
+                    <TableHead className="text-center">Reviews</TableHead>
                     <TableHead className="text-right">Link</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -318,8 +319,15 @@ export default function Kasa() {
                         {property.kasa_aggregated_score ? (
                           <div className="flex items-center justify-center gap-1">
                             <Star className="h-4 w-4 fill-primary text-primary" />
-                            <span className="font-medium">{Number(property.kasa_aggregated_score).toFixed(1)}/5</span>
+                            <span className="font-medium">{Number(property.kasa_aggregated_score).toFixed(2)}</span>
                           </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {property.kasa_review_count ? (
+                          <span className="font-medium">{property.kasa_review_count.toLocaleString()}</span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
