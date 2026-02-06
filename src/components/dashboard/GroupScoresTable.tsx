@@ -21,6 +21,7 @@ interface GroupScoresTableProps {
   onRefreshProperty: (propertyId: string) => void;
   onRemoveProperty?: (propertyId: string) => void;
   isRefreshing?: boolean;
+  hideRemoveButton?: boolean;
 }
 
 export function GroupScoresTable({
@@ -29,6 +30,7 @@ export function GroupScoresTable({
   onRefreshProperty,
   onRemoveProperty,
   isRefreshing,
+  hideRemoveButton = false,
 }: GroupScoresTableProps) {
   const propertyIds = properties.map(p => p.id);
   const { data: trends = {} } = useGoogleTrends(propertyIds);
@@ -171,7 +173,7 @@ export function GroupScoresTable({
                   >
                     <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
                   </Button>
-                  {onRemoveProperty && (
+                  {onRemoveProperty && !hideRemoveButton && (
                     <Button
                       variant="ghost"
                       size="icon"
