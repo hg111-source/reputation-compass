@@ -248,52 +248,6 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
       {/* Kasa Portfolio by Platform - Dynamic benchmarking against non-Kasa properties */}
       <KasaOTAPlatformCard />
 
-      {/* Portfolio vs Industry Benchmark */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Portfolio vs Industry Benchmarks</CardTitle>
-              <CardDescription>How Kasa compares to industry medians</CardDescription>
-            </div>
-            {kasaPercentile !== null && (
-              <div className="flex items-center gap-2">
-                {kasaPercentile >= 90 && <Trophy className="h-6 w-6 text-yellow-500" />}
-                <Badge className={cn(getPercentileTier(kasaPercentile).bgColor, getPercentileTier(kasaPercentile).color)}>
-                  {getPercentileTier(kasaPercentile).label}
-                </Badge>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {metrics.avg !== null && kasaPercentile !== null && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">Kasa Portfolio Average</span>
-                <span className={cn('font-bold', getScoreColor(metrics.avg))}>
-                  {metrics.avg.toFixed(2)}/10
-                </span>
-              </div>
-              <div className="relative">
-                <Progress value={kasaPercentile} className="h-4" />
-                <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">
-                  {kasaPercentile.toFixed(0)}th percentile
-                </div>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>0%</span>
-                <span>50% Median</span>
-                <span>75%</span>
-                <span>90%</span>
-                <span>100%</span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-
       {/* Score Distribution */}
       <Card>
         <CardHeader>
