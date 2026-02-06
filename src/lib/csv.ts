@@ -84,13 +84,25 @@ export async function parseExcelFile(file: File): Promise<ParsedProperty[]> {
         // First, read as raw array to find the header row
         const rawData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as (string | number | undefined)[][];
         
+        // Get hidden row info from the sheet
+        const rowInfo = firstSheet['!rows'] || [];
+        const isRowHidden = (rowIndex: number): boolean => {
+          const info = rowInfo[rowIndex];
+          return info?.hidden === true;
+        };
+        
         console.log(`[Excel Parser] Total raw rows: ${rawData.length}`);
         
-        // Find the row that contains our expected headers
+        // Find the row that contains our expected headers (skip hidden rows)
         let headerRowIndex = -1;
         let columnMapping: Record<string, number> = {};
         
         for (let i = 0; i < Math.min(rawData.length, 20); i++) {
+          if (isRowHidden(i)) {
+            console.log(`[Excel Parser] Row ${i + 1} is hidden, skipping`);
+            continue;
+          }
+          
           const row = rawData[i];
           if (!Array.isArray(row)) continue;
           
@@ -128,10 +140,17 @@ export async function parseExcelFile(file: File): Promise<ParsedProperty[]> {
           return;
         }
         
-        // Parse data rows starting after the header
+        // Parse data rows starting after the header (skip hidden rows)
         const properties: ParsedProperty[] = [];
+        let hiddenCount = 0;
         
         for (let i = headerRowIndex + 1; i < rawData.length; i++) {
+          // Skip hidden rows
+          if (isRowHidden(i)) {
+            hiddenCount++;
+            continue;
+          }
+          
           const row = rawData[i];
           if (!Array.isArray(row)) continue;
           
@@ -173,7 +192,7 @@ export async function parseExcelFile(file: File): Promise<ParsedProperty[]> {
           properties.push(prop);
         }
         
-        console.log(`[Excel Parser] Valid properties found: ${properties.length}`);
+        console.log(`[Excel Parser] Valid properties found: ${properties.length}, hidden rows skipped: ${hiddenCount}`);
         resolve(properties);
       } catch (error) {
         reject(error);
