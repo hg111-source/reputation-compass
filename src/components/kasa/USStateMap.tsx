@@ -74,26 +74,46 @@ export function USStateMap({ stateData }: USStateMapProps) {
     return map;
   }, [stateData]);
 
+  // Calculate property count range for scaling
+  const { minCount, maxCount } = useMemo(() => {
+    const counts = stateData.filter(s => s.propertyCount > 0).map(s => s.propertyCount);
+    return {
+      minCount: Math.min(...counts, 1),
+      maxCount: Math.max(...counts, 1),
+    };
+  }, [stateData]);
+
+  // Scale function for circle radius based on property count
+  const getRadius = (count: number) => {
+    const MIN_RADIUS = 12;
+    const MAX_RADIUS = 28;
+    if (maxCount === minCount) return (MIN_RADIUS + MAX_RADIUS) / 2;
+    const scale = (count - minCount) / (maxCount - minCount);
+    return MIN_RADIUS + scale * (MAX_RADIUS - MIN_RADIUS);
+  };
+
   // Get all states with their data
   const states = useMemo(() => {
     return Object.entries(STATE_POSITIONS).map(([abbrev, pos]) => {
       const data = stateDataMap.get(abbrev);
+      const radius = data ? getRadius(data.propertyCount) : 8;
       return {
         abbrev,
         name: STATE_NAMES[abbrev] || abbrev,
         ...pos,
         data,
+        radius,
         color: getMapColor(data?.avgScore ?? null),
         hasData: !!data,
       };
     });
-  }, [stateDataMap]);
+  }, [stateDataMap, minCount, maxCount]);
 
   // Calculate SVG dimensions
   const maxX = Math.max(...states.map(s => s.x));
   const maxY = Math.max(...states.map(s => s.y));
-  const width = (maxX + 1) * (CELL_SIZE + CELL_GAP) + 20;
-  const height = (maxY + 1) * (CELL_SIZE + CELL_GAP) + 20;
+  const width = (maxX + 1) * (CELL_SIZE + CELL_GAP) + 40;
+  const height = (maxY + 1) * (CELL_SIZE + CELL_GAP) + 40;
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -104,42 +124,44 @@ export function USStateMap({ stateData }: USStateMapProps) {
           style={{ minWidth: '500px' }}
         >
           {states.map(state => {
-            const x = state.x * (CELL_SIZE + CELL_GAP) + 10;
-            const y = state.y * (CELL_SIZE + CELL_GAP) + 10;
+            const cx = state.x * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2 + 20;
+            const cy = state.y * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2 + 20;
+            const r = state.radius;
             
             return (
               <Tooltip key={state.abbrev}>
                 <TooltipTrigger asChild>
-                  <g className="cursor-pointer transition-transform hover:scale-105">
-                    <rect
-                      x={x}
-                      y={y}
-                      width={CELL_SIZE}
-                      height={CELL_SIZE}
-                      rx={6}
+                  <g className="cursor-pointer transition-transform hover:scale-110" style={{ transformOrigin: `${cx}px ${cy}px` }}>
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={r}
                       fill={state.color}
                       stroke={state.hasData ? 'hsl(var(--foreground))' : '#d1d5db'}
                       strokeWidth={state.hasData ? 1.5 : 0.5}
                       className="transition-all duration-200"
                     />
                     <text
-                      x={x + CELL_SIZE / 2}
-                      y={y + CELL_SIZE / 2 - 4}
+                      x={cx}
+                      y={cy - (state.data && r >= 18 ? 4 : 0)}
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      className="text-[11px] font-bold fill-white"
-                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+                      className={cn(
+                        'font-bold fill-white',
+                        r >= 20 ? 'text-[11px]' : 'text-[9px]'
+                      )}
+                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}
                     >
                       {state.abbrev}
                     </text>
-                    {state.data && (
+                    {state.data && r >= 18 && (
                       <text
-                        x={x + CELL_SIZE / 2}
-                        y={y + CELL_SIZE / 2 + 10}
+                        x={cx}
+                        y={cy + 9}
                         textAnchor="middle"
                         dominantBaseline="middle"
-                        className="text-[9px] font-semibold fill-white"
-                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+                        className="text-[8px] font-semibold fill-white"
+                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}
                       >
                         {state.data.avgScore?.toFixed(1)}
                       </text>
@@ -171,28 +193,37 @@ export function USStateMap({ stateData }: USStateMapProps) {
         </svg>
         
         {/* Legend */}
-        <div className="flex flex-wrap justify-center gap-3 mt-4 text-xs">
-          <span className="flex items-center gap-1">
-            <span className="w-4 h-4 rounded" style={{ backgroundColor: '#059669' }} /> 9.5+ Exceptional
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-4 h-4 rounded" style={{ backgroundColor: '#10b981' }} /> 9+ Wonderful
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-4 h-4 rounded" style={{ backgroundColor: '#3b82f6' }} /> 8+ Very Good
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-4 h-4 rounded" style={{ backgroundColor: '#eab308' }} /> 7+ Good
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-4 h-4 rounded" style={{ backgroundColor: '#f97316' }} /> 6+ Pleasant
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-4 h-4 rounded" style={{ backgroundColor: '#ef4444' }} /> &lt;6 Needs Work
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-4 h-4 rounded border border-gray-300" style={{ backgroundColor: '#e5e7eb' }} /> No Data
-          </span>
+        <div className="space-y-3 mt-4">
+          <div className="flex flex-wrap justify-center gap-3 text-xs">
+            <span className="flex items-center gap-1">
+              <span className="w-4 h-4 rounded-full" style={{ backgroundColor: '#059669' }} /> 9.5+ Exceptional
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-4 h-4 rounded-full" style={{ backgroundColor: '#10b981' }} /> 9+ Wonderful
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-4 h-4 rounded-full" style={{ backgroundColor: '#3b82f6' }} /> 8+ Very Good
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-4 h-4 rounded-full" style={{ backgroundColor: '#eab308' }} /> 7+ Good
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-4 h-4 rounded-full" style={{ backgroundColor: '#f97316' }} /> 6+ Pleasant
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-4 h-4 rounded-full" style={{ backgroundColor: '#ef4444' }} /> &lt;6 Needs Work
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-4 h-4 rounded-full border border-gray-300" style={{ backgroundColor: '#e5e7eb' }} /> No Data
+            </span>
+          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-muted-foreground/30" />
+              <span className="w-5 h-5 rounded-full bg-muted-foreground/30" />
+              Circle size = number of properties
+            </span>
+          </p>
         </div>
       </div>
     </TooltipProvider>
