@@ -10,12 +10,11 @@ import bookingLogo from '@/assets/logos/booking.svg';
 import expediaLogo from '@/assets/logos/expedia.svg';
 
 // Industry benchmark data (percentiles: 50, 75, 90, 95, 99)
-// Source: STR Industry Report Q4 2024 - Based on ~12,000 US hotel properties
 const INDUSTRY_BENCHMARKS = {
-  google: { name: 'Google', values: [8.20, 8.40, 8.80, 9.00, 9.34], compCount: 11847 },
-  tripadvisor: { name: 'TripAdvisor', values: [8.34, 8.76, 9.00, 9.24, 9.60], compCount: 9234 },
-  booking: { name: 'Booking', values: [8.00, 8.40, 8.60, 8.80, 9.10], compCount: 8562 },
-  expedia: { name: 'Expedia', values: [8.40, 8.80, 9.00, 9.20, 9.55], compCount: 7891 },
+  google: { name: 'Google', values: [8.20, 8.40, 8.80, 9.00, 9.34] },
+  tripadvisor: { name: 'TripAdvisor', values: [8.34, 8.76, 9.00, 9.24, 9.60] },
+  booking: { name: 'Booking', values: [8.00, 8.40, 8.60, 8.80, 9.10] },
+  expedia: { name: 'Expedia', values: [8.40, 8.80, 9.00, 9.20, 9.55] },
 };
 
 // Kasa's actual portfolio averages (hardcoded from master data)
@@ -57,7 +56,12 @@ function getPercentileTier(percentile: number): { color: string; bgColor: string
   return { color: 'text-orange-600', bgColor: 'bg-orange-100 dark:bg-orange-900/30' };
 }
 
-export function KasaOTAPlatformCard() {
+interface KasaOTAPlatformCardProps {
+  propertyCount: number;
+  lastUpdated?: Date;
+}
+
+export function KasaOTAPlatformCard({ propertyCount, lastUpdated }: KasaOTAPlatformCardProps) {
   const platformData = useMemo(() => {
     return PLATFORM_ORDER.map(key => {
       const benchmark = INDUSTRY_BENCHMARKS[key];
@@ -67,16 +71,9 @@ export function KasaOTAPlatformCard() {
         name: benchmark.name,
         score,
         percentile: calculatePercentile(score, benchmark.values),
-        compCount: benchmark.compCount,
         logo: PLATFORM_LOGOS[key],
       };
     });
-  }, []);
-
-  // Total unique comps across all platforms
-  const totalComps = useMemo(() => {
-    // Approximate unique count (some overlap between platforms)
-    return Math.round(Object.values(INDUSTRY_BENCHMARKS).reduce((sum, b) => sum + b.compCount, 0) * 0.7);
   }, []);
 
   return (
@@ -110,7 +107,8 @@ export function KasaOTAPlatformCard() {
           })}
         </div>
         <p className="text-xs text-muted-foreground mt-4 text-center">
-          * Percentiles based on ~{totalComps.toLocaleString()} US hotel properties from STR Industry benchmarks
+          * Based on {propertyCount} Kasa properties
+          {lastUpdated && ` • Last updated ${lastUpdated.toLocaleDateString()}`}
         </p>
       </CardContent>
     </Card>

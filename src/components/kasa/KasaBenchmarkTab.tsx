@@ -295,7 +295,7 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
       </div>
 
       {/* Kasa Portfolio by Platform - Hardcoded OTA data with calculated percentiles */}
-      <KasaOTAPlatformCard />
+      <KasaOTAPlatformCard propertyCount={properties.length} />
 
       {/* Portfolio vs Industry Benchmark */}
       <Card>
