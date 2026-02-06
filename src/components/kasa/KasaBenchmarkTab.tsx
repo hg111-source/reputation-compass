@@ -148,7 +148,7 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
       .sort((a, b) => (b.score10 ?? 0) - (a.score10 ?? 0));
   }, [properties, snapshots]);
 
-  // Score distribution for histogram - granular 0.5 intervals
+  // Score distribution for histogram - granular 0.5 intervals (filtered to only show ranges with data)
   const distribution = useMemo(() => {
     const ranges = [
       { label: '<6', min: 0, max: 6, count: 0 },
@@ -167,7 +167,8 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
       if (range) range.count++;
     });
     
-    return ranges;
+    // Filter out ranges with no data
+    return ranges.filter(r => r.count > 0);
   }, [metrics.scores]);
 
   // Generate insights
