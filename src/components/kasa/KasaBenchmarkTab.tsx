@@ -46,19 +46,9 @@ interface KasaSnapshot {
   review_count: number | null;
 }
 
-interface PlatformScore {
-  score: number | null;
-  count: number;
-  updated: string;
-  status?: 'found' | 'not_listed';
-}
-
-type ReviewSource = 'google' | 'tripadvisor' | 'expedia' | 'booking' | 'kasa';
-
 interface KasaBenchmarkTabProps {
   properties: Property[];
   snapshots: Record<string, KasaSnapshot>;
-  platformScores?: Record<string, Record<ReviewSource, PlatformScore>>;
 }
 
 // Calculate percentile rank for a score
@@ -90,7 +80,7 @@ function getHistogramColor(rangeStart: number): string {
   return 'hsl(var(--red-500, 0 84% 60%))';
 }
 
-export function KasaBenchmarkTab({ properties, snapshots, platformScores = {} }: KasaBenchmarkTabProps) {
+export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProps) {
   // Calculate portfolio metrics
   const metrics = useMemo(() => {
     const scores: number[] = [];
@@ -124,44 +114,7 @@ export function KasaBenchmarkTab({ properties, snapshots, platformScores = {} }:
     return { avg, median, stdDev, scores };
   }, [properties, snapshots]);
 
-  // Calculate platform-specific averages
-  const platformAverages = useMemo(() => {
-    const platforms: Array<{ key: keyof typeof INDUSTRY_BENCHMARKS.platforms; name: string }> = [
-      { key: 'google', name: 'Google' },
-      { key: 'booking', name: 'Booking' },
-      { key: 'expedia', name: 'Expedia' },
-      { key: 'tripadvisor', name: 'TripAdvisor' },
-    ];
-    
-    return platforms.map(({ key, name }) => {
-      let totalScore = 0;
-      let totalReviews = 0;
-      let propertyCount = 0;
-      
-      Object.values(platformScores).forEach(scores => {
-        const platformData = scores[key as ReviewSource];
-        if (platformData?.score && platformData.status === 'found' && platformData.count > 0) {
-          totalScore += platformData.score * platformData.count;
-          totalReviews += platformData.count;
-          propertyCount++;
-        }
-      });
-      
-      const weightedAvg = totalReviews > 0 ? totalScore / totalReviews : null;
-      const benchmarkValues = INDUSTRY_BENCHMARKS.platforms[key].values;
-      const percentile = weightedAvg ? calculatePercentile(weightedAvg, benchmarkValues) : null;
-      
-      return {
-        key,
-        name,
-        avg: weightedAvg,
-        totalReviews,
-        propertyCount,
-        percentile,
-        tier: percentile ? getPercentileTier(percentile) : null,
-      };
-    });
-  }, [platformScores]);
+  // Platform averages removed - Kasa properties don't have OTA platform scores
 
   // Calculate percentile for Kasa portfolio (using Airbnb as reference since Kasa aggregates similar platforms)
   const kasaPercentile = useMemo(() => {
@@ -340,47 +293,6 @@ export function KasaBenchmarkTab({ properties, snapshots, platformScores = {} }:
         </Card>
       </div>
 
-      {/* Platform-Specific Averages */}
-      {platformAverages.some(p => p.avg !== null) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Kasa Portfolio by Platform</CardTitle>
-            <CardDescription>Weighted average scores across review platforms</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {platformAverages.map(platform => (
-                <div 
-                  key={platform.key}
-                  className={cn(
-                    'p-4 rounded-lg border text-center',
-                    platform.avg !== null && platform.tier?.bgColor
-                  )}
-                >
-                  <p className="text-sm font-medium text-muted-foreground mb-1">{platform.name}</p>
-                  {platform.avg !== null ? (
-                    <>
-                      <p className={cn('text-2xl font-bold', getScoreColor(platform.avg))}>
-                        {platform.avg.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {platform.totalReviews.toLocaleString()} reviews
-                      </p>
-                      {platform.tier && (
-                        <Badge variant="outline" className={cn('mt-2 text-xs', platform.tier.color)}>
-                          {platform.tier.label}
-                        </Badge>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-lg text-muted-foreground">—</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Portfolio vs Industry Benchmark */}
       <Card>
