@@ -80,62 +80,100 @@ export async function parseExcelFile(file: File): Promise<ParsedProperty[]> {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json<CSVProperty>(firstSheet);
         
-        console.log(`[Excel Parser] Total rows read: ${jsonData.length}`);
+        // First, read as raw array to find the header row
+        const rawData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as (string | number | undefined)[][];
         
-        // Log first few rows to debug column names
-        if (jsonData.length > 0) {
-          console.log('[Excel Parser] Column names detected:', Object.keys(jsonData[0]));
-          console.log('[Excel Parser] First row sample:', jsonData[0]);
+        console.log(`[Excel Parser] Total raw rows: ${rawData.length}`);
+        
+        // Find the row that contains our expected headers
+        let headerRowIndex = -1;
+        let columnMapping: Record<string, number> = {};
+        
+        for (let i = 0; i < Math.min(rawData.length, 20); i++) {
+          const row = rawData[i];
+          if (!Array.isArray(row)) continue;
+          
+          // Look for Name/Hotel Name, City, State in any column
+          let nameCol = -1, cityCol = -1, stateCol = -1;
+          
+          for (let j = 0; j < row.length; j++) {
+            const cellValue = String(row[j] || '').trim().toLowerCase();
+            if (cellValue === 'name' || cellValue === 'hotel name') nameCol = j;
+            if (cellValue === 'city') cityCol = j;
+            if (cellValue === 'state') stateCol = j;
+          }
+          
+          if (nameCol >= 0 && cityCol >= 0 && stateCol >= 0) {
+            headerRowIndex = i;
+            columnMapping = { name: nameCol, city: cityCol, state: stateCol };
+            
+            // Also look for optional columns
+            for (let j = 0; j < row.length; j++) {
+              const cellValue = String(row[j] || '').trim().toLowerCase();
+              if (cellValue === 'google place id') columnMapping.google = j;
+              if (cellValue === 'tripadvisor url') columnMapping.tripadvisor = j;
+              if (cellValue === 'booking url') columnMapping.booking = j;
+              if (cellValue === 'expedia url') columnMapping.expedia = j;
+            }
+            
+            console.log(`[Excel Parser] Found headers at row ${i + 1}:`, columnMapping);
+            break;
+          }
         }
         
-        const properties = jsonData
-          .filter((row, index) => {
-            const hasName = !!(row['Hotel Name'] || row['Name']);
-            const hasCity = !!row.City;
-            const hasState = !!row.State;
-            if (!hasName || !hasCity || !hasState) {
-              console.log(`[Excel Parser] Row ${index + 2} skipped - missing: ${!hasName ? 'Name' : ''} ${!hasCity ? 'City' : ''} ${!hasState ? 'State' : ''}`.trim());
-            }
-            return hasName && hasCity && hasState;
-          })
-          .map(row => {
-            const hotelName = row['Hotel Name'] || row['Name'] || '';
-            const prop: ParsedProperty = {
-              name: String(hotelName).trim(),
-              city: String(row.City).trim(),
-              state: String(row.State).trim(),
-            };
-            
-            // Extract source IDs/URLs if present
-            const sourceIds: ParsedProperty['sourceIds'] = {};
-            const googleId = row['Google Place ID'];
-            const tripUrl = row['TripAdvisor URL'];
-            const bookUrl = row['Booking URL'];
-            const expUrl = row['Expedia URL'];
-            
-            if (googleId && String(googleId).trim()) {
-              sourceIds.google = String(googleId).trim();
-            }
-            if (tripUrl && String(tripUrl).trim()) {
-              sourceIds.tripadvisor = String(tripUrl).trim();
-            }
-            if (bookUrl && String(bookUrl).trim()) {
-              sourceIds.booking = String(bookUrl).trim();
-            }
-            if (expUrl && String(expUrl).trim()) {
-              sourceIds.expedia = String(expUrl).trim();
-            }
-            
-            if (Object.keys(sourceIds).length > 0) {
-              prop.sourceIds = sourceIds;
-            }
-            
-            return prop;
-          });
+        if (headerRowIndex === -1) {
+          console.log('[Excel Parser] Could not find header row with Name, City, State');
+          resolve([]);
+          return;
+        }
         
-        console.log(`[Excel Parser] Valid properties after filtering: ${properties.length}`);
+        // Parse data rows starting after the header
+        const properties: ParsedProperty[] = [];
+        
+        for (let i = headerRowIndex + 1; i < rawData.length; i++) {
+          const row = rawData[i];
+          if (!Array.isArray(row)) continue;
+          
+          const name = String(row[columnMapping.name] || '').trim();
+          const city = String(row[columnMapping.city] || '').trim();
+          const state = String(row[columnMapping.state] || '').trim();
+          
+          if (!name || !city || !state) {
+            console.log(`[Excel Parser] Row ${i + 1} skipped - missing: ${!name ? 'Name ' : ''}${!city ? 'City ' : ''}${!state ? 'State' : ''}`.trim());
+            continue;
+          }
+          
+          const prop: ParsedProperty = { name, city, state };
+          
+          // Extract optional source IDs/URLs
+          const sourceIds: ParsedProperty['sourceIds'] = {};
+          
+          if (columnMapping.google !== undefined) {
+            const val = String(row[columnMapping.google] || '').trim();
+            if (val) sourceIds.google = val;
+          }
+          if (columnMapping.tripadvisor !== undefined) {
+            const val = String(row[columnMapping.tripadvisor] || '').trim();
+            if (val) sourceIds.tripadvisor = val;
+          }
+          if (columnMapping.booking !== undefined) {
+            const val = String(row[columnMapping.booking] || '').trim();
+            if (val) sourceIds.booking = val;
+          }
+          if (columnMapping.expedia !== undefined) {
+            const val = String(row[columnMapping.expedia] || '').trim();
+            if (val) sourceIds.expedia = val;
+          }
+          
+          if (Object.keys(sourceIds).length > 0) {
+            prop.sourceIds = sourceIds;
+          }
+          
+          properties.push(prop);
+        }
+        
+        console.log(`[Excel Parser] Valid properties found: ${properties.length}`);
         resolve(properties);
       } catch (error) {
         reject(error);
