@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { getScoreColor } from '@/lib/scoring';
-import { ExternalLink } from 'lucide-react';
+import { Star } from 'lucide-react';
 
 interface PropertyInfo {
   name: string;
@@ -288,9 +288,12 @@ export function USStateMap({ stateData }: USStateMapProps) {
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-bold text-lg">{activeStateData.name}</h4>
             <span 
-              className={cn('text-xl font-bold', getScoreColor(activeStateData.data.avgScore))}
+              className={cn('text-xl font-bold flex items-center gap-1', getScoreColor(activeStateData.data.avgScore))}
             >
               {activeStateData.data.avgScore?.toFixed(2)}
+              {activeStateData.data.avgScore && activeStateData.data.avgScore >= 9 && (
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              )}
             </span>
           </div>
           
@@ -315,8 +318,11 @@ export function USStateMap({ stateData }: USStateMapProps) {
                     <span className="truncate flex-1" title={prop.name}>
                       {prop.name.replace(/by Kasa$/i, '').trim()}
                     </span>
-                    <span className={cn('font-semibold shrink-0', getScoreColor(prop.score))}>
+                    <span className={cn('font-semibold shrink-0 flex items-center gap-0.5', getScoreColor(prop.score))}>
                       {prop.score?.toFixed(1)}
+                      {prop.score && prop.score >= 9 && (
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      )}
                     </span>
                   </div>
                 ))}
