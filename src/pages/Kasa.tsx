@@ -29,12 +29,105 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, Star, ExternalLink, TrendingUp, MapPin } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, TrendingUp, MapPin, Building2, Home } from 'lucide-react';
 import { ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { TableHead } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
-type SortKey = 'name' | 'location' | 'score' | 'reviews' | null;
+type SortKey = 'name' | 'location' | 'type' | 'score' | 'reviews' | null;
+
+// Property type mapping based on official Kasa.com classifications
+const PROPERTY_TYPES: Record<string, 'Apartment' | 'Hotel'> = {
+  // Hotels
+  'kasa-del-ray-alexandria': 'Hotel',
+  'the-king-street-house-by-kasa-hotels-alexandria': 'Hotel',
+  'the-bell-athens-by-kasa': 'Hotel',
+  'studio-haus-east-6th-austin-by-kasa-hotel': 'Hotel',
+  'hillsboro-beach-resort-by-kasa-hotel': 'Hotel',
+  'kasa-niche-hotel-redwood-city': 'Hotel',
+  'kasa-la-monarca-san-francisco': 'Hotel',
+  'kasa-la-monarca-residential-san-francisco': 'Hotel',
+  'the-hotel-castro-san-francisco': 'Hotel',
+  'the-maverick-pittsburgh': 'Hotel', // Actually listed as Hotel on site
+  'mint-house-at-70-pine-by-kasa-new-york-city': 'Hotel',
+  'kasa-gold-coast-inn-traverse-city': 'Hotel',
+  'kasa-539-bay-street-traverse-city': 'Hotel',
+  'boardwalk-suites-and-residences-by-kasa-traverse-city': 'Hotel',
+  'the-vic-hotel-by-kasa-traverse-city': 'Hotel',
+  'boardwalk-hotel-on-lake-anna-by-kasa': 'Hotel',
+  'kasa-cadillac-square-detroit': 'Hotel',
+  'kasa-the-niche-university-city-philadelphia': 'Hotel',
+  'the-lafayette-new-orleans-by-kasa': 'Hotel',
+  'the-frenchmen-new-orleans-by-kasa': 'Hotel',
+  'the-skowhegan-by-kasa': 'Hotel',
+  'the-dexter-elk-rapids-hotel-by-kasa': 'Hotel',
+  'city-center-hotel-by-kasa-long-beach': 'Hotel',
+  'mint-house-st-petersburg-downtown-by-kasa': 'Hotel',
+  'mint-house-nashville-marathon-village-by-kasa': 'Hotel',
+  'mint-house-greenville-downtown-by-kasa': 'Hotel',
+  'kasa-gaslamp-quarter-san-diego': 'Hotel',
+  'the-davis-downtown-san-diego-hotel': 'Hotel',
+  'kasa-capitol-hill-downtown-nashville': 'Hotel',
+  'kasa-la-flora-miami-beach': 'Hotel',
+  'kasa-impala-miami-beach': 'Hotel',
+  'kasa-el-paseo-miami-beach': 'Hotel',
+  'the-clyde-hotel-portland-by-kasa': 'Hotel',
+  'kasa-jules-savannah': 'Apartment', // Listed as Apartment
+  'kasa-altmayer-savannah': 'Hotel',
+  'mint-house-washington-dc-downtown-by-kasa': 'Hotel',
+  // Apartments (default for most Kasa-prefixed properties)
+  'kasa-alexandria-washington': 'Apartment',
+  'kasa-at-the-waller-apartment-austin': 'Apartment',
+  'kasa-downtown-austin': 'Apartment',
+  'kasa-lady-bird-lake-austin': 'Apartment',
+  'kasa-2nd-street-austin': 'Apartment',
+  'kasa-bellevue-seattle': 'Apartment',
+  'kasa-love-field-medical-district-dallas': 'Apartment',
+  'mint-house-dallas-downtown-by-kasa': 'Apartment',
+  'kasa-little-italy-san-diego': 'Apartment',
+  'kasa-at-artisan-music-row-nashville': 'Apartment',
+  'the-eighteen-by-kasa-nashville': 'Apartment',
+  'kasa-at-cortland-hollywood-ft-lauderdale': 'Apartment',
+  'tucker-at-palm-trace-landings-fort-lauderdale': 'Apartment',
+  'kasa-scottsdale-quarter-phoenix': 'Apartment',
+  'kasa-union-station-denver': 'Apartment',
+  'kasa-rino-denver': 'Apartment',
+  'kasa-bryn-mawr-minneapolis': 'Apartment',
+  'kasa-the-addison-san-francisco': 'Apartment',
+  'kasa-university-airport-santa-clara': 'Apartment',
+  'kasa-downtown-des-moines': 'Apartment',
+  'kasa-wellington-south-florida': 'Apartment',
+  'kasa-south-side-pittsburgh': 'Apartment',
+  'kasa-westown-milwaukee': 'Apartment',
+  'kasa-lantern-les': 'Apartment',
+  'kasa-at-berkshire-village-district-raleigh': 'Apartment',
+  'kasa-archive-reno-tahoe': 'Apartment',
+  'kasa-edison-house-charlotte': 'Apartment',
+  'kasa-kasa-dilworth-charlotte': 'Apartment',
+  'kasa-freemorewest-charlotte': 'Apartment',
+  'kasa-at-cortland-noda-charlotte': 'Apartment',
+  'kasa-southside-wilmington': 'Apartment',
+  'stile-downtown-los-angeles-by-kasa': 'Hotel',
+  'kasa-sunset-los-angeles': 'Apartment',
+  'kasa-collins-park-miami-beach-convention-center': 'Apartment',
+  'kasa-at-cortland-on-the-river-boise': 'Apartment',
+  'tucker-at-palmer-dadeland-miami': 'Apartment',
+  'kasa-wynwood-miami': 'Apartment',
+  'the-loop-downtown-traverse-city-apartments-by-kasa': 'Apartment',
+  'kasa-south-loop-chicago': 'Apartment',
+  'kasa-river-north-chicago': 'Apartment',
+  'kasa-magnificent-mile-chicago': 'Apartment',
+  'mint-house-menlo-park-by-kasa': 'Apartment',
+  'mint-house-tampa-downtown-by-kasa': 'Apartment',
+};
+
+// Helper to get property type from URL
+function getPropertyType(kasaUrl: string | null): 'Apartment' | 'Hotel' {
+  if (!kasaUrl) return 'Apartment';
+  const slug = kasaUrl.split('/properties/')[1]?.split('?')[0] || '';
+  return PROPERTY_TYPES[slug] || 'Apartment';
+}
 
 interface ImportedPropertyData {
   name: string;
@@ -177,6 +270,10 @@ export default function Kasa() {
         case 'location':
           aVal = `${a.city}, ${a.state}`.toLowerCase();
           bVal = `${b.city}, ${b.state}`.toLowerCase();
+          break;
+        case 'type':
+          aVal = getPropertyType(a.kasa_url);
+          bVal = getPropertyType(b.kasa_url);
           break;
         case 'score':
           const aSnapshot = kasaSnapshots[a.id];
@@ -631,6 +728,15 @@ export default function Kasa() {
                       Location
                     </SortableTableHead>
                     <SortableTableHead
+                      sortKey="type"
+                      currentSort={sortKey}
+                      currentDirection={sortDirection}
+                      onSort={handleSort}
+                      className="text-center"
+                    >
+                      Type
+                    </SortableTableHead>
+                    <SortableTableHead
                       sortKey="score"
                       currentSort={sortKey}
                       currentDirection={sortDirection}
@@ -662,6 +768,22 @@ export default function Kasa() {
                         <TableCell className="font-medium">{property.name}</TableCell>
                         <TableCell className="text-muted-foreground">
                           {property.city}{property.state ? `, ${property.state}` : ''}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {(() => {
+                            const type = getPropertyType(property.kasa_url);
+                            return type === 'Hotel' ? (
+                              <Badge variant="secondary" className="gap-1">
+                                <Building2 className="h-3 w-3" />
+                                Hotel
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="gap-1">
+                                <Home className="h-3 w-3" />
+                                Apt
+                              </Badge>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-center">
                           {score ? (
