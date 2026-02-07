@@ -100,8 +100,11 @@ async function trySearch(searchQuery: string, apiToken: string): Promise<Booking
 }
 
 // Find best matching hotel from results using word-based matching with logging
-function findBestMatch(results: BookingResult[], hotelName: string): BookingResult | null {
+// city parameter is used for logging context only (Booking results don't include address)
+function findBestMatch(results: BookingResult[], hotelName: string, city: string): BookingResult | null {
   if (!results || results.length === 0) return null;
+  
+  console.log(`Searching for: ${hotelName}, ${city}`);
   
   // Use the word-based hotel name matching with detailed analysis
   for (const result of results) {
@@ -111,15 +114,15 @@ function findBestMatch(results: BookingResult[], hotelName: string): BookingResu
       console.log(`  → ${matchResult.reason}`);
       
       if (matchResult.isMatch) {
-        console.log(`  ✓ MATCH`);
+        console.log(`  ✓ Found: ${result.name} (${city}) ✓ MATCH`);
         return result;
       }
     }
   }
   
-  // Return first result if no good match
-  console.log(`No exact match, using first result: ${results[0].name}`);
-  return results[0];
+  // Do NOT blindly fall back to first result — it may be a different hotel in a different city
+  console.log(`  ✗ No name match found among ${results.length} results for "${hotelName}" in ${city}. Rejecting all.`);
+  return null;
 }
 
 // Try direct URL scraping
@@ -226,7 +229,7 @@ serve(async (req) => {
       }
 
       startUrl = alias?.platform_url || null;
-      console.log(`Booking lookup for property ${propertyId}: ${hotelName} in ${city}, URL: ${startUrl || 'none'}`);
+      console.log(`Searching for: ${hotelName}, ${city}, URL: ${startUrl || 'none'}`);
     } else if (directHotelName && directCity) {
       // Old interface: direct parameters
       hotelName = directHotelName;
@@ -260,7 +263,7 @@ serve(async (req) => {
         const results = await trySearch(searchQuery, apiToken);
         
         if (results && results.length > 0) {
-          bestMatch = findBestMatch(results, hotelName);
+          bestMatch = findBestMatch(results, hotelName, city);
           if (bestMatch) {
             console.log(`Found match with query: "${searchQuery}"`);
             break;

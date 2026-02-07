@@ -54,7 +54,8 @@ async function searchPlace(apiKey: string, hotelName: string, city: string): Pro
   const searchUrl = 'https://places.googleapis.com/v1/places:searchText';
   const query = `${normalizedName} hotel ${city}`;
 
-  console.log(`Searching for: ${hotelName} (normalized: ${normalizedName}) in ${city}`);
+  console.log(`Searching for: ${hotelName}, ${city}`);
+  console.log(`  Normalized query: "${query}"`);
 
   const searchResponse = await fetch(searchUrl, {
     method: 'POST',
@@ -97,10 +98,10 @@ async function searchPlace(apiKey: string, hotelName: string, city: string): Pro
     if (matchResult.isMatch) {
       if (validateCity(place.formattedAddress, cityName)) {
         bestPlace = place;
-        console.log(`  ✓ MATCH (city validated)`);
+        console.log(`  ✓ Found: ${placeName} (${cityName}) ✓ MATCH`);
         break;
       } else {
-        console.log(`  ✗ Name matches but wrong city`);
+        console.log(`  ✗ Found: ${placeName} but CITY MISMATCH (expected ${cityName}) — skipping`);
       }
     }
   }
