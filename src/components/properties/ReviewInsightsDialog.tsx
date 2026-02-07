@@ -201,8 +201,6 @@ export function ReviewInsightsDialog({
               <div className="flex items-center gap-3 text-sm">
                 {step === 'ai-analysis' ? (
                   <Brain className="h-4 w-4 animate-pulse text-accent" />
-                ) : step === 'complete' ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 ) : (
                   <div className="h-4 w-4 rounded-full border-2 border-muted" />
                 )}
