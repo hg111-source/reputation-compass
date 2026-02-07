@@ -870,6 +870,25 @@ export default function Kasa() {
               </Card>
             </div>
 
+            {/* Location Filter */}
+            <div className="flex items-center justify-center gap-4">
+              <Select value={locationFilter} onValueChange={setLocationFilter}>
+                <SelectTrigger className="w-[320px] h-11 text-base">
+                  <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Filter by location" />
+                </SelectTrigger>
+                <SelectContent className="bg-background">
+                  <SelectItem value="all">All Locations ({kasaProperties.length})</SelectItem>
+                  {locationOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <ScoreLegend />
+            </div>
+
             {/* Properties Table */}
             <Card>
               <CardHeader>
@@ -882,23 +901,6 @@ export default function Kasa() {
                         : `${sortedKasaProperties.length} of ${kasaProperties.length} properties in ${locationFilter}`
                       }
                     </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <ScoreLegend />
-                    <Select value={locationFilter} onValueChange={setLocationFilter}>
-                      <SelectTrigger className="w-[220px]">
-                        <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
-                        <SelectValue placeholder="Filter by location" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background">
-                        <SelectItem value="all">All Locations ({kasaProperties.length})</SelectItem>
-                        {locationOptions.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
               </CardHeader>
