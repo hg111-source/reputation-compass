@@ -96,7 +96,12 @@ export function useAutoGroup() {
     }
 
     for (const property of properties) {
-      const { avgScore } = calculatePropertyMetrics(scores[property.id]);
+      let { avgScore } = calculatePropertyMetrics(scores[property.id]);
+
+      // Fallback to normalized Kasa score (5-point → 10-point) if no OTA data
+      if (avgScore === null && property.kasa_aggregated_score) {
+        avgScore = (property.kasa_aggregated_score / 5) * 10;
+      }
 
       let tierName = 'Needs Work (0-5.99)';
       if (avgScore !== null) {
