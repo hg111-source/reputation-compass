@@ -19,6 +19,15 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -32,7 +41,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { 
   Plus, Trash2, FolderOpen, Settings, CheckSquare, XSquare, Search, 
   Building2, MessageSquare, Wand2, MoreVertical, Pencil, Download, RefreshCw,
-  Globe, Sparkles, Copy, Lock, Loader2
+  Globe, Sparkles, Copy, Lock, Loader2, LayoutGrid, TableIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -65,6 +74,7 @@ export default function Groups() {
   const { sortedGroups: sortedMyGroups, refetch: refetchMyGroups } = useAllGroupMetrics(myGroups);
   const { sortedGroups: sortedPublicGroups, refetch: refetchPublicGroups } = useAllGroupMetrics(publicGroups);
   const [isResorting, setIsResorting] = useState(false);
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
 
   const handleResort = async () => {
     setIsResorting(true);
@@ -295,86 +305,159 @@ export default function Groups() {
             <span>Loading groups...</span>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {/* All Properties Card */}
-            <Card 
-              className="shadow-kasa transition-all hover:shadow-kasa-hover border-2 border-dashed border-accent/30 cursor-pointer"
-              onClick={() => navigate('/dashboard')}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-                  <Globe className="h-5 w-5 text-accent" />
-                  All Properties
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="mb-5 flex items-center justify-center rounded-xl bg-muted/50 py-4 cursor-help">
-                        {allPropertiesMetrics.avgScore !== null ? (
-                          <div className="text-center">
-                            <div className={cn('text-4xl font-bold', getScoreColor(allPropertiesMetrics.avgScore))}>
-                              {formatScore(allPropertiesMetrics.avgScore)}
-                            </div>
-                            <p className="mt-1 text-xs text-muted-foreground">Weighted Avg</p>
+          <div className="space-y-4">
+            {/* View Toggle */}
+            <div className="flex items-center">
+              <ToggleGroup 
+                type="single" 
+                value={viewMode} 
+                onValueChange={(v) => v && setViewMode(v as 'card' | 'table')}
+                className="bg-muted p-1 rounded-lg"
+              >
+                <ToggleGroupItem value="card" aria-label="Card view" className="data-[state=on]:bg-background data-[state=on]:text-foreground text-muted-foreground">
+                  <LayoutGrid className="h-4 w-4 mr-1.5" />
+                  Cards
+                </ToggleGroupItem>
+                <ToggleGroupItem value="table" aria-label="Table view" className="data-[state=on]:bg-background data-[state=on]:text-foreground text-muted-foreground">
+                  <TableIcon className="h-4 w-4 mr-1.5" />
+                  Table
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+
+            {viewMode === 'card' ? (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {/* All Properties Card */}
+                <Card 
+                  className="shadow-kasa transition-all hover:shadow-kasa-hover border-2 border-dashed border-accent/30 cursor-pointer"
+                  onClick={() => navigate('/dashboard')}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardTitle className="flex items-center gap-2 text-xl font-semibold">
+                      <Globe className="h-5 w-5 text-accent" />
+                      All Properties
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="mb-5 flex items-center justify-center rounded-xl bg-muted/50 py-4 cursor-help">
+                            {allPropertiesMetrics.avgScore !== null ? (
+                              <div className="text-center">
+                                <div className={cn('text-4xl font-bold', getScoreColor(allPropertiesMetrics.avgScore))}>
+                                  {formatScore(allPropertiesMetrics.avgScore)}
+                                </div>
+                                <p className="mt-1 text-xs text-muted-foreground">Weighted Avg</p>
+                              </div>
+                            ) : (
+                              <div className="text-center">
+                                <div className="text-4xl font-bold text-muted-foreground">—</div>
+                                <p className="mt-1 text-xs text-muted-foreground">No data</p>
+                              </div>
+                            )}
                           </div>
-                        ) : (
-                          <div className="text-center">
-                            <div className="text-4xl font-bold text-muted-foreground">—</div>
-                            <p className="mt-1 text-xs text-muted-foreground">No data</p>
-                          </div>
-                        )}
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold">Portfolio Weighted Average</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Combined score across all properties
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                          <Building2 className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <div className="text-xl font-bold">{allPropertiesMetrics.totalProperties}</div>
+                          <p className="text-xs text-muted-foreground">
+                            {allPropertiesMetrics.totalProperties === 1 ? 'property' : 'properties'}
+                          </p>
+                        </div>
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="font-semibold">Portfolio Weighted Average</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Combined score across all properties
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                          <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <div className="text-xl font-bold">{allPropertiesMetrics.totalReviews.toLocaleString()}</div>
+                          <p className="text-xs text-muted-foreground">reviews</p>
+                        </div>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                      <Building2 className="h-5 w-5 text-muted-foreground" />
+                    <div className="mt-5 text-xs text-muted-foreground text-center">
+                      Click to view dashboard
                     </div>
-                    <div>
-                      <div className="text-xl font-bold">{allPropertiesMetrics.totalProperties}</div>
-                      <p className="text-xs text-muted-foreground">
-                        {allPropertiesMetrics.totalProperties === 1 ? 'property' : 'properties'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                      <MessageSquare className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <div className="text-xl font-bold">{allPropertiesMetrics.totalReviews.toLocaleString()}</div>
-                      <p className="text-xs text-muted-foreground">reviews</p>
-                    </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
-                <div className="mt-5 text-xs text-muted-foreground text-center">
-                  Click to view dashboard
-                </div>
-              </CardContent>
-            </Card>
-
-            {sortedMyGroups.map(group => (
-              <GroupCard
-                key={group.id}
-                group={group}
-                onDelete={() => handleDelete(group.id, group.name)}
-                onManage={() => setSelectedGroupId(group.id)}
-                isSelected={selectedGroupId === group.id}
-                isOwner={true}
-              />
-            ))}
+                {sortedMyGroups.map(group => (
+                  <GroupCard
+                    key={group.id}
+                    group={group}
+                    onDelete={() => handleDelete(group.id, group.name)}
+                    onManage={() => setSelectedGroupId(group.id)}
+                    isSelected={selectedGroupId === group.id}
+                    isOwner={true}
+                  />
+                ))}
+              </div>
+            ) : (
+              /* Table View */
+              <Card className="overflow-hidden shadow-kasa">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                      <TableHead className="font-semibold">Group Name</TableHead>
+                      <TableHead className="font-semibold text-center">Weighted Avg</TableHead>
+                      <TableHead className="font-semibold text-center">Properties</TableHead>
+                      <TableHead className="font-semibold text-center">Reviews</TableHead>
+                      <TableHead className="font-semibold">Visibility</TableHead>
+                      <TableHead className="font-semibold">Created</TableHead>
+                      <TableHead className="w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* All Properties Row */}
+                    <TableRow 
+                      className="cursor-pointer hover:bg-muted/30 border-b-2 border-dashed border-accent/20"
+                      onClick={() => navigate('/dashboard')}
+                    >
+                      <TableCell className="font-semibold">
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-accent" />
+                          All Properties
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className={cn('font-bold', getScoreColor(allPropertiesMetrics.avgScore))}>
+                          {allPropertiesMetrics.avgScore !== null ? formatScore(allPropertiesMetrics.avgScore) : '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center font-medium">{allPropertiesMetrics.totalProperties}</TableCell>
+                      <TableCell className="text-center font-medium">{allPropertiesMetrics.totalReviews.toLocaleString()}</TableCell>
+                      <TableCell>—</TableCell>
+                      <TableCell>—</TableCell>
+                      <TableCell />
+                    </TableRow>
+                    {sortedMyGroups.map(group => (
+                      <GroupTableRow
+                        key={group.id}
+                        group={group}
+                        onDelete={() => handleDelete(group.id, group.name)}
+                        onManage={() => setSelectedGroupId(group.id)}
+                        isOwner={true}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
           </div>
         )}
 
@@ -387,26 +470,53 @@ export default function Groups() {
                 Shared groups from other users (read-only)
               </p>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {sortedPublicGroups.map(group => (
-                <GroupCard
-                  key={group.id}
-                  group={group}
-                  onDelete={() => {}}
-                  onManage={() => {}}
-                  isSelected={false}
-                  isOwner={false}
-                  onCopy={async (name) => {
-                    try {
-                      await copyGroup.mutateAsync({ sourceGroupId: group.id, newName: name });
-                      toast({ title: 'Group copied', description: `"${name}" has been added to your groups.` });
-                    } catch (error) {
-                      toast({ variant: 'destructive', title: 'Error', description: 'Failed to copy group.' });
-                    }
-                  }}
-                />
-              ))}
-            </div>
+            {viewMode === 'card' ? (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {sortedPublicGroups.map(group => (
+                  <GroupCard
+                    key={group.id}
+                    group={group}
+                    onDelete={() => {}}
+                    onManage={() => {}}
+                    isSelected={false}
+                    isOwner={false}
+                    onCopy={async (name) => {
+                      try {
+                        await copyGroup.mutateAsync({ sourceGroupId: group.id, newName: name });
+                        toast({ title: 'Group copied', description: `"${name}" has been added to your groups.` });
+                      } catch (error) {
+                        toast({ variant: 'destructive', title: 'Error', description: 'Failed to copy group.' });
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Card className="overflow-hidden shadow-kasa">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                      <TableHead className="font-semibold">Group Name</TableHead>
+                      <TableHead className="font-semibold text-center">Weighted Avg</TableHead>
+                      <TableHead className="font-semibold text-center">Properties</TableHead>
+                      <TableHead className="font-semibold text-center">Reviews</TableHead>
+                      <TableHead className="font-semibold">Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedPublicGroups.map(group => (
+                      <GroupTableRow
+                        key={group.id}
+                        group={group}
+                        onDelete={() => {}}
+                        onManage={() => {}}
+                        isOwner={false}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
           </div>
         )}
 
@@ -705,6 +815,90 @@ function GroupCard({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function GroupTableRow({
+  group,
+  onDelete,
+  onManage,
+  isOwner = true,
+}: {
+  group: { id: string; name: string; created_at: string; is_public?: boolean };
+  onDelete: () => void;
+  onManage: () => void;
+  isOwner?: boolean;
+}) {
+  const navigate = useNavigate();
+  const { avgScore, totalProperties, totalReviews, isLoading } = useGroupMetrics(group.id);
+
+  return (
+    <TableRow 
+      className="cursor-pointer hover:bg-muted/30"
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('[role="menuitem"]')) return;
+        navigate(`/dashboard?group=${group.id}`);
+      }}
+    >
+      <TableCell className="font-semibold">
+        <div className="flex items-center gap-2">
+          <GroupBadge groupName={group.name} />
+          {group.name}
+        </div>
+      </TableCell>
+      <TableCell className="text-center">
+        {isLoading ? (
+          <div className="flex justify-center">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          </div>
+        ) : (
+          <span className={cn('font-bold', getScoreColor(avgScore))}>
+            {avgScore !== null ? formatScore(avgScore) : '—'}
+          </span>
+        )}
+      </TableCell>
+      <TableCell className="text-center font-medium">{totalProperties}</TableCell>
+      <TableCell className="text-center font-medium">{totalReviews.toLocaleString()}</TableCell>
+      <TableCell>
+        {group.is_public ? (
+          <span className="flex items-center gap-1 text-xs text-accent">
+            <Globe className="h-3.5 w-3.5" />
+            Public
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5" />
+            Private
+          </span>
+        )}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {format(new Date(group.created_at), 'MMM d, yyyy')}
+      </TableCell>
+      <TableCell>
+        {isOwner && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onManage}>
+                <Settings className="mr-2 h-4 w-4" />
+                Manage Properties
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </TableCell>
+    </TableRow>
   );
 }
 
