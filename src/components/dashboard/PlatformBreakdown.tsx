@@ -106,7 +106,7 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
       <CardContent>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {platformMetrics
-            .filter(metric => metric.totalReviews > 0)
+            .filter(metric => metric.totalReviews > 0 && metric.platform !== 'kasa')
             .map(metric => (
             <div
               key={metric.platform}
