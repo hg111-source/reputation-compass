@@ -686,7 +686,7 @@ export default function Properties() {
                         className="p-0.5 rounded hover:bg-muted/50"
                         title="Fetch AI insights for all properties"
                       >
-                        <Brain className={cn('h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground', bulkInsights.isRunning && 'animate-pulse text-accent')} />
+                        <Brain className={cn('h-3.5 w-3.5 text-muted-foreground hover:text-foreground', bulkInsights.isRunning && 'animate-pulse text-accent')} />
                       </button>
                     </div>
                   </TableHead>
