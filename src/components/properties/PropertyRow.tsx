@@ -1,4 +1,4 @@
-import { MapPin, Trash2, RefreshCw, ExternalLink, History, Sparkles, AlertCircle } from 'lucide-react';
+import { MapPin, Trash2, RefreshCw, ExternalLink, History, Sparkles, AlertCircle, Loader2, Minus } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -11,11 +11,13 @@ import {
   calculatePropertyMetrics 
 } from '@/lib/scoring';
 import { Platform } from '@/hooks/useUnifiedRefresh';
+import { HealingItem } from '@/hooks/useAutoHeal';
 
 interface PlatformScore {
   score: number;
   count: number;
   updated: string;
+  status?: string;
 }
 
 interface PropertyRowProps {
@@ -29,6 +31,7 @@ interface PropertyRowProps {
   isRefreshing: boolean;
   refreshingPropertyId: string | null;
   currentPlatform: Platform | null;
+  getHealingStatus?: (propertyId: string, platform: Platform) => HealingItem | undefined;
 }
 
 export function PropertyRow({
@@ -42,6 +45,7 @@ export function PropertyRow({
   isRefreshing,
   refreshingPropertyId,
   currentPlatform,
+  getHealingStatus,
 }: PropertyRowProps) {
   // Only show refresh state if THIS property is the one being refreshed
   const isThisRefreshing = isRefreshing && refreshingPropertyId === property.id;
@@ -61,22 +65,14 @@ export function PropertyRow({
   const renderPlatformCell = (platform: ReviewSource) => {
     const data = scores?.[platform];
     const isRefreshingThis = isThisRefreshing && currentPlatform === platform;
-    
-    // Check if URL is missing for OTA platforms
-    const hasUrl = platform === 'google' 
-      ? !!property.google_place_id 
-      : platform === 'booking' 
-        ? !!property.booking_url 
-        : platform === 'tripadvisor' 
-          ? !!property.tripadvisor_url 
-          : !!property.expedia_url;
-    
-    const showMissingUrlWarning = !hasUrl && platform !== 'google';
+    const healingItem = getHealingStatus?.(property.id, platform as Platform);
+    const isAutoHealing = healingItem?.status === 'retrying' || healingItem?.status === 'queued';
+    const healFailed = healingItem?.status === 'failed';
 
     return (
       <TableCell key={platform} className="text-center group/cell">
         <div className="relative flex flex-col items-center gap-0.5">
-          {data && data.score > 0 ? (
+          {data && data.score != null && data.score > 0 ? (
             <>
               <span className={cn('font-semibold', getScoreColor(data.score))}>
                 {formatScore(data.score)}
@@ -85,21 +81,63 @@ export function PropertyRow({
                 {data.count.toLocaleString()}
               </span>
             </>
+          ) : isRefreshingThis || isAutoHealing ? (
+            /* While retrying → show spinner */
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-help">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Fetching...</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  {healingItem ? `Attempt ${healingItem.retryCount}/${3}` : 'Refreshing...'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : healFailed ? (
+            /* After all retries fail → show "—" with tooltip */
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-help">
+                    <Minus className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground font-semibold">—</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs max-w-xs">
+                  <p className="font-medium">Unavailable after {healingItem?.retryCount} attempts</p>
+                  {healingItem?.error && (
+                    <p className="text-muted-foreground mt-1">{healingItem.error}</p>
+                  )}
+                  <p className="text-muted-foreground mt-1">Click refresh to try again manually</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : data?.status === 'not_listed' ? (
+            /* Not listed on platform */
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-muted-foreground font-semibold cursor-help">—</span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  <p className="font-medium">Not listed on this platform</p>
+                  <p className="text-muted-foreground mt-1">Not included in weighted average</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : (
+            /* Default: no data yet, not healing */
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="text-orange-500 font-semibold cursor-help">?</span>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs max-w-xs">
-                  <p className="font-medium">
-                    {showMissingUrlWarning ? 'Missing platform URL' : 'Rating not found'}
-                  </p>
-                  <p className="text-muted-foreground mt-1">
-                    {showMissingUrlWarning 
-                      ? 'Click the refresh button to auto-resolve and fetch ratings'
-                      : 'Not included in weighted average'}
-                  </p>
+                  <p className="font-medium">Rating not found</p>
+                  <p className="text-muted-foreground mt-1">Click refresh to fetch</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -107,16 +145,16 @@ export function PropertyRow({
           {/* Hover refresh button */}
           <button
             onClick={() => onRefreshPlatform(property, platform as Platform)}
-            disabled={isThisRefreshing}
+            disabled={isThisRefreshing || isAutoHealing}
             className={cn(
               'absolute -right-1 top-1/2 -translate-y-1/2 rounded-full p-0.5 opacity-0 transition-opacity',
               'bg-background shadow-sm border border-border',
               'hover:bg-muted group-hover/cell:opacity-100',
-              isRefreshingThis && 'opacity-100'
+              (isRefreshingThis || isAutoHealing) && 'opacity-100'
             )}
             title={`Refresh ${platform}`}
           >
-            <RefreshCw className={cn('h-3 w-3 text-muted-foreground', isRefreshingThis && 'animate-spin')} />
+            <RefreshCw className={cn('h-3 w-3 text-muted-foreground', (isRefreshingThis || isAutoHealing) && 'animate-spin')} />
           </button>
         </div>
       </TableCell>

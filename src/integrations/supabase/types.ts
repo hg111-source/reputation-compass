@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      debug_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          max_retries: number
+          platform: string
+          property_id: string
+          retry_count: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number
+          platform: string
+          property_id: string
+          retry_count?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number
+          platform?: string
+          property_id?: string
+          retry_count?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debug_logs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_properties: {
         Row: {
           created_at: string
