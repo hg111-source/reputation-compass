@@ -59,11 +59,15 @@ export function GroupScoresTable({
         }))
       );
 
+      // For Kasa properties without OTA snapshots, fall back to kasa_aggregated_score
+      const finalWeightedScore = weightedScore ?? property.kasa_aggregated_score ?? null;
+      const finalTotalReviews = totalReviews > 0 ? totalReviews : (property.kasa_review_count ?? 0);
+
       return {
         ...property,
         scores: scoreData,
-        weightedScore,
-        totalReviews,
+        weightedScore: finalWeightedScore,
+        totalReviews: finalTotalReviews,
         lastUpdated,
       };
     });

@@ -115,7 +115,13 @@ export function GroupDashboard({ group, groupSelector }: GroupDashboardProps) {
 
     for (const property of properties) {
       const propertyScores = scores[property.id];
-      const { avgScore, totalReviews } = calculatePropertyMetrics(propertyScores);
+      let { avgScore, totalReviews } = calculatePropertyMetrics(propertyScores);
+
+      // Fallback to Kasa fields if no OTA snapshot data
+      if (avgScore === null && property.kasa_aggregated_score) {
+        avgScore = property.kasa_aggregated_score;
+        totalReviews = property.kasa_review_count ?? 0;
+      }
 
       if (avgScore !== null && totalReviews > 0) {
         // Each hotel's weighted avg × its total reviews
