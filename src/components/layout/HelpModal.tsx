@@ -15,12 +15,13 @@ export function HelpModal() {
     <Dialog>
       <DialogTrigger asChild>
         <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent"
+          variant="outline"
+          size="sm"
+          className="gap-1.5 rounded-full px-3 text-muted-foreground hover:text-foreground hover:bg-accent"
           aria-label="Help"
         >
-          <HelpCircle className="h-5 w-5" />
+          <HelpCircle className="h-4 w-4" />
+          <span className="text-xs font-medium">Help</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
