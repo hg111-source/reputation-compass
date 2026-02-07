@@ -219,40 +219,88 @@ serve(async (req) => {
     } else {
       // Alias exists - check its status
 
-      // Hotel marked as not listed on platform
+      // Hotel previously marked as not listed - re-resolve on retry
       if (alias.resolution_status === 'not_listed') {
-        return new Response(
-          JSON.stringify({ success: true, status: 'not_listed' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+        console.log('Previously marked not_listed, re-resolving...');
 
-      // Get hotel_id - either from platform_id or extract from URL
-      var hotelId: string = alias.platform_id || '';
-      
-      if (!hotelId && alias.platform_url) {
-        hotelId = extractHotelId(alias.platform_url) || '';
-        
-        // Save the extracted ID for next time
-        if (hotelId) {
-          console.log(`Extracted hotel_id ${hotelId} from URL, saving to alias`);
-          await supabase
-            .from('hotel_aliases')
-            .update({ platform_id: hotelId })
-            .eq('property_id', propertyId)
-            .eq('source', 'expedia');
+        const { data: property } = await supabase
+          .from('properties')
+          .select('name, city, state')
+          .eq('id', propertyId)
+          .single();
+
+        if (property) {
+          const resolveResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-hotel-urls`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              hotelName: property.name,
+              city: property.city,
+              state: property.state,
+              platforms: ['expedia'],
+            }),
+          });
+
+          const resolveData = await resolveResponse.json();
+          console.log('Re-resolve result:', JSON.stringify(resolveData));
+
+          if (resolveData.success && resolveData.urls?.expedia_url) {
+            const expediaHotelId = resolveData.hotelIds?.expedia_hotel_id || extractHotelId(resolveData.urls.expedia_url) || null;
+            await supabase.from('hotel_aliases')
+              .update({
+                platform_url: resolveData.urls.expedia_url,
+                platform_id: expediaHotelId,
+                resolution_status: 'resolved',
+                last_resolved_at: new Date().toISOString(),
+              })
+              .eq('property_id', propertyId)
+              .eq('source', 'expedia');
+
+            if (expediaHotelId) {
+              var hotelId: string = expediaHotelId;
+              console.log(`Re-resolved hotel_id: ${hotelId}`);
+              // Fall through to fetch rating below
+            }
+          }
         }
-      }
-      
-      if (!hotelId) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            status: 'no_hotel_id', 
-            message: 'No hotel ID found. Re-run "Resolve URLs" to extract ID.' 
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+
+        // If re-resolution didn't find anything, still return not_listed
+        if (typeof hotelId === 'undefined' || !hotelId) {
+          return new Response(
+            JSON.stringify({ success: true, status: 'not_listed' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        // Not not_listed - get hotel_id from existing alias
+        var hotelId: string = alias.platform_id || '';
+        
+        if (!hotelId && alias.platform_url) {
+          hotelId = extractHotelId(alias.platform_url) || '';
+          
+          if (hotelId) {
+            console.log(`Extracted hotel_id ${hotelId} from URL, saving to alias`);
+            await supabase
+              .from('hotel_aliases')
+              .update({ platform_id: hotelId })
+              .eq('property_id', propertyId)
+              .eq('source', 'expedia');
+          }
+        }
+        
+        if (!hotelId) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              status: 'no_hotel_id', 
+              message: 'No hotel ID found. Re-run "Resolve URLs" to extract ID.' 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
 
