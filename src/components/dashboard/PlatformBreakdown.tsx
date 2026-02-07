@@ -108,9 +108,9 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
           {platformMetrics
             .filter(metric => metric.totalReviews > 0 && metric.platform !== 'kasa')
             .filter(() => {
-              // If only Kasa data exists (no OTA platforms), hide all platform cards and show only Overall
-              const otaPlatforms = platformMetrics.filter(m => m.totalReviews > 0 && m.platform !== 'kasa');
-              return otaPlatforms.length > 0;
+              // If all properties are Kasa properties, hide individual platform cards and show only Overall
+              const allKasa = properties.every(p => p.kasa_url || p.kasa_aggregated_score);
+              return !allKasa;
             })
             .map(metric => (
             <div
