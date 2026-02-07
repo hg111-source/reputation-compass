@@ -95,6 +95,60 @@ export function usePortfolioBenchmark() {
   });
 }
 
+// Calculate Kasa portfolio OTA averages dynamically from snapshot data
+export function useKasaOTAAverages() {
+  return useQuery({
+    queryKey: ['kasa-ota-averages'],
+    queryFn: async (): Promise<Record<string, number>> => {
+      // Get Kasa property IDs
+      const { data: properties, error: propError } = await supabase
+        .from('properties')
+        .select('id')
+        .or('kasa_url.not.is.null,kasa_aggregated_score.not.is.null');
+      
+      if (propError) throw propError;
+      const kasaIds = properties?.map(p => p.id) || [];
+      if (kasaIds.length === 0) return {};
+
+      // Get latest OTA snapshots for Kasa properties
+      const { data: snapshots, error: snapError } = await supabase
+        .from('source_snapshots')
+        .select('property_id, source, normalized_score_0_10, collected_at')
+        .in('property_id', kasaIds)
+        .in('source', ['google', 'tripadvisor', 'booking', 'expedia'])
+        .not('normalized_score_0_10', 'is', null)
+        .order('collected_at', { ascending: false });
+
+      if (snapError) throw snapError;
+
+      // Deduplicate: latest per property+platform
+      const latest = new Map<string, number>();
+      snapshots?.forEach(s => {
+        const key = `${s.property_id}-${s.source}`;
+        if (!latest.has(key) && s.normalized_score_0_10 != null) {
+          latest.set(key, Number(s.normalized_score_0_10));
+        }
+      });
+
+      // Average by platform
+      const platformScores: Record<string, number[]> = {};
+      latest.forEach((score, key) => {
+        const platform = key.split('-').pop()!;
+        if (!platformScores[platform]) platformScores[platform] = [];
+        platformScores[platform].push(score);
+      });
+
+      const averages: Record<string, number> = {};
+      Object.entries(platformScores).forEach(([platform, scores]) => {
+        averages[platform] = scores.reduce((a, b) => a + b, 0) / scores.length;
+      });
+
+      return averages;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 // Calculate percentile rank of a score INCLUDING it in the full distribution
 // This matches Excel's PERCENTRANK behavior: add the value to the set, then find its rank
 export function calculatePercentileInDistribution(score: number, otherScores: number[]): number {
@@ -111,7 +165,6 @@ export function calculatePercentileInDistribution(score: number, otherScores: nu
   }
   
   // Percentile rank = (values below) / (total - 1) * 100
-  // This gives the position in the distribution (0-100)
   const totalCount = fullSet.length;
   return (countBelow / (totalCount - 1)) * 100;
 }
