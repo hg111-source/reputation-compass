@@ -593,6 +593,7 @@ function GroupCardSections({
             </CardContent>
           </Card>
           {renderCards(portfolioGroups)}
+          {renderCards(otherGroups)}
         </div>
       </div>
 
@@ -616,15 +617,6 @@ function GroupCardSections({
         </div>
       )}
 
-      {/* Other groups */}
-      {otherGroups.length > 0 && (
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Other</h3>
-          <div className={gridClass}>
-            {renderCards(otherGroups)}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
