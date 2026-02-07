@@ -7,6 +7,7 @@ import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { useUnifiedRefresh, Platform } from '@/hooks/useUnifiedRefresh';
 import { useGroups } from '@/hooks/useGroups';
 import { useAutoHeal } from '@/hooks/useAutoHeal';
+import { useBulkInsights } from '@/hooks/useBulkInsights';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Plus, Building2, RefreshCw, Download, LayoutGrid, TableIcon, Home, Bug } from 'lucide-react';
+import { Plus, Building2, RefreshCw, Download, LayoutGrid, TableIcon, Home, Bug, Brain } from 'lucide-react';
 import googleLogo from '@/assets/logos/google.svg';
 import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
 import bookingLogo from '@/assets/logos/booking.png';
@@ -54,6 +55,7 @@ import { SortableTableHead, SortDirection } from '@/components/properties/Sortab
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { HotelAutocomplete } from '@/components/properties/HotelAutocomplete';
 import { AirbnbDiscoveryDialog } from '@/components/properties/AirbnbDiscoveryDialog';
+import { BulkInsightsDialog } from '@/components/properties/BulkInsightsDialog';
 import { Progress } from '@/components/ui/progress';
 
 type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
@@ -75,6 +77,8 @@ export default function Properties() {
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   const [isAirbnbDiscoveryOpen, setIsAirbnbDiscoveryOpen] = useState(false);
+  const [isBulkInsightsOpen, setIsBulkInsightsOpen] = useState(false);
+  const bulkInsights = useBulkInsights();
   
   // Form state for controlled inputs
   const [formName, setFormName] = useState('');
@@ -670,7 +674,19 @@ export default function Properties() {
                       </button>
                     </div>
                   </SortableTableHead>
-                  <TableHead className="w-12"></TableHead>
+                  <TableHead className="w-12">
+                    <button
+                      onClick={() => {
+                        setIsBulkInsightsOpen(true);
+                        bulkInsights.run(sortedProperties);
+                      }}
+                      disabled={bulkInsights.isRunning}
+                      className="p-1 rounded hover:bg-muted/50"
+                      title="Fetch AI insights for all properties"
+                    >
+                      <Brain className={cn('h-4 w-4 text-muted-foreground/50 hover:text-muted-foreground', bulkInsights.isRunning && 'animate-pulse text-accent')} />
+                    </button>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -746,6 +762,19 @@ export default function Properties() {
         <AirbnbDiscoveryDialog
           open={isAirbnbDiscoveryOpen}
           onOpenChange={setIsAirbnbDiscoveryOpen}
+        />
+
+        {/* Bulk insights dialog */}
+        <BulkInsightsDialog
+          open={isBulkInsightsOpen}
+          onOpenChange={setIsBulkInsightsOpen}
+          isRunning={bulkInsights.isRunning}
+          states={bulkInsights.states}
+          progress={bulkInsights.progress}
+          doneCount={bulkInsights.doneCount}
+          errorCount={bulkInsights.errorCount}
+          total={bulkInsights.total}
+          onCancel={bulkInsights.cancel}
         />
 
         {/* Debug panel - toggle with ?debug=true in URL */}
