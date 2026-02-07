@@ -7,12 +7,12 @@ import { cn } from '@/lib/utils';
 import { HelpModal } from '@/components/layout/HelpModal';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/insights', label: 'KasaSights', icon: Lightbulb },
-  { href: '/groups', label: 'Groups', icon: FolderOpen },
-  { href: '/properties', label: 'Properties', icon: Building2 },
-  { href: '/kasa', label: 'Kasa', icon: Star },
   { href: '/upload', label: 'Upload', icon: Upload },
+  { href: '/properties', label: 'Properties', icon: Building2 },
+  { href: '/groups', label: 'Groups', icon: FolderOpen },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/kasa', label: 'Kasa', icon: Star },
+  { href: '/insights', label: 'KasaSights', icon: Lightbulb },
 ];
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
