@@ -361,72 +361,43 @@ export default function Groups() {
             </div>
 
             {viewMode === 'card' ? (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {/* All Properties Card */}
                 <Card 
                   className="shadow-kasa transition-all hover:shadow-kasa-hover border-2 border-dashed border-accent/30 cursor-pointer"
                   onClick={() => navigate('/dashboard')}
                 >
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                    <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-                      <Globe className="h-5 w-5 text-accent" />
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
+                    <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
+                      <Globe className="h-3.5 w-3.5 text-accent" />
                       All Properties
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="mb-5 flex items-center justify-center rounded-xl bg-muted/50 py-4 cursor-help">
-                            {allPropertiesMetrics.avgScore !== null ? (
-                              <div className="text-center">
-                                <div className={cn('text-4xl font-bold', getScoreColor(allPropertiesMetrics.avgScore))}>
-                                  {formatScore(allPropertiesMetrics.avgScore)}
-                                </div>
-                                <p className="mt-1 text-xs text-muted-foreground">Weighted Avg</p>
-                              </div>
-                            ) : (
-                              <div className="text-center">
-                                <div className="text-4xl font-bold text-muted-foreground">—</div>
-                                <p className="mt-1 text-xs text-muted-foreground">No data</p>
-                              </div>
-                            )}
+                  <CardContent className="px-4 pb-4 pt-0">
+                    <div className="mb-3 flex items-center justify-center rounded-lg bg-muted/50 py-2.5">
+                      {allPropertiesMetrics.avgScore !== null ? (
+                        <div className="text-center">
+                          <div className={cn('text-2xl font-bold', getScoreColor(allPropertiesMetrics.avgScore))}>
+                            {formatScore(allPropertiesMetrics.avgScore)}
                           </div>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="font-semibold">Portfolio Weighted Average</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Combined score across all properties
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                          <Building2 className="h-5 w-5 text-muted-foreground" />
+                          <p className="text-[10px] text-muted-foreground">Weighted Avg</p>
                         </div>
-                        <div>
-                          <div className="text-xl font-bold">{allPropertiesMetrics.totalProperties}</div>
-                          <p className="text-xs text-muted-foreground">
-                            {allPropertiesMetrics.totalProperties === 1 ? 'property' : 'properties'}
-                          </p>
+                      ) : (
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-muted-foreground">—</div>
+                          <p className="text-[10px] text-muted-foreground">No data</p>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                          <MessageSquare className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <div className="text-xl font-bold">{allPropertiesMetrics.totalReviews.toLocaleString()}</div>
-                          <p className="text-xs text-muted-foreground">reviews</p>
-                        </div>
-                      </div>
+                      )}
                     </div>
-
-                    <div className="mt-5 text-xs text-muted-foreground text-center">
-                      Click to view dashboard
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5" />
+                        <span><span className="font-semibold text-foreground">{allPropertiesMetrics.totalProperties}</span> properties</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        <span><span className="font-semibold text-foreground">{allPropertiesMetrics.totalReviews.toLocaleString()}</span> reviews</span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -508,7 +479,7 @@ export default function Groups() {
               </p>
             </div>
             {viewMode === 'card' ? (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {sortedPublicGroups.map(group => (
                   <GroupCard
                     key={group.id}
@@ -662,35 +633,29 @@ function GroupCard({
         )}
         onClick={handleCardClick}
       >
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
           {isRenaming ? (
             <div className="flex items-center gap-2 flex-1 mr-2">
               <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="h-8"
+                className="h-7 text-sm"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleRename();
                   if (e.key === 'Escape') setIsRenaming(false);
                 }}
               />
-              <Button size="sm" variant="ghost" onClick={handleRename}>Save</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleRename}>Save</Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
               <GroupBadge groupName={group.name} />
-              <CardTitle className="text-xl font-semibold">{group.name}</CardTitle>
+              <CardTitle className="text-sm font-semibold truncate">{group.name}</CardTitle>
               {group.is_public ? (
-                <span className="flex items-center gap-1 text-xs text-accent">
-                  <Globe className="h-3.5 w-3.5" />
-                  Public
-                </span>
+                <Globe className="h-3 w-3 text-accent shrink-0" />
               ) : (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Lock className="h-3.5 w-3.5" />
-                  Private
-                </span>
+                <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
               )}
             </div>
           )}
@@ -753,68 +718,37 @@ function GroupCard({
             </DropdownMenuContent>
           </DropdownMenu>
         </CardHeader>
-        <CardContent>
-          {/* Group Weighted Average Score - Primary metric */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="mb-5 flex items-center justify-center rounded-xl bg-muted/50 py-4 cursor-help">
-                  {isLoading ? (
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-                  ) : avgScore !== null ? (
-                    <div className="text-center">
-                      <div className={cn('text-4xl font-bold', getScoreColor(avgScore))}>
-                        {formatScore(avgScore)}
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">Weighted Avg</p>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <div className="text-4xl font-bold text-muted-foreground">—</div>
-                      <p className="mt-1 text-xs text-muted-foreground">No data</p>
-                    </div>
-                  )}
+        <CardContent className="px-4 pb-4 pt-0">
+          {/* Score */}
+          <div className="mb-3 flex items-center justify-center rounded-lg bg-muted/50 py-2.5">
+            {isLoading ? (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+            ) : avgScore !== null ? (
+              <div className="text-center">
+                <div className={cn('text-2xl font-bold', getScoreColor(avgScore))}>
+                  {formatScore(avgScore)}
                 </div>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p className="font-semibold">Group Weighted Average</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Σ(hotel_avg × hotel_reviews) ÷ Σ(hotel_reviews)
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Hotels with more reviews have greater influence on this score.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Stats row */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
+                <p className="text-[10px] text-muted-foreground">Weighted Avg</p>
               </div>
-              <div>
-                <div className="text-xl font-bold">{totalProperties}</div>
-                <p className="text-xs text-muted-foreground">
-                  {totalProperties === 1 ? 'property' : 'properties'}
-                </p>
+            ) : (
+              <div className="text-center">
+                <div className="text-2xl font-bold text-muted-foreground">—</div>
+                <p className="text-[10px] text-muted-foreground">No data</p>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <MessageSquare className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <div className="text-xl font-bold">{totalReviews.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">reviews</p>
-              </div>
-            </div>
+            )}
           </div>
 
-          <p className="mt-5 text-xs text-muted-foreground">
-            Created {format(new Date(group.created_at), 'MMM d, yyyy')}
-          </p>
+          {/* Stats row */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <Building2 className="h-3.5 w-3.5" />
+              <span><span className="font-semibold text-foreground">{totalProperties}</span> properties</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span><span className="font-semibold text-foreground">{totalReviews.toLocaleString()}</span> reviews</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
