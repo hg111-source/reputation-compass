@@ -4,13 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Building2, LayoutDashboard, Upload, FolderOpen, LogOut, ChevronRight, Star, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { HelpModal } from '@/components/layout/HelpModal';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/properties', label: 'Properties', icon: Building2 },
-  { href: '/groups', label: 'Groups', icon: FolderOpen },
-  { href: '/kasa', label: 'Kasa', icon: Star },
   { href: '/insights', label: 'So What?', icon: BarChart3 },
+  { href: '/groups', label: 'Groups', icon: FolderOpen },
+  { href: '/properties', label: 'Properties', icon: Building2 },
+  { href: '/kasa', label: 'Kasa', icon: Star },
   { href: '/upload', label: 'Upload', icon: Upload },
 ];
 
@@ -84,7 +85,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       {/* Main content */}
       <main className="ml-64 flex-1">
-        <div className="px-10 py-10">
+        <div className="flex justify-end px-10 pt-6 pb-0">
+          <HelpModal />
+        </div>
+        <div className="px-10 pb-10 pt-4">
           {children}
         </div>
       </main>
