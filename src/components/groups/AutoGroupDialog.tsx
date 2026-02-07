@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Property, ReviewSource } from '@/lib/types';
-import { useAutoGroup, AutoGroupStrategy } from '@/hooks/useAutoGroup';
+import { useAutoGroup, AutoGroupStrategy, PropertyFilter } from '@/hooks/useAutoGroup';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -33,34 +33,56 @@ const GROUP_OPTIONS: GroupOption[] = [
   {
     id: 'state',
     title: 'Group by State',
-    description: 'Create groups like "California Properties", "Massachusetts Properties"',
+    description: 'Create "{State}_Comp Set" and "{State}_Kasa" groups for every state',
     icon: Map,
     color: 'text-emerald-500',
   },
   {
     id: 'score',
-    title: 'Group by Score Legend',
+    title: 'Group by Score Band',
     description: 'Create "Wonderful (9+)", "Very Good (8+)", "Good (7+)", "Pleasant (6+)", "Needs Work"',
     icon: TrendingUp,
     color: 'text-amber-500',
   },
 ];
 
+const FILTER_OPTIONS: { id: PropertyFilter; label: string }[] = [
+  { id: 'all', label: 'All Properties' },
+  { id: 'kasa', label: 'Kasa Only' },
+  { id: 'competitors', label: 'Competitors Only' },
+];
+
 export function AutoGroupDialog({ open, onOpenChange, properties, scores }: AutoGroupDialogProps) {
   const { generateGroups, createAutoGroups } = useAutoGroup();
   const { toast } = useToast();
   const [selectedStrategy, setSelectedStrategy] = useState<AutoGroupStrategy | null>(null);
+  const [propertyFilter, setPropertyFilter] = useState<PropertyFilter>('all');
   const [isCreating, setIsCreating] = useState(false);
-  const [preview, setPreview] = useState<{ name: string; count: number; propertyIds: string[] }[] | null>(null);
+  const [preview, setPreview] = useState<{ name: string; count: number; propertyIds: string[]; isPublic: boolean }[] | null>(null);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
+
+  const runPreview = (strategy: AutoGroupStrategy, filter: PropertyFilter) => {
+    const groups = generateGroups(properties, scores, strategy, filter);
+    const previewData = groups.map(g => ({
+      name: g.name,
+      count: g.propertyIds.length,
+      propertyIds: g.propertyIds,
+      isPublic: g.isPublic,
+    }));
+    setPreview(previewData);
+    setSelectedGroups(new Set(previewData.filter(g => g.count > 0).map(g => g.name)));
+  };
 
   const handleSelectStrategy = (strategy: AutoGroupStrategy) => {
     setSelectedStrategy(strategy);
-    const groups = generateGroups(properties, scores, strategy);
-    const previewData = groups.map(g => ({ name: g.name, count: g.propertyIds.length, propertyIds: g.propertyIds }));
-    setPreview(previewData);
-    // Select all groups by default
-    setSelectedGroups(new Set(previewData.map(g => g.name)));
+    runPreview(strategy, propertyFilter);
+  };
+
+  const handleFilterChange = (filter: PropertyFilter) => {
+    setPropertyFilter(filter);
+    if (selectedStrategy) {
+      runPreview(selectedStrategy, filter);
+    }
   };
 
   const handleToggleGroup = (groupName: string) => {
@@ -89,22 +111,22 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
 
   const handleCreate = async () => {
     if (!selectedStrategy || selectedPreview.length === 0) return;
-    
+
     setIsCreating(true);
     try {
-      // Only create selected groups
       const groupsToCreate = selectedPreview.map(g => ({
         name: g.name,
         propertyIds: g.propertyIds,
+        isPublic: g.isPublic,
       }));
-      
+
       const created = await createAutoGroups.mutateAsync(groupsToCreate);
-      
+
       toast({
         title: 'Groups created',
-        description: `Created ${created.length} groups successfully.`,
+        description: `Created ${created.length} groups successfully (public by default).`,
       });
-      
+
       onOpenChange(false);
       resetState();
     } catch (error) {
@@ -119,6 +141,7 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
 
   const resetState = () => {
     setSelectedStrategy(null);
+    setPropertyFilter('all');
     setPreview(null);
     setSelectedGroups(new Set());
   };
@@ -137,7 +160,7 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
             Smart Auto-Grouping
           </DialogTitle>
           <DialogDescription>
-            Automatically organize your {properties.length} properties into groups
+            Automatically organize your {properties.length} properties into groups (public by default)
           </DialogDescription>
         </DialogHeader>
 
@@ -145,7 +168,7 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
           {GROUP_OPTIONS.map((option) => {
             const isSelected = selectedStrategy === option.id;
             const Icon = option.icon;
-            
+
             return (
               <button
                 key={option.id}
@@ -176,6 +199,24 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
           })}
         </div>
 
+        {/* Property Filter — only for score strategy */}
+        {selectedStrategy === 'score' && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Filter:</span>
+            {FILTER_OPTIONS.map((f) => (
+              <Button
+                key={f.id}
+                variant={propertyFilter === f.id ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => handleFilterChange(f.id)}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
+        )}
+
         {/* Preview with Checkboxes */}
         {preview && preview.length > 0 && (
           <div className="rounded-lg border border-border bg-muted/30 p-4">
@@ -184,18 +225,18 @@ export function AutoGroupDialog({ open, onOpenChange, properties, scores }: Auto
                 Select groups to create ({selectedGroups.size} of {preview.length})
               </p>
               <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={handleSelectAll}
                   className="h-7 px-2 text-xs"
                 >
                   <CheckSquare className="mr-1 h-3 w-3" />
                   All
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={handleDeselectAll}
                   className="h-7 px-2 text-xs"
                 >
