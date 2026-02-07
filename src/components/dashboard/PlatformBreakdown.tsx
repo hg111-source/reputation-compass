@@ -28,7 +28,7 @@ interface PlatformMetric {
 }
 
 export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps) {
-  const { platformMetrics, overallMetrics } = useMemo(() => {
+  const { platformMetrics, overallMetrics, hasKasaData } = useMemo(() => {
     const metrics: PlatformMetric[] = [];
     let overallPoints = 0;
     let overallReviews = 0;
@@ -60,12 +60,38 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
       });
     }
 
+    // Calculate Kasa platform metrics from property fields
+    let kasaPoints = 0;
+    let kasaReviews = 0;
+    let kasaCount = 0;
+
+    for (const property of properties) {
+      if (property.kasa_aggregated_score && property.kasa_review_count && property.kasa_review_count > 0) {
+        const normalizedScore = (property.kasa_aggregated_score / 5) * 10;
+        kasaPoints += normalizedScore * property.kasa_review_count;
+        kasaReviews += property.kasa_review_count;
+        kasaCount++;
+      }
+    }
+
+    if (kasaCount > 0) {
+      metrics.push({
+        platform: 'kasa' as ReviewSource,
+        avgScore: kasaReviews > 0 ? kasaPoints / kasaReviews : null,
+        totalReviews: kasaReviews,
+        propertyCount: kasaCount,
+      });
+      overallPoints += kasaPoints;
+      overallReviews += kasaReviews;
+    }
+
     return {
       platformMetrics: metrics,
       overallMetrics: {
         avgScore: overallReviews > 0 ? overallPoints / overallReviews : null,
         totalReviews: overallReviews,
       },
+      hasKasaData: kasaCount > 0,
     };
   }, [properties, scores]);
 
@@ -79,16 +105,24 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {platformMetrics.map(metric => (
+          {platformMetrics
+            .filter(metric => metric.totalReviews > 0)
+            .map(metric => (
             <div
               key={metric.platform}
               className="flex flex-col items-center p-4 rounded-xl bg-muted/30 text-center"
             >
-              <img
-                src={platformLogos[metric.platform]}
-                alt={SOURCE_LABELS[metric.platform]}
-                className="h-6 w-6 object-contain mb-2"
-              />
+              {platformLogos[metric.platform] ? (
+                <img
+                  src={platformLogos[metric.platform]}
+                  alt={SOURCE_LABELS[metric.platform]}
+                  className="h-6 w-6 object-contain mb-2"
+                />
+              ) : (
+                <div className="h-6 w-6 flex items-center justify-center mb-2">
+                  <span className="text-sm font-bold text-primary">K</span>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground font-medium mb-1">
                 {SOURCE_LABELS[metric.platform]}
               </p>
