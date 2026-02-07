@@ -361,58 +361,14 @@ export default function Groups() {
             </div>
 
             {viewMode === 'card' ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {/* All Properties Card */}
-                <Card 
-                  className="shadow-kasa transition-all hover:shadow-kasa-hover border-2 border-dashed border-accent/30 cursor-pointer"
-                  onClick={() => navigate('/dashboard')}
-                >
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
-                    <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
-                      <Globe className="h-3.5 w-3.5 text-accent" />
-                      All Properties
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4 pt-0">
-                    <div className="mb-3 flex items-center justify-center rounded-lg bg-muted/50 py-2.5">
-                      {allPropertiesMetrics.avgScore !== null ? (
-                        <div className="text-center">
-                          <div className={cn('text-2xl font-bold', getScoreColor(allPropertiesMetrics.avgScore))}>
-                            {formatScore(allPropertiesMetrics.avgScore)}
-                          </div>
-                          <p className="text-[10px] text-muted-foreground">Weighted Avg</p>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-muted-foreground">—</div>
-                          <p className="text-[10px] text-muted-foreground">No data</p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <Building2 className="h-3.5 w-3.5" />
-                        <span><span className="font-semibold text-foreground">{allPropertiesMetrics.totalProperties}</span> properties</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        <span><span className="font-semibold text-foreground">{allPropertiesMetrics.totalReviews.toLocaleString()}</span> reviews</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {sortedMyGroups.map(group => (
-                  <GroupCard
-                    key={group.id}
-                    group={group}
-                    onDelete={() => handleDelete(group.id, group.name)}
-                    onManage={() => setSelectedGroupId(group.id)}
-                    isSelected={selectedGroupId === group.id}
-                    isOwner={true}
-                  />
-                ))}
-              </div>
+              <GroupCardSections
+                allPropertiesMetrics={allPropertiesMetrics}
+                sortedMyGroups={sortedMyGroups}
+                selectedGroupId={selectedGroupId}
+                onDelete={handleDelete}
+                onManage={(id) => setSelectedGroupId(id)}
+                onNavigateDashboard={() => navigate('/dashboard')}
+              />
             ) : (
               /* Table View */
               <Card className="overflow-hidden shadow-kasa">
@@ -546,6 +502,132 @@ export default function Groups() {
     </DashboardLayout>
   );
 }
+const STATE_PATTERN = /^[A-Z]{2}_Comp Set$/;
+const SCORE_TIER_NAMES = ['Wonderful (9.0+)', 'Very Good (8.0-8.99)', 'Good (7.0-7.99)', 'Pleasant (6.0-6.99)', 'Needs Work (0-5.99)'];
+
+function GroupCardSections({
+  allPropertiesMetrics,
+  sortedMyGroups,
+  selectedGroupId,
+  onDelete,
+  onManage,
+  onNavigateDashboard,
+}: {
+  allPropertiesMetrics: { avgScore: number | null; totalReviews: number; totalProperties: number };
+  sortedMyGroups: Array<{ id: string; name: string; created_at: string; is_public?: boolean; user_id?: string }>;
+  selectedGroupId: string | null;
+  onDelete: (id: string, name: string) => void;
+  onManage: (id: string) => void;
+  onNavigateDashboard: () => void;
+}) {
+  const { portfolioGroups, scoreGroups, stateGroups, otherGroups } = useMemo(() => {
+    const portfolio: typeof sortedMyGroups = [];
+    const score: typeof sortedMyGroups = [];
+    const state: typeof sortedMyGroups = [];
+    const other: typeof sortedMyGroups = [];
+
+    for (const g of sortedMyGroups) {
+      if (g.name.toLowerCase().includes('all') || g.name.toLowerCase().includes('portfolio') || g.name.toLowerCase().includes('test')) {
+        portfolio.push(g);
+      } else if (SCORE_TIER_NAMES.includes(g.name)) {
+        score.push(g);
+      } else if (STATE_PATTERN.test(g.name)) {
+        state.push(g);
+      } else {
+        other.push(g);
+      }
+    }
+
+    // Sort state groups alphabetically
+    state.sort((a, b) => a.name.localeCompare(b.name));
+
+    return { portfolioGroups: portfolio, scoreGroups: score, stateGroups: state, otherGroups: other };
+  }, [sortedMyGroups]);
+
+  const gridClass = "grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
+
+  const renderCards = (groups: typeof sortedMyGroups) =>
+    groups.map(group => (
+      <GroupCard
+        key={group.id}
+        group={group}
+        onDelete={() => onDelete(group.id, group.name)}
+        onManage={() => onManage(group.id)}
+        isSelected={selectedGroupId === group.id}
+        isOwner={true}
+      />
+    ));
+
+  return (
+    <div className="space-y-6">
+      {/* Portfolio section */}
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Portfolio</h3>
+        <div className={gridClass}>
+          <Card
+            className="shadow-kasa transition-all hover:shadow-kasa-hover border-2 border-dashed border-accent/30 cursor-pointer"
+            onClick={onNavigateDashboard}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-semibold">
+                <Globe className="h-3 w-3 text-accent" />
+                All Properties
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3 pt-0">
+              <div className="mb-2 flex items-center justify-center rounded-md bg-muted/50 py-2">
+                {allPropertiesMetrics.avgScore !== null ? (
+                  <div className="text-center">
+                    <div className={cn('text-xl font-bold', getScoreColor(allPropertiesMetrics.avgScore))}>
+                      {formatScore(allPropertiesMetrics.avgScore)}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xl font-bold text-muted-foreground">—</div>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span><span className="font-semibold text-foreground">{allPropertiesMetrics.totalProperties}</span> props</span>
+                <span><span className="font-semibold text-foreground">{allPropertiesMetrics.totalReviews.toLocaleString()}</span> reviews</span>
+              </div>
+            </CardContent>
+          </Card>
+          {renderCards(portfolioGroups)}
+        </div>
+      </div>
+
+      {/* By Score section */}
+      {scoreGroups.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">By Score</h3>
+          <div className={gridClass}>
+            {renderCards(scoreGroups)}
+          </div>
+        </div>
+      )}
+
+      {/* By State section */}
+      {stateGroups.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">By State</h3>
+          <div className={gridClass}>
+            {renderCards(stateGroups)}
+          </div>
+        </div>
+      )}
+
+      {/* Other groups */}
+      {otherGroups.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Other</h3>
+          <div className={gridClass}>
+            {renderCards(otherGroups)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function GroupCard({
   group,
@@ -633,36 +715,36 @@ function GroupCard({
         )}
         onClick={handleCardClick}
       >
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
           {isRenaming ? (
-            <div className="flex items-center gap-2 flex-1 mr-2">
+            <div className="flex items-center gap-1 flex-1 mr-1">
               <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="h-7 text-sm"
+                className="h-6 text-xs"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleRename();
                   if (e.key === 'Escape') setIsRenaming(false);
                 }}
               />
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleRename}>Save</Button>
+              <Button size="sm" variant="ghost" className="h-6 text-[10px] px-1.5" onClick={handleRename}>Save</Button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex items-center gap-1 min-w-0 flex-1">
               <GroupBadge groupName={group.name} />
-              <CardTitle className="text-sm font-semibold truncate">{group.name}</CardTitle>
+              <CardTitle className="text-xs font-semibold truncate">{group.name}</CardTitle>
               {group.is_public ? (
-                <Globe className="h-3 w-3 text-accent shrink-0" />
+                <Globe className="h-2.5 w-2.5 text-accent shrink-0" />
               ) : (
-                <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+                <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
               )}
             </div>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
-                <MoreVertical className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground shrink-0">
+                <MoreVertical className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -718,36 +800,26 @@ function GroupCard({
             </DropdownMenuContent>
           </DropdownMenu>
         </CardHeader>
-        <CardContent className="px-4 pb-4 pt-0">
+        <CardContent className="px-3 pb-3 pt-0">
           {/* Score */}
-          <div className="mb-3 flex items-center justify-center rounded-lg bg-muted/50 py-2.5">
+          <div className="mb-2 flex items-center justify-center rounded-md bg-muted/50 py-2">
             {isLoading ? (
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
             ) : avgScore !== null ? (
               <div className="text-center">
-                <div className={cn('text-2xl font-bold', getScoreColor(avgScore))}>
+                <div className={cn('text-xl font-bold', getScoreColor(avgScore))}>
                   {formatScore(avgScore)}
                 </div>
-                <p className="text-[10px] text-muted-foreground">Weighted Avg</p>
               </div>
             ) : (
-              <div className="text-center">
-                <div className="text-2xl font-bold text-muted-foreground">—</div>
-                <p className="text-[10px] text-muted-foreground">No data</p>
-              </div>
+              <div className="text-xl font-bold text-muted-foreground">—</div>
             )}
           </div>
 
           {/* Stats row */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <Building2 className="h-3.5 w-3.5" />
-              <span><span className="font-semibold text-foreground">{totalProperties}</span> properties</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span><span className="font-semibold text-foreground">{totalReviews.toLocaleString()}</span> reviews</span>
-            </div>
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span><span className="font-semibold text-foreground">{totalProperties}</span> props</span>
+            <span><span className="font-semibold text-foreground">{totalReviews.toLocaleString()}</span> reviews</span>
           </div>
         </CardContent>
       </Card>
