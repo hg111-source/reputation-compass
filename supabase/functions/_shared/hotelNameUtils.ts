@@ -88,11 +88,18 @@ export function extractBrandPrefix(name: string): string | null {
   const cleanName = name.replace(/^the\s+/i, '');
   
   const brandPatterns = [
+    // Hyatt family
     /^(andaz|thompson|alila|park hyatt|grand hyatt|hyatt regency|hyatt centric|hyatt place|hyatt house)/i,
-    /^(jw marriott|marriott|sheraton|westin|le meridien|st\. regis|st regis|w hotel|edition|moxy|aloft|element|ac hotel)/i,
-    /^(waldorf astoria|conrad|hilton|doubletree|embassy suites|hampton)/i,
-    /^(intercontinental|kimpton|hotel indigo|crowne plaza|holiday inn)/i,
+    // Marriott family
+    /^(jw marriott|marriott|sheraton|westin|le meridien|st\. regis|st regis|w hotel|delta hotels?|edition|moxy|aloft|element|ac hotel|courtyard|residence inn|springhill suites|towneplace suites|fairfield)/i,
+    // Hilton family
+    /^(waldorf astoria|conrad|hilton|doubletree|embassy suites|hampton|homewood suites|home2 suites|tru|canopy)/i,
+    // IHG family
+    /^(intercontinental|kimpton|hotel indigo|crowne plaza|holiday inn|staybridge|candlewood|avid|atwell|vignette)/i,
+    // Luxury independents
     /^(four seasons|ritz[- ]carlton|peninsula|mandarin oriental|rosewood|fairmont|sofitel|nobu)/i,
+    // Other chains
+    /^(wyndham|radisson|best western|la quinta|quality inn|comfort inn|days inn|super 8|ramada)/i,
   ];
   
   // Try prefix match first
@@ -105,7 +112,7 @@ export function extractBrandPrefix(name: string): string | null {
   
   // Also check if brand appears anywhere in name (e.g., "Mystic Marriott Hotel")
   const anywherePatterns = [
-    /\b(marriott|sheraton|westin|hilton|hyatt|doubletree|hampton|holiday inn|crowne plaza|fairmont|sofitel)\b/i,
+    /\b(marriott|sheraton|westin|hilton|hyatt|doubletree|hampton|holiday inn|crowne plaza|fairmont|sofitel|courtyard|residence inn)\b/i,
   ];
   for (const pattern of anywherePatterns) {
     const match = cleanName.match(pattern);
@@ -115,6 +122,32 @@ export function extractBrandPrefix(name: string): string | null {
   }
   
   return null;
+}
+
+// Map sub-brands to their parent brand family
+const BRAND_FAMILIES: Record<string, string> = {
+  // Marriott family
+  'marriott': 'marriott', 'jw marriott': 'marriott', 'sheraton': 'marriott', 'westin': 'marriott',
+  'le meridien': 'marriott', 'st. regis': 'marriott', 'st regis': 'marriott', 'w hotel': 'marriott',
+  'delta hotel': 'marriott', 'delta hotels': 'marriott', 'edition': 'marriott', 'moxy': 'marriott',
+  'aloft': 'marriott', 'element': 'marriott', 'ac hotel': 'marriott', 'courtyard': 'marriott',
+  'residence inn': 'marriott', 'springhill suites': 'marriott', 'towneplace suites': 'marriott',
+  'fairfield': 'marriott', 'ritz-carlton': 'marriott', 'ritz carlton': 'marriott',
+  // Hilton family
+  'hilton': 'hilton', 'waldorf astoria': 'hilton', 'conrad': 'hilton', 'doubletree': 'hilton',
+  'embassy suites': 'hilton', 'hampton': 'hilton', 'homewood suites': 'hilton',
+  'home2 suites': 'hilton', 'tru': 'hilton', 'canopy': 'hilton',
+  // Hyatt family
+  'hyatt': 'hyatt', 'park hyatt': 'hyatt', 'grand hyatt': 'hyatt', 'hyatt regency': 'hyatt',
+  'hyatt centric': 'hyatt', 'hyatt place': 'hyatt', 'hyatt house': 'hyatt',
+  'andaz': 'hyatt', 'thompson': 'hyatt', 'alila': 'hyatt',
+  // IHG family
+  'intercontinental': 'ihg', 'kimpton': 'ihg', 'hotel indigo': 'ihg', 'crowne plaza': 'ihg',
+  'holiday inn': 'ihg', 'staybridge': 'ihg', 'candlewood': 'ihg', 'avid': 'ihg',
+};
+
+export function getBrandFamily(brand: string): string | null {
+  return BRAND_FAMILIES[brand.toLowerCase()] || null;
 }
 
 /**
@@ -227,23 +260,37 @@ export function analyzeHotelMatch(searchName: string, resultName: string): Match
   const resultWords = getSignificantWords(normalizedResult);
   const matchingWords = countMatchingWords(searchName, resultName);
   
-  // Check brand prefix matching - if search has a brand, result should too
+  // Check brand prefix matching
   const searchBrand = extractBrandPrefix(searchName);
   const resultBrand = extractBrandPrefix(resultName);
   
+  // Check brand family — sub-brands of the same parent are compatible
+  const searchFamily = searchBrand ? getBrandFamily(searchBrand) : null;
+  const resultFamily = resultBrand ? getBrandFamily(resultBrand) : null;
+  const brandsCompatible = !searchBrand || !resultBrand || 
+    searchBrand === resultBrand || 
+    (searchFamily && resultFamily && searchFamily === resultFamily);
+
   let isMatch = false;
   let reason = '';
-  
-  // STRICT: If search has a brand prefix, result must have the same brand
-  if (searchBrand && resultBrand && searchBrand !== resultBrand) {
+
+  // STRICT: If search has a brand prefix, result must have a compatible brand
+  if (searchBrand && resultBrand && !brandsCompatible) {
     isMatch = false;
     reason = `Brand mismatch: searching for "${searchBrand}" but found "${resultBrand}"`;
   } else if (searchBrand && !resultBrand) {
-    // Search has brand but result doesn't - might be ok if normalized names match well
-    // But be cautious
+    // Search has brand but result doesn't — allow if normalized names match,
+    // or if the result contains a sub-brand name from the same family in its title
+    const resultHasRelatedBrand = searchFamily && Object.entries(BRAND_FAMILIES)
+      .filter(([_, family]) => family === searchFamily)
+      .some(([brand]) => resultName.toLowerCase().includes(brand));
+    
     if (normalizedSearch === normalizedResult) {
       isMatch = true;
       reason = 'Exact normalized match (brand in search only)';
+    } else if (resultHasRelatedBrand) {
+      // Result contains a related sub-brand name even though extractBrandPrefix didn't catch it
+      // Fall through to word/containment matching below
     } else {
       isMatch = false;
       reason = `Brand "${searchBrand}" in search but no brand in result - likely different hotel`;
@@ -259,10 +306,10 @@ export function analyzeHotelMatch(searchName: string, resultName: string): Match
     if (shorterSignificant.length >= 2) {
       isMatch = true;
       reason = 'One name contains the other';
-    } else if (searchBrand && resultBrand && searchBrand === resultBrand) {
-      // Same brand + containment = good enough match
+    } else if (searchBrand && resultBrand && brandsCompatible) {
+      // Same brand family + containment = good enough match
       isMatch = true;
-      reason = `Same brand "${searchBrand}" + containment match`;
+      reason = `Same brand family "${searchFamily || searchBrand}" + containment match`;
     } else if (
       // If the SEARCH name is contained in the result, and the search has a distinctive word (6+ chars),
       // accept it. E.g., "Rittenhouse" (9 chars) matching "Rittenhouse Philadelphia"
