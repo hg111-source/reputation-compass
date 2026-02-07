@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { usePortfolioBenchmark, calculatePercentileInDistribution } from '@/hooks/usePortfolioBenchmark';
+import { usePortfolioBenchmark, calculatePercentileInDistribution, useKasaOTAAverages } from '@/hooks/usePortfolioBenchmark';
 
 // Import platform logos
 import googleLogo from '@/assets/logos/google.svg';
@@ -12,14 +12,6 @@ import bookingLogo from '@/assets/logos/booking.svg';
 import expediaLogo from '@/assets/logos/expedia.svg';
 
 type Platform = 'google' | 'tripadvisor' | 'booking' | 'expedia';
-
-// Kasa's actual portfolio OTA averages (from master data)
-const KASA_OTA_SCORES: Record<Platform, number> = {
-  google: 9.28,      // 4.64/5 × 2
-  tripadvisor: 9.22, // 4.61/5 × 2
-  booking: 8.32,     // Already /10
-  expedia: 8.69,     // Already /10
-};
 
 // Platform order to match Properties table
 const PLATFORM_ORDER: Platform[] = ['google', 'tripadvisor', 'booking', 'expedia'];
@@ -41,22 +33,24 @@ function getPercentileTier(percentile: number): { color: string; bgColor: string
 }
 
 export function KasaOTAPlatformCard() {
-  const { data: benchmark, isLoading, error } = usePortfolioBenchmark();
+  const { data: benchmark, isLoading: benchLoading, error } = usePortfolioBenchmark();
+  const { data: kasaOTAScores, isLoading: kasaLoading } = useKasaOTAAverages();
+  const isLoading = benchLoading || kasaLoading;
 
   const platformData = useMemo(() => {
-    if (!benchmark || !benchmark.distributions) return [];
+    if (!benchmark || !benchmark.distributions || !kasaOTAScores) return [];
     
     return PLATFORM_ORDER.map(platform => {
-      const kasaScore = KASA_OTA_SCORES[platform];
+      const kasaScore = kasaOTAScores[platform];
       const dist = benchmark.distributions?.[platform];
       
-      if (!dist) {
+      if (!kasaScore || !dist) {
         return {
           platform,
           ...PLATFORM_INFO[platform],
-          kasaScore,
-          portfolioAvg: null,
-          portfolioCount: 0,
+          kasaScore: kasaScore ?? null,
+          portfolioAvg: dist?.avg ?? null,
+          portfolioCount: dist?.count ?? 0,
           percentile: null,
         };
       }
@@ -74,7 +68,7 @@ export function KasaOTAPlatformCard() {
         percentile,
       };
     });
-  }, [benchmark]);
+  }, [benchmark, kasaOTAScores]);
 
   if (isLoading) {
     return (
@@ -134,7 +128,7 @@ export function KasaOTAPlatformCard() {
                   <p className="text-sm font-medium text-muted-foreground">{data.name}</p>
                 </div>
                 <p className={cn('text-xl font-bold', tier.color)}>
-                  {data.kasaScore.toFixed(2)}
+                  {data.kasaScore !== null ? data.kasaScore.toFixed(2) : '—'}
                 </p>
                 <p className="text-xs text-muted-foreground mb-2">
                   /10 • Portfolio avg: {data.portfolioAvg?.toFixed(2) || 'N/A'}
