@@ -948,7 +948,7 @@ export default function Kasa() {
                         >
                           Kasa.com
                         </SortableTableHead>
-                        <TableHead className="text-right w-[60px]">Link</TableHead>
+                        
                         <TableHead className="text-center">
                           <div className="flex items-center justify-start gap-1">
                             <span className="text-xs font-semibold text-muted-foreground">Insights</span>
@@ -980,7 +980,21 @@ export default function Kasa() {
                             key={property.id} 
                             className={isHotel ? 'bg-muted/30' : ''}
                           >
-                            <TableCell className="font-medium">{property.name}</TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {property.name}
+                                {property.kasa_url && (
+                                  <a
+                                    href={property.kasa_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex text-muted-foreground hover:text-foreground"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell className="text-muted-foreground">
                               {property.city}{property.state ? `, ${property.state}` : ''}
                             </TableCell>
@@ -1015,18 +1029,6 @@ export default function Kasa() {
                                   <span className="text-muted-foreground">—</span>
                                 )}
                               </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {property.kasa_url && (
-                                <a
-                                  href={property.kasa_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              )}
                             </TableCell>
                             <TableCell>
                               <Button
