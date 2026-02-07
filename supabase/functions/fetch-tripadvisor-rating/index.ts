@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { normalizeHotelName, generateSearchQueries } from "../_shared/hotelNameUtils.ts";
+import { normalizeHotelName, analyzeHotelMatch, generateSearchQueries } from "../_shared/hotelNameUtils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -192,9 +192,24 @@ serve(async (req) => {
             const results: TripAdvisorResult[] = await resultsResponse.json();
             
             if (results && results.length > 0) {
-              hotel = results[0];
-              console.log(`Found result with query: "${searchQuery}"`);
-              break;
+              // Validate the result name matches the search using shared matching logic
+              for (const result of results) {
+                if (result.name) {
+                  const matchResult = analyzeHotelMatch(hotelName, result.name);
+                  console.log(`  Analyzing: "${result.name}" vs "${hotelName}" → ${matchResult.reason}`);
+                  if (matchResult.isMatch) {
+                    hotel = result;
+                    console.log(`  ✓ Match found: ${result.name}`);
+                    break;
+                  }
+                }
+              }
+              if (hotel) {
+                console.log(`Found validated result with query: "${searchQuery}"`);
+                break;
+              } else {
+                console.log(`  ✗ No name match among ${results.length} results for "${hotelName}"`);
+              }
             }
           }
         } catch (error) {
