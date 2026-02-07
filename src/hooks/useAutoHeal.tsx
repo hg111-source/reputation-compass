@@ -237,7 +237,7 @@ export function useAutoHeal(
           if (result.success) {
             if (result.notListed) {
               // Record as not_listed snapshot so we don't retry
-              await supabase.from('source_snapshots').upsert({
+              await supabase.from('source_snapshots').insert({
                 property_id: property.id,
                 source: item.platform,
                 score_raw: null,
@@ -245,7 +245,7 @@ export function useAutoHeal(
                 review_count: 0,
                 normalized_score_0_10: null,
                 status: 'not_listed',
-              }, { onConflict: 'property_id,source' });
+              });
             }
             success = true;
             item.status = 'resolved';
