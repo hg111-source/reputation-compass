@@ -71,6 +71,7 @@ export function ReviewInsightsDialog({
 
     try {
       setPlatformResults([]);
+      const warnings: string[] = [];
       
       // Step 1: Fetch TripAdvisor reviews
       setStep('tripadvisor');
@@ -88,6 +89,12 @@ export function ReviewInsightsDialog({
 
       if (tripResponse.data?.platforms) {
         setPlatformResults(prev => [...prev, ...tripResponse.data.platforms]);
+      }
+      if (tripResponse.data?.saveErrors?.length > 0) {
+        warnings.push(`TripAdvisor save failed: ${tripResponse.data.saveErrors[0].error}`);
+      }
+      if (tripResponse.data?.fetchErrors?.length > 0) {
+        warnings.push(`TripAdvisor fetch failed: ${tripResponse.data.fetchErrors[0].error}`);
       }
       setProgress(30);
 
@@ -107,7 +114,39 @@ export function ReviewInsightsDialog({
       if (googleResponse.data?.platforms) {
         setPlatformResults(prev => [...prev, ...googleResponse.data.platforms]);
       }
+      if (googleResponse.data?.saveErrors?.length > 0) {
+        warnings.push(`Google save failed: ${googleResponse.data.saveErrors[0].error}`);
+      }
+      if (googleResponse.data?.fetchErrors?.length > 0) {
+        warnings.push(`Google fetch failed: ${googleResponse.data.fetchErrors[0].error}`);
+      }
       setProgress(60);
+
+      // Verify reviews actually persisted before running AI
+      const { count: savedCount } = await supabase
+        .from('review_texts')
+        .select('*', { count: 'exact', head: true })
+        .eq('property_id', property.id);
+
+      if (!savedCount || savedCount === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Reviews not saved',
+          description: 'Reviews were fetched but failed to save to the database. Please try again.',
+        });
+        setStep('idle');
+        setProgress(0);
+        return;
+      }
+
+      // Show warnings if any save issues occurred but some reviews persisted
+      if (warnings.length > 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Partial save issues',
+          description: warnings.join('. '),
+        });
+      }
 
       // Step 3: AI-powered theme analysis via Lovable AI
       setStep('ai-analysis');
@@ -115,9 +154,25 @@ export function ReviewInsightsDialog({
 
       await analyzeReviews.mutateAsync({ propertyId: property.id });
       
+      // Verify analysis was cached
+      const { data: cachedAnalysis } = await supabase
+        .from('review_analysis')
+        .select('id')
+        .eq('property_id', property.id)
+        .maybeSingle();
+
+      if (!cachedAnalysis) {
+        toast({
+          variant: 'destructive',
+          title: 'Analysis cache warning',
+          description: 'AI analysis completed but may not have been saved. Results are shown below but may not persist.',
+        });
+      }
+
       // Refresh cached data
       await queryClient.invalidateQueries({ queryKey: ['review-analysis', property.id] });
       await queryClient.invalidateQueries({ queryKey: ['review-texts-count', property.id] });
+      await queryClient.invalidateQueries({ queryKey: ['properties-with-reviews'] });
       await refetchAnalysis();
 
       setProgress(100);
@@ -125,7 +180,7 @@ export function ReviewInsightsDialog({
 
       toast({
         title: 'AI analysis complete',
-        description: `Analyzed reviews and identified key themes.`,
+        description: `Analyzed ${savedCount} reviews and identified key themes.`,
       });
 
       setTimeout(() => {
@@ -138,7 +193,7 @@ export function ReviewInsightsDialog({
       toast({
         variant: 'destructive',
         title: 'Analysis failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: error instanceof Error ? error.message : 'Unknown error. Please try again.',
       });
       setStep('idle');
       setProgress(0);
