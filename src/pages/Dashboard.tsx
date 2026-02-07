@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useGroups } from '@/hooks/useGroups';
 import { useProperties } from '@/hooks/useProperties';
@@ -16,6 +17,7 @@ import {
 import { FolderOpen, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -23,6 +25,24 @@ export default function Dashboard() {
   const { properties } = useProperties();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
+
+  // Fetch property counts per group
+  const { data: groupPropertyCounts = {} } = useQuery({
+    queryKey: ['group-property-counts', user?.id],
+    queryFn: async () => {
+      if (!user) return {};
+      const { data, error } = await supabase
+        .from('group_properties')
+        .select('group_id');
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      data?.forEach((gp: any) => {
+        counts[gp.group_id] = (counts[gp.group_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: !!user,
+  });
 
   // Read group from URL on mount, default to "all"
   useEffect(() => {
@@ -76,7 +96,7 @@ export default function Dashboard() {
         </SelectItem>
         {groups.map(group => (
           <SelectItem key={group.id} value={group.id} className="font-medium">
-            {group.name}
+            {group.name} ({groupPropertyCounts[group.id] || 0})
           </SelectItem>
         ))}
       </SelectContent>
