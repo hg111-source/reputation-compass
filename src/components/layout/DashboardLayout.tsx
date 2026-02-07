@@ -2,13 +2,13 @@ import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Building2, LayoutDashboard, Upload, FolderOpen, LogOut, ChevronRight, Star, BarChart3 } from 'lucide-react';
+import { Building2, LayoutDashboard, Upload, FolderOpen, LogOut, ChevronRight, Star, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HelpModal } from '@/components/layout/HelpModal';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/insights', label: 'KasaSights', icon: BarChart3 },
+  { href: '/insights', label: 'KasaSights', icon: Lightbulb },
   { href: '/groups', label: 'Groups', icon: FolderOpen },
   { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/kasa', label: 'Kasa', icon: Star },
