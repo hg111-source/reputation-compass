@@ -180,7 +180,7 @@ export default function Auth() {
 
         <Card className="w-full max-w-md border-border shadow-kasa">
           <CardHeader className="space-y-2 text-center">
-            <CardTitle className="text-2xl font-semibold">Welcome back</CardTitle>
+            <CardTitle className="text-2xl font-semibold">Welcome, Kasamig@s!</CardTitle>
             <CardDescription>
               Sign in to your account to continue
             </CardDescription>
