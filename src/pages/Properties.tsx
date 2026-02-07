@@ -85,6 +85,21 @@ export default function Properties() {
   
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
+
+  // Track which properties have fetched review data
+  const { data: propertiesWithReviews = new Set<string>() } = useQuery({
+    queryKey: ['properties-with-reviews', user?.id],
+    queryFn: async () => {
+      if (!user || propertyIds.length === 0) return new Set<string>();
+      const { data, error } = await supabase
+        .from('review_texts')
+        .select('property_id')
+        .in('property_id', propertyIds);
+      if (error) throw error;
+      return new Set(data?.map(r => r.property_id) || []);
+    },
+    enabled: !!user && propertyIds.length > 0,
+  });
   
   // Auto-heal: detect and recover missing scores on page load
   const nonKasaPropertiesForHeal = useMemo(() => {
@@ -660,20 +675,21 @@ export default function Properties() {
               </TableHeader>
               <TableBody>
                 {sortedProperties.map(property => (
-                  <PropertyRow
-                    key={property.id}
-                    property={property}
-                    scores={scores[property.id]}
-                    onDelete={handleDelete}
-                    onRefreshPlatform={(p, platform) => handleRefreshSingleCell(p, platform as Platform)}
-                    onRefreshAllPlatforms={handleRefreshSingleRow}
-                    onViewHistory={setHistoryProperty}
-                    onAnalyzeReviews={setInsightsProperty}
-                    isRefreshing={isRunning}
-                    refreshingPropertyId={propertyStates.find(ps => ps.phase === 'fetching' || ps.phase === 'resolving')?.property.id ?? null}
-                    currentPlatform={currentPlatform}
-                    getHealingStatus={getItemStatus}
-                  />
+                    <PropertyRow
+                      key={property.id}
+                      property={property}
+                      scores={scores[property.id]}
+                      onDelete={handleDelete}
+                      onRefreshPlatform={(p, platform) => handleRefreshSingleCell(p, platform as Platform)}
+                      onRefreshAllPlatforms={handleRefreshSingleRow}
+                      onViewHistory={setHistoryProperty}
+                      onAnalyzeReviews={setInsightsProperty}
+                      isRefreshing={isRunning}
+                      refreshingPropertyId={propertyStates.find(ps => ps.phase === 'fetching' || ps.phase === 'resolving')?.property.id ?? null}
+                      currentPlatform={currentPlatform}
+                      getHealingStatus={getItemStatus}
+                      hasReviewData={propertiesWithReviews.has(property.id)}
+                    />
                 ))}
               </TableBody>
             </Table>

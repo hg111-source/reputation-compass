@@ -32,6 +32,7 @@ interface PropertyRowProps {
   refreshingPropertyId: string | null;
   currentPlatform: Platform | null;
   getHealingStatus?: (propertyId: string, platform: Platform) => HealingItem | undefined;
+  hasReviewData?: boolean;
 }
 
 export function PropertyRow({
@@ -46,6 +47,7 @@ export function PropertyRow({
   refreshingPropertyId,
   currentPlatform,
   getHealingStatus,
+  hasReviewData,
 }: PropertyRowProps) {
   // Only show refresh state if THIS property is the one being refreshed
   const isThisRefreshing = isRefreshing && refreshingPropertyId === property.id;
@@ -238,7 +240,10 @@ export function PropertyRow({
           <Button
             variant="outline"
             size="sm"
-            className="h-7 gap-1 text-xs"
+            className={cn(
+              'h-7 gap-1 text-xs',
+              hasReviewData && 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/50'
+            )}
             onClick={() => onAnalyzeReviews(property)}
             title="Analyze reviews with AI"
           >
