@@ -55,7 +55,7 @@ export function AllPropertiesDashboard({ groupSelector }: AllPropertiesDashboard
     toast({ title: 'Export complete', description: 'CSV file has been downloaded.' });
   };
 
-  // Calculate portfolio-wide metrics
+  // Calculate portfolio-wide metrics (Kasa properties use kasa_aggregated_score, others use OTA scores)
   const portfolioMetrics = useMemo(() => {
     if (properties.length === 0) {
       return { weightedAvg: null, totalReviews: 0, propertiesWithData: 0 };
@@ -66,6 +66,16 @@ export function AllPropertiesDashboard({ groupSelector }: AllPropertiesDashboard
     let propertiesWithData = 0;
 
     for (const property of properties) {
+      // For Kasa properties, use the pre-aggregated kasa score
+      if (property.kasa_aggregated_score != null) {
+        const kasaReviews = property.kasa_review_count || 1;
+        groupWeightedSum += property.kasa_aggregated_score * kasaReviews;
+        groupTotalReviews += kasaReviews;
+        propertiesWithData++;
+        continue;
+      }
+
+      // For non-Kasa properties, use OTA platform scores
       const propertyScores = scores[property.id];
       const { avgScore, totalReviews } = calculatePropertyMetrics(propertyScores);
 
