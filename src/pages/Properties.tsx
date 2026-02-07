@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { useUnifiedRefresh, Platform } from '@/hooks/useUnifiedRefresh';
 import { useGroups } from '@/hooks/useGroups';
+import { useAutoHeal } from '@/hooks/useAutoHeal';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -34,12 +35,13 @@ import {
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Plus, Building2, RefreshCw, Download, LayoutGrid, TableIcon, Home } from 'lucide-react';
+import { Plus, Building2, RefreshCw, Download, LayoutGrid, TableIcon, Home, Bug } from 'lucide-react';
 import googleLogo from '@/assets/logos/google.svg';
 import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
 import bookingLogo from '@/assets/logos/booking.png';
 import expediaLogo from '@/assets/logos/expedia.png';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import { Property, ReviewSource } from '@/lib/types';
 import { PropertyRow } from '@/components/properties/PropertyRow';
 import { PropertyCard } from '@/components/properties/PropertyCard';
@@ -52,6 +54,7 @@ import { SortableTableHead, SortDirection } from '@/components/properties/Sortab
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { HotelAutocomplete } from '@/components/properties/HotelAutocomplete';
 import { AirbnbDiscoveryDialog } from '@/components/properties/AirbnbDiscoveryDialog';
+import { Progress } from '@/components/ui/progress';
 
 type SortKey = 'name' | 'location' | 'avgScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 type ViewMode = 'table' | 'card';
@@ -61,6 +64,8 @@ export default function Properties() {
   const { properties, isLoading, createProperty, deleteProperty } = useProperties();
   const { groups } = useGroups();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const showDebug = searchParams.get('debug') === 'true';
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefreshDialogOpen, setIsRefreshDialogOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>(null);
@@ -81,6 +86,16 @@ export default function Properties() {
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
   
+  // Auto-heal: detect and recover missing scores on page load
+  const nonKasaPropertiesForHeal = useMemo(() => {
+    return properties.filter(p => !p.kasa_url && !p.kasa_aggregated_score);
+  }, [properties]);
+  const { isHealing, progress: healProgress, getItemStatus } = useAutoHeal(
+    nonKasaPropertiesForHeal,
+    scores,
+    !isLoading && nonKasaPropertiesForHeal.length > 0
+  );
+
   // Fetch property-to-group mappings (property_id -> group_ids)
   const { data: propertyGroupIds = {} } = useQuery({
     queryKey: ['property-groups-ids', user?.id],
@@ -470,6 +485,21 @@ export default function Properties() {
           </div>
         ) : (
           <div className="space-y-4">
+          {/* Auto-heal progress bar */}
+          {isHealing && healProgress && (
+            <Card className="p-4 shadow-kasa">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                  Auto-healing: {healProgress.resolved + healProgress.failed}/{healProgress.total} resolved
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {healProgress.resolved} recovered, {healProgress.failed} unavailable
+                </span>
+              </div>
+              <Progress value={((healProgress.resolved + healProgress.failed) / healProgress.total) * 100} className="h-2" />
+            </Card>
+          )}
           <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
@@ -642,6 +672,7 @@ export default function Properties() {
                     isRefreshing={isRunning}
                     refreshingPropertyId={propertyStates.find(ps => ps.phase === 'fetching' || ps.phase === 'resolving')?.property.id ?? null}
                     currentPlatform={currentPlatform}
+                    getHealingStatus={getItemStatus}
                   />
                 ))}
               </TableBody>
@@ -700,6 +731,36 @@ export default function Properties() {
           open={isAirbnbDiscoveryOpen}
           onOpenChange={setIsAirbnbDiscoveryOpen}
         />
+
+        {/* Debug panel - toggle with ?debug=true in URL */}
+        {showDebug && healProgress && (
+          <Card className="p-4 shadow-kasa">
+            <div className="flex items-center gap-2 mb-3">
+              <Bug className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold text-sm">Auto-Heal Debug Panel</h3>
+              <span className="text-xs text-muted-foreground ml-auto">
+                Total: {healProgress.total} | Resolved: {healProgress.resolved} | Failed: {healProgress.failed}
+              </span>
+            </div>
+            <div className="max-h-60 overflow-y-auto text-xs font-mono space-y-1">
+              {healProgress.items.map((item, i) => (
+                <div key={i} className={cn(
+                  'flex items-center gap-2 px-2 py-1 rounded',
+                  item.status === 'resolved' && 'bg-emerald-500/10 text-emerald-700',
+                  item.status === 'failed' && 'bg-destructive/10 text-destructive',
+                  item.status === 'retrying' && 'bg-primary/10 text-primary',
+                  item.status === 'queued' && 'text-muted-foreground',
+                )}>
+                  <span className="w-48 truncate">{item.propertyName}</span>
+                  <span className="w-20">{item.platform}</span>
+                  <span className="w-16">{item.status}</span>
+                  <span className="w-8">×{item.retryCount}</span>
+                  {item.error && <span className="truncate text-destructive">{item.error}</span>}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );
