@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { useToast } from '@/hooks/use-toast';
+import { useBulkInsights } from '@/hooks/useBulkInsights';
 import { normalizeHotelName } from '@/lib/hotelNameUtils';
 import { 
   useLatestKasaSnapshots, 
@@ -29,15 +30,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, Sparkles, Brain } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
+import { ReviewInsightsDialog } from '@/components/properties/ReviewInsightsDialog';
+import { BulkInsightsDialog } from '@/components/properties/BulkInsightsDialog';
 
 import { getScoreColor } from '@/lib/scoring';
-import { ReviewSource } from '@/lib/types';
+import { Property, ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { TableHead } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type SortKey = 'name' | 'location' | 'type' | 'score' | 'reviews' | null;
 
@@ -163,6 +167,9 @@ export default function Kasa() {
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [locationFilter, setLocationFilter] = useState<string>('all');
+  const [insightsProperty, setInsightsProperty] = useState<Property | null>(null);
+  const [isBulkInsightsOpen, setIsBulkInsightsOpen] = useState(false);
+  const bulkInsights = useBulkInsights();
 
   // Filter properties that have Kasa data
   const kasaProperties = useMemo(() => {
@@ -171,6 +178,21 @@ export default function Kasa() {
 
   const kasaPropertyIds = useMemo(() => kasaProperties.map(p => p.id), [kasaProperties]);
   
+  // Track which properties have fetched review data
+  const { data: propertiesWithReviews = new Set<string>() } = useQuery({
+    queryKey: ['properties-with-reviews-kasa', user?.id],
+    queryFn: async () => {
+      if (!user || kasaPropertyIds.length === 0) return new Set<string>();
+      const { data, error } = await supabase
+        .from('review_texts')
+        .select('property_id')
+        .in('property_id', kasaPropertyIds);
+      if (error) throw error;
+      return new Set(data?.map(r => r.property_id) || []);
+    },
+    enabled: !!user && kasaPropertyIds.length > 0,
+  });
+
   // Fetch latest Kasa snapshots for weighted average calculation
   const { data: kasaSnapshots = {} } = useLatestKasaSnapshots(kasaPropertyIds);
   
@@ -927,6 +949,22 @@ export default function Kasa() {
                           Kasa.com
                         </SortableTableHead>
                         <TableHead className="text-right w-[60px]">Link</TableHead>
+                        <TableHead className="text-center">
+                          <div className="flex items-center justify-start gap-1">
+                            <span className="text-xs font-semibold text-muted-foreground">Insights</span>
+                            <button
+                              onClick={() => {
+                                setIsBulkInsightsOpen(true);
+                                bulkInsights.run(sortedKasaProperties);
+                              }}
+                              disabled={bulkInsights.isRunning}
+                              className="p-0.5 rounded hover:bg-muted/50"
+                              title="Fetch AI insights for all Kasa properties"
+                            >
+                              <Brain className={cn('h-3.5 w-3.5 text-orange-500 hover:text-orange-600', bulkInsights.isRunning && 'animate-pulse text-accent')} />
+                            </button>
+                          </div>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -990,6 +1028,21 @@ export default function Kasa() {
                                 </a>
                               )}
                             </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                  'h-7 gap-1 text-xs',
+                                  propertiesWithReviews.has(property.id) && 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/50'
+                                )}
+                                onClick={() => setInsightsProperty(property)}
+                                title="Analyze reviews with AI"
+                              >
+                                <Sparkles className="h-3.5 w-3.5" />
+                                Insights
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -1000,6 +1053,26 @@ export default function Kasa() {
             </Card>
         </div>
       </div>
+
+      {/* Insights Dialog */}
+      <ReviewInsightsDialog
+        open={!!insightsProperty}
+        onOpenChange={(open) => !open && setInsightsProperty(null)}
+        property={insightsProperty}
+      />
+
+      {/* Bulk Insights Dialog */}
+      <BulkInsightsDialog
+        open={isBulkInsightsOpen}
+        onOpenChange={setIsBulkInsightsOpen}
+        isRunning={bulkInsights.isRunning}
+        states={bulkInsights.states}
+        progress={bulkInsights.progress}
+        doneCount={bulkInsights.doneCount}
+        errorCount={bulkInsights.errorCount}
+        total={bulkInsights.total}
+        onCancel={bulkInsights.cancel}
+      />
     </DashboardLayout>
   );
 }
