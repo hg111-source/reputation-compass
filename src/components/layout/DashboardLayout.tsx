@@ -6,13 +6,16 @@ import { Building2, LayoutDashboard, Upload, FolderOpen, LogOut, ChevronRight, S
 import { cn } from '@/lib/utils';
 import { HelpModal } from '@/components/layout/HelpModal';
 
-const navItems = [
-  { href: '/upload', label: 'Upload', icon: Upload },
+const mainNavItems = [
   { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/groups', label: 'Groups', icon: FolderOpen },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/kasa', label: 'Kasa', icon: Star },
   { href: '/insights', label: 'KasaSights', icon: Lightbulb },
+];
+
+const adminNavItems = [
+  { href: '/upload', label: 'Upload', icon: Upload },
 ];
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
@@ -39,30 +42,59 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1.5 px-4 py-6">
-            {navItems.map(item => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className={cn(
-                    'group flex items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
-                    isActive
-                      ? 'bg-sidebar-accent text-white'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-white'
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <item.icon className="h-5 w-5" />
-                    {item.label}
-                  </div>
-                  {isActive && (
-                    <ChevronRight className="h-4 w-4 opacity-60" />
-                  )}
-                </Link>
-              );
-            })}
+          <nav className="flex-1 flex flex-col px-4 py-6">
+            <div className="space-y-1.5 flex-1">
+              {mainNavItems.map(item => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className={cn(
+                      'group flex items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-sidebar-accent text-white'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-white'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon className="h-5 w-5" />
+                      {item.label}
+                    </div>
+                    {isActive && (
+                      <ChevronRight className="h-4 w-4 opacity-60" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Admin section */}
+            <div className="mt-auto space-y-1.5 border-t border-sidebar-border pt-4">
+              {adminNavItems.map(item => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className={cn(
+                      'group flex items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-sidebar-accent text-white'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-white'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon className="h-5 w-5" />
+                      {item.label}
+                    </div>
+                    {isActive && (
+                      <ChevronRight className="h-4 w-4 opacity-60" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
           </nav>
 
           {/* User section */}
