@@ -90,7 +90,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-4xl font-bold tracking-tight">Dashboard</h1>
           <p className="mt-2 text-muted-foreground">
-            View and track reputation scores across your property groups
+            View and track reputation scores across your groups
           </p>
         </div>
 
