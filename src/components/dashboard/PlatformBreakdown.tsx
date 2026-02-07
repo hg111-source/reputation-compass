@@ -107,6 +107,11 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {platformMetrics
             .filter(metric => metric.totalReviews > 0 && metric.platform !== 'kasa')
+            .filter(() => {
+              // If only Kasa data exists (no OTA platforms), hide all platform cards and show only Overall
+              const otaPlatforms = platformMetrics.filter(m => m.totalReviews > 0 && m.platform !== 'kasa');
+              return otaPlatforms.length > 0;
+            })
             .map(metric => (
             <div
               key={metric.platform}
