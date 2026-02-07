@@ -271,8 +271,7 @@ export function GroupDashboard({ group, groupSelector }: GroupDashboardProps) {
         scores={scores as Record<string, Record<ReviewSource, { score: number; count: number; updated: string }>>} 
       />
 
-      {/* Group Trend Chart */}
-      <GroupTrendChart snapshots={groupSnapshots} />
+      {/* Group Trend Chart removed */}
 
       <GroupScoresTable
         properties={properties}
