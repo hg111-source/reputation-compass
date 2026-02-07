@@ -102,6 +102,22 @@ interface SearchReturn {
   hotelId?: string;
 }
 
+// Validate that a SerpAPI result title or URL contains the expected city
+function resultMatchesCity(title: string, link: string, city: string): boolean {
+  const normalizedCity = city.toLowerCase().trim();
+  const normalizedTitle = title.toLowerCase();
+  const normalizedLink = link.toLowerCase();
+  
+  // Check title for city name
+  if (normalizedTitle.includes(normalizedCity)) return true;
+  
+  // Check URL for city name (booking.com URLs often contain city: /hotel/us/hilton-bethesda.html)
+  const citySlug = normalizedCity.replace(/\s+/g, '-');
+  if (normalizedLink.includes(citySlug) || normalizedLink.includes(normalizedCity.replace(/\s+/g, ''))) return true;
+  
+  return false;
+}
+
 async function searchSerpApiWithValidation(
   apiKey: string,
   hotelName: string,
@@ -143,15 +159,19 @@ async function searchSerpApiWithValidation(
         // Use shared matching logic to validate results
         for (const result of data.organic_results.slice(0, 5)) {
           const matchAnalysis = analyzeHotelMatch(hotelName, result.title);
-          console.log(`    Result: ${result.title.substring(0, 50)}...`);
-          console.log(`      Match: ${matchAnalysis.isMatch} - ${matchAnalysis.reason}`);
+          const cityMatch = resultMatchesCity(result.title, result.link, city);
+          console.log(`    Result: ${result.title.substring(0, 60)}...`);
+          console.log(`      Name match: ${matchAnalysis.isMatch} - ${matchAnalysis.reason}`);
+          console.log(`      City match: ${cityMatch} (expected: ${city})`);
           
           // For Expedia: require BOTH a valid hotel_id AND name matching
-          // Previously we accepted any hotel_id which caused wrong matches like "W Hollywood" for "Andaz"
           if (platform === 'expedia') {
             const extractedHotelId = extractExpediaHotelId(result.link);
-            // Must have hotel_id AND pass name matching
             if (extractedHotelId && matchAnalysis.isMatch && !bestResult) {
+              if (!cityMatch) {
+                console.log(`  ✗ Expedia hotel_id ${extractedHotelId} name matches but CITY MISMATCH for "${city}"`);
+                continue;
+              }
               bestResult = {
                 link: result.link,
                 title: result.title,
@@ -159,21 +179,24 @@ async function searchSerpApiWithValidation(
                 reason: `Expedia match: ${matchAnalysis.reason} (hotel_id: ${extractedHotelId})`,
                 hotelId: extractedHotelId,
               };
-              console.log(`  ✓ Expedia match found: ${extractedHotelId} - ${matchAnalysis.reason}`);
-              console.log(`    URL: ${bestResult.link}`);
+              console.log(`  ✓ Found: ${result.title} (${city}) ✓ MATCH`);
               break;
             } else if (extractedHotelId && !matchAnalysis.isMatch) {
               console.log(`  ✗ Expedia hotel_id ${extractedHotelId} found but name doesn't match: ${matchAnalysis.reason}`);
             }
           } else if (matchAnalysis.isMatch && !bestResult) {
-            // For other platforms, use name matching
+            // For booking/tripadvisor: validate city in result title/URL
+            if (!cityMatch) {
+              console.log(`  ✗ Found: ${result.title} but CITY MISMATCH (expected ${city}) — skipping`);
+              continue;
+            }
             bestResult = {
               link: result.link,
               title: result.title,
               isMatch: true,
               reason: matchAnalysis.reason,
             };
-            console.log(`  ✓ Match found: ${bestResult.link}`);
+            console.log(`  ✓ Found: ${result.title} (${city}) ✓ MATCH`);
             break;
           }
         }

@@ -147,6 +147,7 @@ serve(async (req) => {
       const [cityName, stateName = ''] = city.split(',').map((s: string) => s.trim());
       const searchQueries = generateSearchQueries(hotelName, cityName, stateName);
       
+      console.log(`Searching for: ${hotelName}, ${city}`);
       console.log(`TripAdvisor search queries: ${searchQueries.join(' | ')}, includeReviews: ${includeReviews}`);
 
       // Try each search query until we get results
@@ -213,7 +214,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`TripAdvisor results:`, JSON.stringify(hotel, null, 2));
+    console.log(`TripAdvisor result: Found "${hotel.name}" for search "${hotelName}, ${city}"`);
 
     // TripAdvisor uses 0-5 scale
     const rating = hotel.rating ?? null;
