@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { 
   Sparkles, MessageSquareText, ThumbsUp, AlertTriangle, 
-  Loader2, Download, RefreshCw, FileText, CheckCircle2
+  Loader2, Download, RefreshCw, FileText, CheckCircle2, Brain
 } from 'lucide-react';
 import {
   Dialog,
@@ -13,10 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  usePropertyKeywordAnalysis, 
-  usePropertyReviewCount 
-} from '@/hooks/useKeywordAnalysis';
+import { useReviewAnalysis, useReviewCount, useAnalyzeReviews } from '@/hooks/useReviewAnalysis';
 import { Property } from '@/lib/types';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -26,27 +23,16 @@ interface ReviewInsightsDialogProps {
   property: Property | null;
 }
 
-type FetchStep = 'idle' | 'tripadvisor' | 'google' | 'analyzing' | 'complete';
+type FetchStep = 'idle' | 'tripadvisor' | 'google' | 'ai-analysis' | 'complete';
 
 const THEME_ICONS: Record<string, string> = {
-  'clean': '🧹',
-  'staff': '👤',
-  'location': '📍',
-  'comfortable': '🛏️',
-  'food': '🍽️',
-  'quiet': '🔇',
-  'spacious': '📐',
-  'modern': '✨',
-  'cozy': '🏠',
-  'service': '🛎️',
-  'noise': '🔊',
-  'temperature': '🌡️',
-  'price': '💰',
-  'room': '🚪',
-  'outdated': '📅',
-  'crowded': '👥',
-  'odor': '👃',
-  'default': '📝',
+  'clean': '🧹', 'staff': '👤', 'location': '📍', 'comfortable': '🛏️',
+  'food': '🍽️', 'quiet': '🔇', 'spacious': '📐', 'modern': '✨',
+  'cozy': '🏠', 'service': '🛎️', 'noise': '🔊', 'temperature': '🌡️',
+  'price': '💰', 'room': '🚪', 'outdated': '📅', 'crowded': '👥',
+  'odor': '👃', 'wifi': '📶', 'parking': '🅿️', 'pool': '🏊',
+  'breakfast': '🥐', 'view': '🌅', 'bathroom': '🚿', 'bed': '🛏️',
+  'check': '📋', 'default': '📝',
 };
 
 function getThemeIcon(theme: string): string {
@@ -61,7 +47,7 @@ const STEP_MESSAGES: Record<FetchStep, string> = {
   idle: '',
   tripadvisor: 'Fetching TripAdvisor reviews...',
   google: 'Fetching Google reviews...',
-  analyzing: 'Analyzing keyword patterns...',
+  'ai-analysis': 'AI is analyzing themes & sentiment...',
   complete: 'Analysis complete!',
 };
 
@@ -76,10 +62,11 @@ export function ReviewInsightsDialog({
   const [progress, setProgress] = useState(0);
   const [platformResults, setPlatformResults] = useState<{ platform: string; count: number }[]>([]);
 
-  const { data: analysis, isLoading: analysisLoading, refetch: refetchAnalysis } = usePropertyKeywordAnalysis(property?.id ?? null);
-  const { data: reviewCount = 0 } = usePropertyReviewCount(property?.id ?? null);
+  const { data: analysis, isLoading: analysisLoading, refetch: refetchAnalysis } = useReviewAnalysis(property?.id ?? null);
+  const { data: reviewCount = 0 } = useReviewCount(property?.id ?? null);
+  const analyzeReviews = useAnalyzeReviews();
 
-  const handleFetchReviews = async () => {
+  const handleFetchAndAnalyze = async () => {
     if (!property) return;
 
     try {
@@ -102,7 +89,7 @@ export function ReviewInsightsDialog({
       if (tripResponse.data?.platforms) {
         setPlatformResults(prev => [...prev, ...tripResponse.data.platforms]);
       }
-      setProgress(35);
+      setProgress(30);
 
       // Step 2: Fetch Google reviews
       setStep('google');
@@ -120,29 +107,27 @@ export function ReviewInsightsDialog({
       if (googleResponse.data?.platforms) {
         setPlatformResults(prev => [...prev, ...googleResponse.data.platforms]);
       }
-      setProgress(70);
+      setProgress(60);
 
-      // Step 3: Analyze with keywords
-      setStep('analyzing');
-      setProgress(85);
+      // Step 3: AI-powered theme analysis via Lovable AI
+      setStep('ai-analysis');
+      setProgress(75);
 
-      // Invalidate and refetch keyword analysis
-      await queryClient.invalidateQueries({ queryKey: ['keyword-analysis', property.id] });
-      await queryClient.invalidateQueries({ queryKey: ['review-count', property.id] });
+      await analyzeReviews.mutateAsync({ propertyId: property.id });
+      
+      // Refresh cached data
+      await queryClient.invalidateQueries({ queryKey: ['review-analysis', property.id] });
+      await queryClient.invalidateQueries({ queryKey: ['review-texts-count', property.id] });
       await refetchAnalysis();
 
       setProgress(100);
       setStep('complete');
 
-      const totalReviews = platformResults.reduce((sum, p) => sum + p.count, 0) + 
-        (tripResponse.data?.reviewCount || 0) + (googleResponse.data?.reviewCount || 0);
-
       toast({
-        title: 'Reviews fetched & analyzed',
-        description: `Found ${totalReviews} reviews across platforms.`,
+        title: 'AI analysis complete',
+        description: `Analyzed reviews and identified key themes.`,
       });
 
-      // Reset after a moment
       setTimeout(() => {
         setStep('idle');
         setProgress(0);
@@ -152,7 +137,7 @@ export function ReviewInsightsDialog({
       console.error('Fetch error:', error);
       toast({
         variant: 'destructive',
-        title: 'Fetch failed',
+        title: 'Analysis failed',
         description: error instanceof Error ? error.message : 'Unknown error',
       });
       setStep('idle');
@@ -160,12 +145,22 @@ export function ReviewInsightsDialog({
     }
   };
 
-  const handleRefreshAnalysis = () => {
-    refetchAnalysis();
-    toast({
-      title: 'Analysis refreshed',
-      description: 'Keyword counts have been recalculated.',
-    });
+  const handleReanalyze = async () => {
+    if (!property) return;
+    try {
+      await analyzeReviews.mutateAsync({ propertyId: property.id });
+      await refetchAnalysis();
+      toast({
+        title: 'Re-analysis complete',
+        description: 'AI has re-analyzed existing reviews for updated themes.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Re-analysis failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   };
 
   const isFetching = step !== 'idle' && step !== 'complete';
@@ -193,64 +188,33 @@ export function ReviewInsightsDialog({
               <div className="space-y-2">
                 <p className="font-medium text-lg">{STEP_MESSAGES[step]}</p>
                 <p className="text-sm text-muted-foreground">
-                  This may take 60-90 seconds per platform
+                  {step === 'ai-analysis' ? 'AI is reading reviews and identifying patterns...' : 'This may take 60-90 seconds per platform'}
                 </p>
               </div>
             </div>
             
             <Progress value={progress} className="w-64 mx-auto" />
 
-            {/* Progress steps */}
             <div className="max-w-xs mx-auto space-y-2">
+              <StepIndicator current={step} target="tripadvisor" label="TripAdvisor reviews" results={platformResults} />
+              <StepIndicator current={step} target="google" label="Google reviews" results={platformResults} />
               <div className="flex items-center gap-3 text-sm">
-                {step === 'tripadvisor' ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-accent" />
-                ) : platformResults.some(p => p.platform === 'tripadvisor') ? (
+                {step === 'ai-analysis' ? (
+                  <Brain className="h-4 w-4 animate-pulse text-accent" />
+                ) : step === 'complete' ? (
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 ) : (
                   <div className="h-4 w-4 rounded-full border-2 border-muted" />
                 )}
-                <span className={step === 'tripadvisor' ? 'text-foreground font-medium' : 'text-muted-foreground'}>
-                  TripAdvisor reviews
-                  {platformResults.find(p => p.platform === 'tripadvisor')?.count !== undefined && (
-                    <span className="ml-2 text-emerald-600">
-                      ({platformResults.find(p => p.platform === 'tripadvisor')?.count} found)
-                    </span>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                {step === 'google' ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-accent" />
-                ) : platformResults.some(p => p.platform === 'google') ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                ) : (
-                  <div className="h-4 w-4 rounded-full border-2 border-muted" />
-                )}
-                <span className={step === 'google' ? 'text-foreground font-medium' : 'text-muted-foreground'}>
-                  Google reviews
-                  {platformResults.find(p => p.platform === 'google')?.count !== undefined && (
-                    <span className="ml-2 text-emerald-600">
-                      ({platformResults.find(p => p.platform === 'google')?.count} found)
-                    </span>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                {step === 'analyzing' ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-accent" />
-                ) : (
-                  <div className="h-4 w-4 rounded-full border-2 border-muted" />
-                )}
-                <span className={step === 'analyzing' ? 'text-foreground font-medium' : 'text-muted-foreground'}>
-                  Keyword analysis
+                <span className={step === 'ai-analysis' ? 'text-foreground font-medium' : 'text-muted-foreground'}>
+                  AI theme analysis
                 </span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Complete State (brief) */}
+        {/* Complete State */}
         {step === 'complete' && (
           <div className="py-8 text-center space-y-4">
             <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto" />
@@ -267,20 +231,20 @@ export function ReviewInsightsDialog({
             <div className="space-y-2">
               <h3 className="text-xl font-semibold">No reviews yet</h3>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Fetch reviews to discover what guests love and where you can improve.
+                Fetch reviews and let AI identify what guests love and where to improve.
               </p>
             </div>
-            <Button variant="secondary" size="lg" onClick={handleFetchReviews}>
+            <Button variant="secondary" size="lg" onClick={handleFetchAndAnalyze}>
               <Download className="mr-2 h-4 w-4" />
-              Fetch Reviews
+              Fetch & Analyze Reviews
             </Button>
             <p className="text-xs text-muted-foreground">
-              Fetches ~25 recent reviews from TripAdvisor & Google
+              Fetches ~25 reviews from TripAdvisor & Google, then runs AI theme analysis
             </p>
           </div>
         )}
 
-        {/* Has Reviews but No Significant Keywords */}
+        {/* Has Reviews but No AI Analysis */}
         {step === 'idle' && !analysis && reviewCount > 0 && (
           <div className="py-8 text-center space-y-6">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
@@ -289,128 +253,172 @@ export function ReviewInsightsDialog({
             <div className="space-y-2">
               <h3 className="text-xl font-semibold">{reviewCount} reviews stored</h3>
               <p className="text-muted-foreground max-w-md mx-auto">
-                No significant keyword patterns detected. Try fetching fresh reviews.
+                Reviews are available but haven't been analyzed by AI yet.
               </p>
             </div>
-            <Button variant="secondary" onClick={handleFetchReviews}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Fetch Fresh Reviews
+            <Button variant="secondary" onClick={handleReanalyze} disabled={analyzeReviews.isPending}>
+              {analyzeReviews.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Brain className="mr-2 h-4 w-4" />}
+              Run AI Analysis
             </Button>
           </div>
         )}
 
-        {/* Analysis Results */}
+        {/* AI Analysis Results */}
         {(step === 'idle' || step === 'complete') && analysis && (
           <div className="space-y-6">
-            {/* Summary */}
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                  <FileText className="h-5 w-5 text-accent" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium">📊 Keyword Analysis</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Analyzed {analysis.totalReviews} reviews for common themes and patterns.
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      {analysis.totalReviews} reviews analyzed
-                    </span>
+            {/* AI Summary */}
+            {analysis.summary && (
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                    <Brain className="h-5 w-5 text-accent" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium flex items-center gap-2">
+                      🤖 AI Summary
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {analysis.summary}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                        {analysis.review_count} reviews analyzed
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
+                        Powered by Gemini
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Positive Themes */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <ThumbsUp className="h-5 w-5 text-emerald-500" />
-                <h4 className="font-semibold">✅ What Guests Love</h4>
-              </div>
-              <div className="space-y-2">
-                {analysis.positiveThemes.length > 0 ? (
-                  analysis.positiveThemes.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 p-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium flex items-center gap-2">
-                          <span>{getThemeIcon(item.theme)}</span>
-                          {item.theme}
-                        </span>
-                        <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                          {item.count} mentions
-                        </span>
-                      </div>
-                      {item.exampleReview && (
-                        <p className="mt-2 text-sm text-muted-foreground italic border-l-2 border-emerald-300 dark:border-emerald-700 pl-3 line-clamp-2">
-                          "{item.exampleReview}..."
-                        </p>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    No positive keyword patterns detected.
-                  </p>
-                )}
-              </div>
-            </div>
+            <ThemeSection
+              title="What Guests Love"
+              icon={<ThumbsUp className="h-5 w-5 text-emerald-500" />}
+              emoji="✅"
+              themes={analysis.positive_themes}
+              colorScheme="emerald"
+            />
 
             {/* Negative Themes */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle className="h-5 w-5 text-orange-500" />
-                <h4 className="font-semibold">⚠️ Areas for Improvement</h4>
-              </div>
-              <div className="space-y-2">
-                {analysis.negativeThemes.length > 0 ? (
-                  analysis.negativeThemes.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-lg border border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/30 p-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium flex items-center gap-2">
-                          <span>{getThemeIcon(item.theme)}</span>
-                          {item.theme}
-                        </span>
-                        <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                          {item.count} mentions
-                        </span>
-                      </div>
-                      {item.exampleReview && (
-                        <p className="mt-2 text-sm text-muted-foreground italic border-l-2 border-orange-300 dark:border-orange-700 pl-3 line-clamp-2">
-                          "{item.exampleReview}..."
-                        </p>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    No negative keyword patterns detected.
-                  </p>
-                )}
-              </div>
-            </div>
+            <ThemeSection
+              title="Areas for Improvement"
+              icon={<AlertTriangle className="h-5 w-5 text-orange-500" />}
+              emoji="⚠️"
+              themes={analysis.negative_themes}
+              colorScheme="orange"
+            />
 
             {/* Actions */}
             <div className="flex gap-3 pt-2 border-t">
-              <Button variant="outline" size="sm" onClick={handleFetchReviews}>
+              <Button variant="outline" size="sm" onClick={handleFetchAndAnalyze}>
                 <Download className="mr-2 h-4 w-4" />
                 Fetch Fresh Reviews
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleRefreshAnalysis}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Recalculate
+              <Button variant="ghost" size="sm" onClick={handleReanalyze} disabled={analyzeReviews.isPending}>
+                {analyzeReviews.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Brain className="mr-2 h-4 w-4" />}
+                Re-analyze
               </Button>
             </div>
           </div>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// --- Sub-components ---
+
+function StepIndicator({ current, target, label, results }: {
+  current: FetchStep;
+  target: string;
+  label: string;
+  results: { platform: string; count: number }[];
+}) {
+  const stepsOrder = ['tripadvisor', 'google', 'ai-analysis', 'complete'];
+  const currentIdx = stepsOrder.indexOf(current);
+  const targetIdx = stepsOrder.indexOf(target);
+  const isDone = currentIdx > targetIdx;
+  const isActive = current === target;
+  const result = results.find(p => p.platform === target);
+
+  return (
+    <div className="flex items-center gap-3 text-sm">
+      {isActive ? (
+        <Loader2 className="h-4 w-4 animate-spin text-accent" />
+      ) : isDone ? (
+        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+      ) : (
+        <div className="h-4 w-4 rounded-full border-2 border-muted" />
+      )}
+      <span className={isActive ? 'text-foreground font-medium' : 'text-muted-foreground'}>
+        {label}
+        {result?.count !== undefined && (
+          <span className="ml-2 text-emerald-600">({result.count} found)</span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+interface ThemeItem {
+  theme: string;
+  count: number;
+  quote: string;
+}
+
+function ThemeSection({ title, icon, emoji, themes, colorScheme }: {
+  title: string;
+  icon: React.ReactNode;
+  emoji: string;
+  themes: ThemeItem[];
+  colorScheme: 'emerald' | 'orange';
+}) {
+  const borderClass = colorScheme === 'emerald' 
+    ? 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30'
+    : 'border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/30';
+  const countClass = colorScheme === 'emerald'
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : 'text-orange-600 dark:text-orange-400';
+  const quoteClass = colorScheme === 'emerald'
+    ? 'border-emerald-300 dark:border-emerald-700'
+    : 'border-orange-300 dark:border-orange-700';
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        {icon}
+        <h4 className="font-semibold">{emoji} {title}</h4>
+      </div>
+      <div className="space-y-2">
+        {themes.length > 0 ? (
+          themes.map((item, idx) => (
+            <div key={idx} className={`rounded-lg border p-3 ${borderClass}`}>
+              <div className="flex items-center justify-between">
+                <span className="font-medium flex items-center gap-2">
+                  <span>{getThemeIcon(item.theme)}</span>
+                  {item.theme}
+                </span>
+                <span className={`text-sm font-medium ${countClass}`}>
+                  {item.count} mentions
+                </span>
+              </div>
+              {item.quote && (
+                <p className={`mt-2 text-sm text-muted-foreground italic border-l-2 pl-3 line-clamp-2 ${quoteClass}`}>
+                  "{item.quote}"
+                </p>
+              )}
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            No {colorScheme === 'emerald' ? 'positive' : 'negative'} themes detected.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
