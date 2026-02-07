@@ -272,22 +272,28 @@ export function analyzeHotelMatch(searchName: string, resultName: string): Match
       isMatch = true;
       reason = `Search name "${normalizedSearch}" is distinctive enough and contained in result`;
     } else {
-      isMatch = false;
-      reason = `Containment match rejected: "${shorter}" is too generic`;
+      // Don't reject yet — fall through to word-based matching below
+      // This handles cases like "tyler" (from "Courtyard Tyler") matching "courtyard marriott tyler"
+      // where containment is too short but word-level matching succeeds
     }
-  } else if (searchWords.length <= 2) {
-    // For short names, require ALL significant words to match
-    isMatch = matchingWords >= searchWords.length && searchWords.length > 0;
-    reason = isMatch 
-      ? `Short name: all ${searchWords.length} significant words match`
-      : `Short name: only ${matchingWords}/${searchWords.length} significant words match`;
-  } else {
-    // For longer names, require at least 50% of words to match (minimum 2)
-    const threshold = Math.max(2, Math.ceil(searchWords.length * 0.5));
-    isMatch = matchingWords >= threshold;
-    reason = isMatch
-      ? `${matchingWords}/${searchWords.length} significant words match (≥${threshold} required)`
-      : `Only ${matchingWords}/${searchWords.length} significant words match (<${threshold} required)`;
+  }
+  
+  // Word-based matching (runs if no decision made yet, or after containment rejection fallthrough)
+  if (!isMatch && !reason.includes('Brand mismatch') && !reason.includes('no brand in result')) {
+    if (searchWords.length <= 2) {
+      // For short names, require ALL significant words to match
+      isMatch = matchingWords >= searchWords.length && searchWords.length > 0;
+      reason = isMatch 
+        ? `Short name: all ${searchWords.length} significant words match`
+        : `Short name: only ${matchingWords}/${searchWords.length} significant words match`;
+    } else {
+      // For longer names, require at least 50% of words to match (minimum 2)
+      const threshold = Math.max(2, Math.ceil(searchWords.length * 0.5));
+      isMatch = matchingWords >= threshold;
+      reason = isMatch
+        ? `${matchingWords}/${searchWords.length} significant words match (≥${threshold} required)`
+        : `Only ${matchingWords}/${searchWords.length} significant words match (<${threshold} required)`;
+    }
   }
   
   return {
