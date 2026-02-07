@@ -33,7 +33,7 @@ const GROUP_OPTIONS: GroupOption[] = [
   {
     id: 'state',
     title: 'Group by State',
-    description: 'Create "{State}_Comp Set" and "{State}_Kasa" groups for every state',
+    description: 'Create "{State}_Comp Set" groups for every state (includes all properties)',
     icon: Map,
     color: 'text-emerald-500',
   },
