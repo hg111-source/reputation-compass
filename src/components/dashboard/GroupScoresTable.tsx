@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Table,
@@ -12,8 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Property, PropertyWithScores, ReviewSource } from '@/lib/types';
 import { REVIEW_SOURCES, calculateWeightedScore, formatScore, getScoreColor } from '@/lib/scoring';
+import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { RefreshCw, Trash2, MapPin, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+type SortKey = 'name' | 'location' | 'weightedScore' | 'totalReviews' | null;
 
 interface GroupScoresTableProps {
   properties: Property[];
@@ -33,6 +36,18 @@ export function GroupScoresTable({
   hideRemoveButton = false,
 }: GroupScoresTableProps) {
   const navigate = useNavigate();
+  const [sortKey, setSortKey] = useState<SortKey>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+
+  const handleSort = useCallback((key: string) => {
+    if (sortKey === key) {
+      if (sortDirection === 'desc') setSortDirection('asc');
+      else if (sortDirection === 'asc') { setSortKey(null); setSortDirection(null); }
+    } else {
+      setSortKey(key as SortKey);
+      setSortDirection('desc');
+    }
+  }, [sortKey, sortDirection]);
 
   const propertiesWithScores = useMemo(() => {
     return properties.map(property => {
@@ -59,7 +74,6 @@ export function GroupScoresTable({
         }))
       );
 
-      // For Kasa properties without OTA snapshots, fall back to kasa_aggregated_score (5-point scale → normalize to 10)
       const finalWeightedScore = weightedScore ?? (property.kasa_aggregated_score ? (property.kasa_aggregated_score / 5) * 10 : null);
       const finalTotalReviews = totalReviews > 0 ? totalReviews : (property.kasa_review_count ?? 0);
 
@@ -72,6 +86,28 @@ export function GroupScoresTable({
       };
     });
   }, [properties, scores]);
+
+  const sortedProperties = useMemo(() => {
+    if (!sortKey || !sortDirection) return propertiesWithScores;
+    return [...propertiesWithScores].sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case 'location':
+          cmp = `${a.city}, ${a.state}`.localeCompare(`${b.city}, ${b.state}`);
+          break;
+        case 'weightedScore':
+          cmp = (a.weightedScore ?? -1) - (b.weightedScore ?? -1);
+          break;
+        case 'totalReviews':
+          cmp = a.totalReviews - b.totalReviews;
+          break;
+      }
+      return sortDirection === 'desc' ? -cmp : cmp;
+    });
+  }, [propertiesWithScores, sortKey, sortDirection]);
 
   const handleRowClick = (property: Property, e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -97,15 +133,15 @@ export function GroupScoresTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
-            <TableHead className="py-4 font-semibold">Property</TableHead>
-            <TableHead className="py-4 font-semibold">Location</TableHead>
-            <TableHead className="w-[110px] py-4 text-center font-semibold">Weighted Avg</TableHead>
-            <TableHead className="w-[110px] py-4 text-center font-semibold">Total Reviews</TableHead>
+            <SortableTableHead sortKey="name" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="py-4 font-semibold text-left">Property</SortableTableHead>
+            <SortableTableHead sortKey="location" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="py-4 font-semibold text-left">Location</SortableTableHead>
+            <SortableTableHead sortKey="weightedScore" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[110px] py-4 text-center font-semibold">Weighted Avg</SortableTableHead>
+            <SortableTableHead sortKey="totalReviews" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[110px] py-4 text-center font-semibold">Total Reviews</SortableTableHead>
             <TableHead className="w-[80px] py-4"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {propertiesWithScores.map(property => {
+          {sortedProperties.map(property => {
             const isKasa = !!(property.kasa_url || property.kasa_aggregated_score);
             return (
             <TableRow
