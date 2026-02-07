@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -10,9 +11,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Property, PropertyWithScores, ReviewSource } from '@/lib/types';
-import { REVIEW_SOURCES, SOURCE_LABELS, calculateWeightedScore, formatScore, getScoreColor } from '@/lib/scoring';
-import { useGoogleTrends, formatChange } from '@/hooks/useGoogleTrends';
-import { RefreshCw, Trash2, MapPin } from 'lucide-react';
+import { REVIEW_SOURCES, calculateWeightedScore, formatScore, getScoreColor } from '@/lib/scoring';
+import { RefreshCw, Trash2, MapPin, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GroupScoresTableProps {
@@ -32,9 +32,8 @@ export function GroupScoresTable({
   isRefreshing,
   hideRemoveButton = false,
 }: GroupScoresTableProps) {
-  const propertyIds = properties.map(p => p.id);
-  const { data: trends = {} } = useGoogleTrends(propertyIds);
-  
+  const navigate = useNavigate();
+
   const propertiesWithScores = useMemo(() => {
     return properties.map(property => {
       const propertyScores = scores[property.id] || {};
@@ -70,15 +69,13 @@ export function GroupScoresTable({
     });
   }, [properties, scores]);
 
-  const groupWeightedScore = useMemo(() => {
-    const allScores = propertiesWithScores.flatMap(p =>
-      REVIEW_SOURCES.map(source => ({
-        normalized: p.scores[source]?.score || 0,
-        count: p.scores[source]?.count || 0,
-      }))
-    );
-    return calculateWeightedScore(allScores);
-  }, [propertiesWithScores]);
+  const handleRowClick = (property: Property, e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return;
+
+    const isKasa = !!(property.kasa_url || property.kasa_aggregated_score);
+    navigate(isKasa ? '/kasa' : '/properties');
+  };
 
   if (properties.length === 0) {
     return (
@@ -96,15 +93,10 @@ export function GroupScoresTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
-            <TableHead className="w-[200px] py-4 font-semibold">Property</TableHead>
-            <TableHead className="w-[140px] py-4 font-semibold">Location</TableHead>
-            {REVIEW_SOURCES.map(source => (
-              <TableHead key={source} className="w-[100px] py-4 text-center font-semibold">
-                {SOURCE_LABELS[source]}
-              </TableHead>
-            ))}
-            <TableHead className="w-[90px] py-4 text-center font-semibold">Weighted Avg</TableHead>
-            <TableHead className="w-[90px] py-4 text-center font-semibold">Total Reviews</TableHead>
+            <TableHead className="py-4 font-semibold">Property</TableHead>
+            <TableHead className="py-4 font-semibold">Location</TableHead>
+            <TableHead className="w-[110px] py-4 text-center font-semibold">Weighted Avg</TableHead>
+            <TableHead className="w-[110px] py-4 text-center font-semibold">Total Reviews</TableHead>
             <TableHead className="w-[80px] py-4"></TableHead>
           </TableRow>
         </TableHeader>
@@ -112,50 +104,26 @@ export function GroupScoresTable({
           {propertiesWithScores.map(property => {
             const isKasa = !!(property.kasa_url || property.kasa_aggregated_score);
             return (
-            <TableRow key={property.id} className={cn('group', isKasa && 'bg-blue-100/70 dark:bg-blue-950/40')}>
-              <TableCell className="py-4 font-medium">{property.name}</TableCell>
+            <TableRow
+              key={property.id}
+              className={cn(
+                'group cursor-pointer',
+                isKasa && 'bg-blue-100/70 dark:bg-blue-950/40'
+              )}
+              onClick={(e) => handleRowClick(property, e)}
+            >
+              <TableCell className="py-4 font-medium">
+                <div className="flex items-center gap-2">
+                  {property.name}
+                  <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </TableCell>
               <TableCell className="py-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" />
                   {property.city}, {property.state}
                 </div>
               </TableCell>
-              {REVIEW_SOURCES.map(source => {
-                const sourceScore = property.scores[source];
-                const trend30d = source === 'google' ? trends[property.id] : null;
-                const hasData = sourceScore?.score && sourceScore.score > 0;
-                
-                return (
-                  <TableCell key={source} className="py-4">
-                    <div className="text-center">
-                      {hasData ? (
-                        <>
-                          <span className={cn('font-semibold', getScoreColor(sourceScore.score))}>
-                            {formatScore(sourceScore.score)}
-                          </span>
-                          <span className="text-xs text-muted-foreground ml-1">
-                            ({sourceScore.count.toLocaleString()})
-                          </span>
-                          {source === 'google' && trend30d?.change30d !== null && trend30d?.change30d !== undefined && (
-                            <div className={cn(
-                              'text-xs mt-0.5',
-                              trend30d.change30d >= 0.05
-                                ? 'text-emerald-600'
-                                : trend30d.change30d <= -0.05
-                                  ? 'text-red-600'
-                                  : 'text-muted-foreground'
-                            )}>
-                              {formatChange(trend30d.change30d)}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </div>
-                  </TableCell>
-                );
-              })}
               <TableCell className="py-4 text-center">
                 <span className={cn('font-bold', getScoreColor(property.weightedScore))}>
                   {formatScore(property.weightedScore)}
