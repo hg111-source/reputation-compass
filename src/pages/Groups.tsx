@@ -38,6 +38,7 @@ import { getScoreColor, formatScore, calculatePropertyMetrics } from '@/lib/scor
 import { cn } from '@/lib/utils';
 import { AutoGroupDialog } from '@/components/groups/AutoGroupDialog';
 import { GroupAnalysisDialog } from '@/components/groups/GroupAnalysisDialog';
+import { GroupBadge } from '@/components/groups/GroupBadge';
 import { ReviewSource } from '@/lib/types';
 import { exportGroupToCSV } from '@/lib/csv';
 
@@ -457,6 +458,7 @@ function GroupCard({
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              <GroupBadge groupName={group.name} />
               <CardTitle className="text-xl font-semibold">{group.name}</CardTitle>
               {group.is_public ? (
                 <span className="flex items-center gap-1 text-xs text-accent">

@@ -7,12 +7,38 @@ import { calculatePropertyMetrics } from '@/lib/scoring';
 interface GroupDefinition {
   name: string;
   propertyIds: string[];
+  isPublic: boolean;
 }
 
 export type AutoGroupStrategy = 'state' | 'score';
+export type PropertyFilter = 'all' | 'kasa' | 'competitors';
 
 interface ScoreData {
   [propertyId: string]: Record<ReviewSource, { score: number; count: number }> | undefined;
+}
+
+// Score Legend tiers with exact ranges
+const SCORE_TIERS = [
+  { name: 'Wonderful (9.0+)', min: 9.0, max: 10 },
+  { name: 'Very Good (8.0-8.99)', min: 8.0, max: 8.99 },
+  { name: 'Good (7.0-7.99)', min: 7.0, max: 7.99 },
+  { name: 'Pleasant (6.0-6.99)', min: 6.0, max: 6.99 },
+  { name: 'Needs Work (0-5.99)', min: 0, max: 5.99 },
+];
+
+function isKasaProperty(property: Property): boolean {
+  return !!(property.kasa_url || property.kasa_aggregated_score !== null);
+}
+
+function filterProperties(properties: Property[], filter: PropertyFilter): Property[] {
+  switch (filter) {
+    case 'kasa':
+      return properties.filter(isKasaProperty);
+    case 'competitors':
+      return properties.filter(p => !isKasaProperty(p));
+    default:
+      return properties;
+  }
 }
 
 export function useAutoGroup() {
@@ -22,118 +48,113 @@ export function useAutoGroup() {
   const generateGroups = (
     properties: Property[],
     scores: ScoreData,
-    strategy: AutoGroupStrategy
+    strategy: AutoGroupStrategy,
+    filter: PropertyFilter = 'all'
   ): GroupDefinition[] => {
+    const filtered = filterProperties(properties, filter);
     switch (strategy) {
       case 'state':
-        return groupByState(properties);
+        return groupByState(filtered, properties);
       case 'score':
-        return groupByScore(properties, scores);
+        return groupByScore(filtered, scores, filter);
       default:
         return [];
     }
   };
 
-  const groupByState = (properties: Property[]): GroupDefinition[] => {
-    const stateMap = new Map<string, string[]>();
-    
-    for (const property of properties) {
+  const groupByState = (filtered: Property[], allProperties: Property[]): GroupDefinition[] => {
+    // Collect all states from filtered properties
+    const stateMap = new Map<string, { kasa: string[]; comp: string[] }>();
+
+    for (const property of filtered) {
       const state = property.state.trim();
       if (!stateMap.has(state)) {
-        stateMap.set(state, []);
+        stateMap.set(state, { kasa: [], comp: [] });
       }
-      stateMap.get(state)!.push(property.id);
+      const bucket = stateMap.get(state)!;
+      if (isKasaProperty(property)) {
+        bucket.kasa.push(property.id);
+      } else {
+        bucket.comp.push(property.id);
+      }
     }
 
-    return Array.from(stateMap.entries())
-      .filter(([_, ids]) => ids.length > 0)
-      .sort((a, b) => b[1].length - a[1].length)
-      .map(([state, propertyIds]) => ({
-        name: `${state} Properties`,
-        propertyIds,
-      }));
+    const groups: GroupDefinition[] = [];
+
+    // Sort by total count descending
+    const sorted = Array.from(stateMap.entries()).sort(
+      (a, b) => (b[1].kasa.length + b[1].comp.length) - (a[1].kasa.length + a[1].comp.length)
+    );
+
+    for (const [state, bucket] of sorted) {
+      if (bucket.comp.length > 0) {
+        groups.push({
+          name: `${state}_Comp Set`,
+          propertyIds: bucket.comp,
+          isPublic: true,
+        });
+      }
+      if (bucket.kasa.length > 0) {
+        groups.push({
+          name: `${state}_Kasa`,
+          propertyIds: bucket.kasa,
+          isPublic: true,
+        });
+      }
+    }
+
+    return groups;
   };
 
-  // Score Legend tiers with exact ranges
-  const SCORE_TIERS = [
-    { name: 'Wonderful (9.0+)', min: 9.0, max: 10 },
-    { name: 'Very Good (8.0-8.99)', min: 8.0, max: 8.99 },
-    { name: 'Good (7.0-7.99)', min: 7.0, max: 7.99 },
-    { name: 'Pleasant (6.0-6.99)', min: 6.0, max: 6.99 },
-    { name: 'Needs Work (0-5.99)', min: 0, max: 5.99 },
-  ];
-
-  const groupByScore = (properties: Property[], scores: ScoreData): GroupDefinition[] => {
+  const groupByScore = (
+    properties: Property[],
+    scores: ScoreData,
+    filter: PropertyFilter
+  ): GroupDefinition[] => {
     const buckets: Map<string, string[]> = new Map();
-    
-    // Initialize all buckets
     for (const tier of SCORE_TIERS) {
       buckets.set(tier.name, []);
     }
 
     for (const property of properties) {
       const { avgScore } = calculatePropertyMetrics(scores[property.id]);
-      
-      // Find the right tier based on score
+
       let tierName = 'Needs Work (0-5.99)';
       if (avgScore !== null) {
-        if (avgScore >= 9.0) {
-          tierName = 'Wonderful (9.0+)';
-        } else if (avgScore >= 8.0) {
-          tierName = 'Very Good (8.0-8.99)';
-        } else if (avgScore >= 7.0) {
-          tierName = 'Good (7.0-7.99)';
-        } else if (avgScore >= 6.0) {
-          tierName = 'Pleasant (6.0-6.99)';
-        } else {
-          tierName = 'Needs Work (0-5.99)';
-        }
+        if (avgScore >= 9.0) tierName = 'Wonderful (9.0+)';
+        else if (avgScore >= 8.0) tierName = 'Very Good (8.0-8.99)';
+        else if (avgScore >= 7.0) tierName = 'Good (7.0-7.99)';
+        else if (avgScore >= 6.0) tierName = 'Pleasant (6.0-6.99)';
       }
-      
+
       buckets.get(tierName)!.push(property.id);
     }
 
-    // Return ALL groups including empty ones (for future use)
+    // Add filter suffix to names
+    const suffix = filter === 'kasa' ? ' — Kasa' : filter === 'competitors' ? ' — Competitors' : '';
+
     return SCORE_TIERS.map(tier => ({
-      name: tier.name,
+      name: `${tier.name}${suffix}`,
       propertyIds: buckets.get(tier.name) || [],
+      isPublic: true,
     }));
-  };
-
-  const groupByScoreWithThresholds = (
-    properties: Property[], 
-    scores: ScoreData,
-    _thresholds: { elite: number; strong: number; attention: number }
-  ): GroupDefinition[] => {
-    // Now uses the standard 5-tier system regardless of thresholds
-    return groupByScore(properties, scores);
-  };
-
-  const generateGroupsWithThresholds = (
-    properties: Property[],
-    scores: ScoreData,
-    thresholds: { elite: number; strong: number; attention: number }
-  ): GroupDefinition[] => {
-    return groupByScoreWithThresholds(properties, scores, thresholds);
   };
 
   const createAutoGroups = useMutation({
     mutationFn: async (groupDefinitions: GroupDefinition[]) => {
       if (!user) throw new Error('Not authenticated');
-      
+
       const createdGroups: { name: string; propertyCount: number }[] = [];
 
       for (const def of groupDefinitions) {
-        // Create the group
         const { data: group, error: groupError } = await supabase
           .from('groups')
-          .insert({ name: def.name, user_id: user.id })
+          .insert({ name: def.name, user_id: user.id, is_public: def.isPublic })
           .select()
           .single();
-        
+
         if (groupError) throw groupError;
 
-        // Add properties to the group
         if (def.propertyIds.length > 0) {
           const { error: propsError } = await supabase
             .from('group_properties')
@@ -141,7 +162,7 @@ export function useAutoGroup() {
               group_id: group.id,
               property_id: pid,
             })));
-          
+
           if (propsError) throw propsError;
         }
 
@@ -161,7 +182,6 @@ export function useAutoGroup() {
 
   return {
     generateGroups,
-    generateGroupsWithThresholds,
     createAutoGroups,
   };
 }
