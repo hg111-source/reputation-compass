@@ -11,7 +11,7 @@ const KasaIcon = ({ className }: { className?: string }) => (
 );
 
 const mainNavItems = [
-  { href: '/properties', label: 'Properties', icon: Building2 },
+  { href: '/properties', label: 'Comps', icon: Building2 },
   { href: '/kasa', label: 'Kasa', icon: KasaIcon },
   { href: '/groups', label: 'Groups', icon: FolderOpen },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
