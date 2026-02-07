@@ -99,7 +99,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
           {/* User section */}
           <div className="border-t border-sidebar-border p-5">
-            <div className="mb-4 truncate text-sm text-sidebar-foreground/70">
+            <div className="mb-1 text-sm font-medium text-white">
+              Welcome, Kasamig@
+            </div>
+            <div className="mb-4 truncate text-xs text-sidebar-foreground/70">
               {user?.email}
             </div>
             <Button
