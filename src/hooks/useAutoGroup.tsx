@@ -54,7 +54,7 @@ export function useAutoGroup() {
     const filtered = filterProperties(properties, filter);
     switch (strategy) {
       case 'state':
-        return groupByState(filtered, properties);
+        return groupByState(filtered);
       case 'score':
         return groupByScore(filtered, scores, filter);
       default:
@@ -62,48 +62,24 @@ export function useAutoGroup() {
     }
   };
 
-  const groupByState = (filtered: Property[], allProperties: Property[]): GroupDefinition[] => {
-    // Collect all states from filtered properties
-    const stateMap = new Map<string, { kasa: string[]; comp: string[] }>();
+  const groupByState = (filtered: Property[]): GroupDefinition[] => {
+    const stateMap = new Map<string, string[]>();
 
     for (const property of filtered) {
       const state = property.state.trim();
       if (!stateMap.has(state)) {
-        stateMap.set(state, { kasa: [], comp: [] });
+        stateMap.set(state, []);
       }
-      const bucket = stateMap.get(state)!;
-      if (isKasaProperty(property)) {
-        bucket.kasa.push(property.id);
-      } else {
-        bucket.comp.push(property.id);
-      }
+      stateMap.get(state)!.push(property.id);
     }
 
-    const groups: GroupDefinition[] = [];
-
-    // Sort by total count descending
-    const sorted = Array.from(stateMap.entries()).sort(
-      (a, b) => (b[1].kasa.length + b[1].comp.length) - (a[1].kasa.length + a[1].comp.length)
-    );
-
-    for (const [state, bucket] of sorted) {
-      if (bucket.comp.length > 0) {
-        groups.push({
-          name: `${state}_Comp Set`,
-          propertyIds: bucket.comp,
-          isPublic: true,
-        });
-      }
-      if (bucket.kasa.length > 0) {
-        groups.push({
-          name: `${state}_Kasa`,
-          propertyIds: bucket.kasa,
-          isPublic: true,
-        });
-      }
-    }
-
-    return groups;
+    return Array.from(stateMap.entries())
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([state, propertyIds]) => ({
+        name: `${state}_Comp Set`,
+        propertyIds,
+        isPublic: true,
+      }));
   };
 
   const groupByScore = (
