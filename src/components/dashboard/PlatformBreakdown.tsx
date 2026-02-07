@@ -107,8 +107,6 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {platformMetrics
             .filter(metric => metric.totalReviews > 0)
-            // Hide standalone Kasa card when it's the only platform (redundant with Overall)
-            .filter(metric => !(metric.platform === 'kasa' && platformMetrics.filter(m => m.totalReviews > 0).length === 1))
             .map(metric => (
             <div
               key={metric.platform}
