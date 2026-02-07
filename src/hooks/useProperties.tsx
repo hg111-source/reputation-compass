@@ -20,6 +20,7 @@ export function useProperties() {
       return data as Property[];
     },
     enabled: !!user,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const createProperty = useMutation({
