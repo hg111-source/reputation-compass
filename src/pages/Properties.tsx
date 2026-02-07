@@ -291,6 +291,36 @@ export default function Properties() {
     refreshAll(nonKasaProperties, [platform]);
   };
 
+  // Refresh only properties with pending aliases on specific platforms
+  const handleRefreshPending = async (platforms: Platform[] = ['booking', 'tripadvisor', 'expedia']) => {
+    // Query pending aliases
+    const { data: pendingAliases } = await supabase
+      .from('hotel_aliases')
+      .select('property_id, source')
+      .eq('resolution_status', 'pending')
+      .in('source', platforms);
+
+    if (!pendingAliases || pendingAliases.length === 0) {
+      toast({ title: 'Nothing to resolve', description: 'No pending aliases found.' });
+      return;
+    }
+
+    const pendingPropertyIds = [...new Set(pendingAliases.map(a => a.property_id))];
+    const pendingProperties = nonKasaProperties.filter(p => pendingPropertyIds.includes(p.id));
+    // Determine which platforms actually have pending entries
+    const pendingPlatforms = [...new Set(pendingAliases.map(a => a.source))] as Platform[];
+
+    if (pendingProperties.length === 0) {
+      toast({ title: 'Nothing to resolve', description: 'No matching properties found.' });
+      return;
+    }
+
+    toast({ title: `Resolving ${pendingProperties.length} properties`, description: `Platforms: ${pendingPlatforms.join(', ')}` });
+    setIsRefreshDialogOpen(true);
+    setDialogOpen(true);
+    refreshAll(pendingProperties, pendingPlatforms);
+  };
+
   const handleRefreshDialogChange = (open: boolean) => {
     setIsRefreshDialogOpen(open);
     setDialogOpen(open);
@@ -329,6 +359,14 @@ export default function Properties() {
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Export CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleRefreshPending()}
+                  disabled={isRunning}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Resolve Pending
                 </Button>
                 <Button
                   variant="outline"
