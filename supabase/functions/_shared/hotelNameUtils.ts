@@ -53,15 +53,15 @@ export function normalizeHotelName(name: string, keepBrandPrefix = false): strin
     const withoutBrand = result
       // Hyatt brands
       .replace(/^(park hyatt|grand hyatt|hyatt regency|hyatt centric|hyatt place|hyatt house|andaz|thompson|alila)\s+/gi, '')
-      // Marriott brands
-      .replace(/^(jw marriott|marriott|sheraton|westin|le meridien|st\. regis|st regis|w hotel|delta hotels?|edition|moxy|aloft|element|ac hotel|courtyard|residence inn|springhill suites|fairfield|towneplace suites)\s+/gi, '')
+      // Marriott brands - NOTE: "fairfield" is kept because stripping it leaves only location names (e.g., "Fairfield Inn Weatherford" → "weatherford")
+      .replace(/^(jw marriott|marriott|sheraton|westin|le meridien|st\. regis|st regis|w hotel|delta hotels?|edition|moxy|aloft|element|ac hotel|courtyard|residence inn|springhill suites|towneplace suites)\s+/gi, '')
       // Hilton brands
       .replace(/^(waldorf astoria|conrad|hilton|doubletree|embassy suites|hampton|homewood suites|home2 suites|tru)\s+/gi, '')
       // IHG brands
       .replace(/^(intercontinental|kimpton|hotel indigo|crowne plaza|holiday inn|staybridge|candlewood|avid|atwell|vignette)\s+/gi, '')
       // Luxury brands
       .replace(/^(four seasons|ritz[- ]carlton|peninsula|mandarin oriental|rosewood|aman|banyan tree|raffles|fairmont|sofitel|nobu)\s+/gi, '')
-      // Other chains
+      // Other chains - NOTE: "fairfield" kept as brand prefix because stripping it often leaves only a city name
       .replace(/^(wyndham|radisson|best western|choice|la quinta|motel 6|red roof|quality inn|comfort inn|days inn|super 8|ramada)\s+/gi, '')
       .trim();
     
