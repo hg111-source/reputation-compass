@@ -65,7 +65,10 @@ export function useAutoGroup() {
   const groupByState = (filtered: Property[]): GroupDefinition[] => {
     const stateMap = new Map<string, string[]>();
 
-    for (const property of filtered) {
+    // Exclude Kasa properties — comp sets are competitors only
+    const nonKasa = filtered.filter(p => !isKasaProperty(p));
+
+    for (const property of nonKasa) {
       const state = property.state.trim();
       if (!stateMap.has(state)) {
         stateMap.set(state, []);
