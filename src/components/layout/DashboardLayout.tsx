@@ -2,15 +2,19 @@ import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Building2, LayoutDashboard, Upload, FolderOpen, LogOut, ChevronRight, Star, Lightbulb } from 'lucide-react';
+import { Building2, LayoutDashboard, Upload, FolderOpen, LogOut, ChevronRight, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HelpModal } from '@/components/layout/HelpModal';
 
+const KasaIcon = ({ className }: { className?: string }) => (
+  <span className={cn('inline-flex items-center justify-center font-bold text-base', className)}>K</span>
+);
+
 const mainNavItems = [
   { href: '/properties', label: 'Properties', icon: Building2 },
+  { href: '/kasa', label: 'Kasa', icon: KasaIcon },
   { href: '/groups', label: 'Groups', icon: FolderOpen },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/kasa', label: 'Kasa', icon: Star },
   { href: '/insights', label: 'KasaSights', icon: Lightbulb },
 ];
 
