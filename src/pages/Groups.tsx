@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -46,6 +46,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { getScoreColor, formatScore, calculatePropertyMetrics } from '@/lib/scoring';
+import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { cn } from '@/lib/utils';
 import { AutoGroupDialog } from '@/components/groups/AutoGroupDialog';
 import { GroupAnalysisDialog } from '@/components/groups/GroupAnalysisDialog';
@@ -75,6 +76,40 @@ export default function Groups() {
   const { sortedGroups: sortedPublicGroups, refetch: refetchPublicGroups } = useAllGroupMetrics(publicGroups);
   const [isResorting, setIsResorting] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+
+  const handleSort = useCallback((key: string) => {
+    if (sortColumn === key) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc');
+      if (sortDirection === 'desc') setSortColumn(null);
+    } else {
+      setSortColumn(key);
+      setSortDirection('asc');
+    }
+  }, [sortColumn, sortDirection]);
+
+  const applySorting = useCallback(<T extends { name: string; created_at: string; is_public?: boolean }>(groups: T[]): T[] => {
+    if (!sortColumn || !sortDirection) return groups;
+    
+    return [...groups].sort((a, b) => {
+      let cmp = 0;
+      switch (sortColumn) {
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case 'visibility':
+          cmp = (a.is_public ? 1 : 0) - (b.is_public ? 1 : 0);
+          break;
+        case 'created':
+          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        default:
+          return 0; // score/properties/reviews handled by useAllGroupMetrics
+      }
+      return sortDirection === 'desc' ? -cmp : cmp;
+    });
+  }, [sortColumn, sortDirection]);
 
   const handleResort = async () => {
     setIsResorting(true);
@@ -413,12 +448,12 @@ export default function Groups() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
-                      <TableHead className="font-semibold">Group Name</TableHead>
-                      <TableHead className="font-semibold text-center">Weighted Avg</TableHead>
-                      <TableHead className="font-semibold text-center">Properties</TableHead>
-                      <TableHead className="font-semibold text-center">Reviews</TableHead>
-                      <TableHead className="font-semibold">Visibility</TableHead>
-                      <TableHead className="font-semibold">Created</TableHead>
+                      <SortableTableHead sortKey="name" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold text-left">Group Name</SortableTableHead>
+                      <SortableTableHead sortKey="score" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold text-center">Weighted Avg</SortableTableHead>
+                      <SortableTableHead sortKey="properties" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold text-center">Properties</SortableTableHead>
+                      <SortableTableHead sortKey="reviews" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold text-center">Reviews</SortableTableHead>
+                      <SortableTableHead sortKey="visibility" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold">Visibility</SortableTableHead>
+                      <SortableTableHead sortKey="created" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold">Created</SortableTableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
@@ -445,13 +480,15 @@ export default function Groups() {
                       <TableCell>—</TableCell>
                       <TableCell />
                     </TableRow>
-                    {sortedMyGroups.map(group => (
+                    {applySorting(sortedMyGroups).map(group => (
                       <GroupTableRow
                         key={group.id}
                         group={group}
                         onDelete={() => handleDelete(group.id, group.name)}
                         onManage={() => setSelectedGroupId(group.id)}
                         isOwner={true}
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
                       />
                     ))}
                   </TableBody>
@@ -496,15 +533,15 @@ export default function Groups() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
-                      <TableHead className="font-semibold">Group Name</TableHead>
-                      <TableHead className="font-semibold text-center">Weighted Avg</TableHead>
-                      <TableHead className="font-semibold text-center">Properties</TableHead>
-                      <TableHead className="font-semibold text-center">Reviews</TableHead>
-                      <TableHead className="font-semibold">Created</TableHead>
+                      <SortableTableHead sortKey="name" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold text-left">Group Name</SortableTableHead>
+                      <SortableTableHead sortKey="score" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold text-center">Weighted Avg</SortableTableHead>
+                      <SortableTableHead sortKey="properties" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold text-center">Properties</SortableTableHead>
+                      <SortableTableHead sortKey="reviews" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold text-center">Reviews</SortableTableHead>
+                      <SortableTableHead sortKey="created" currentSort={sortColumn} currentDirection={sortDirection} onSort={handleSort} className="font-semibold">Created</SortableTableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedPublicGroups.map(group => (
+                    {applySorting(sortedPublicGroups).map(group => (
                       <GroupTableRow
                         key={group.id}
                         group={group}
@@ -823,14 +860,31 @@ function GroupTableRow({
   onDelete,
   onManage,
   isOwner = true,
+  sortColumn,
+  sortDirection,
 }: {
   group: { id: string; name: string; created_at: string; is_public?: boolean };
   onDelete: () => void;
   onManage: () => void;
   isOwner?: boolean;
+  sortColumn?: string | null;
+  sortDirection?: SortDirection;
 }) {
   const navigate = useNavigate();
   const { avgScore, totalProperties, totalReviews, isLoading } = useGroupMetrics(group.id);
+  const { updateGroup } = useGroups();
+  const { toast } = useToast();
+
+  const handleToggleVisibility = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newPublic = !group.is_public;
+    try {
+      await updateGroup.mutateAsync({ id: group.id, isPublic: newPublic });
+      toast({ title: `Group ${newPublic ? 'made public' : 'made private'}` });
+    } catch {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to update visibility.' });
+    }
+  };
 
   return (
     <TableRow 
@@ -861,15 +915,29 @@ function GroupTableRow({
       <TableCell className="text-center font-medium">{totalProperties}</TableCell>
       <TableCell className="text-center font-medium">{totalReviews.toLocaleString()}</TableCell>
       <TableCell>
-        {group.is_public ? (
+        {isOwner ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={handleToggleVisibility}
+          >
+            {group.is_public ? (
+              <span className="flex items-center gap-1 text-accent">
+                <Globe className="h-3.5 w-3.5" />
+                Public
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Lock className="h-3.5 w-3.5" />
+                Private
+              </span>
+            )}
+          </Button>
+        ) : (
           <span className="flex items-center gap-1 text-xs text-accent">
             <Globe className="h-3.5 w-3.5" />
             Public
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5" />
-            Private
           </span>
         )}
       </TableCell>
