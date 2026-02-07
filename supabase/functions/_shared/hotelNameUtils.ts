@@ -137,13 +137,22 @@ function getSignificantWords(normalizedName: string): string[] {
  * Count matching words between two hotel names.
  * Returns the number of significant words that match.
  */
+function wordsMatchFuzzy(word1: string, word2: string): boolean {
+  if (word1 === word2) return true;
+  // Substring match for location variants (e.g., "chicagoland" contains "chicago")
+  // Only if the shorter word is 4+ chars to avoid false positives
+  const shorter = word1.length < word2.length ? word1 : word2;
+  const longer = word1.length < word2.length ? word2 : word1;
+  return shorter.length >= 4 && longer.includes(shorter);
+}
+
 function countMatchingWords(name1: string, name2: string): number {
-  const words1 = new Set(getSignificantWords(normalizeHotelName(name1)));
-  const words2 = new Set(getSignificantWords(normalizeHotelName(name2)));
+  const words1 = getSignificantWords(normalizeHotelName(name1));
+  const words2 = getSignificantWords(normalizeHotelName(name2));
   
   let matches = 0;
-  for (const word of words1) {
-    if (words2.has(word)) {
+  for (const w1 of words1) {
+    if (words2.some(w2 => wordsMatchFuzzy(w1, w2))) {
       matches++;
     }
   }
