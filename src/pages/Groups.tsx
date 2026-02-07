@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useGroups, useGroupProperties } from '@/hooks/useGroups';
@@ -9,6 +10,7 @@ import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +32,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { 
   Plus, Trash2, FolderOpen, Settings, CheckSquare, XSquare, Search, 
   Building2, MessageSquare, Wand2, MoreVertical, Pencil, Download, RefreshCw,
-  Globe, Sparkles, Copy, Lock
+  Globe, Sparkles, Copy, Lock, Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -41,6 +43,7 @@ import { GroupAnalysisDialog } from '@/components/groups/GroupAnalysisDialog';
 import { GroupBadge } from '@/components/groups/GroupBadge';
 import { ReviewSource } from '@/lib/types';
 import { exportGroupToCSV } from '@/lib/csv';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Groups() {
   const { user, loading } = useAuth();
@@ -50,10 +53,13 @@ export default function Groups() {
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAutoGroupOpen, setIsAutoGroupOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [newGroupPublic, setNewGroupPublic] = useState(false);
+  const [newGroupPublic, setNewGroupPublic] = useState(true);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAiFiltering, setIsAiFiltering] = useState(false);
 
   // Get sorted groups by score
   const { sortedGroups: sortedMyGroups, refetch: refetchMyGroups } = useAllGroupMetrics(myGroups);
@@ -106,20 +112,64 @@ export default function Groups() {
     return <Navigate to="/auth" replace />;
   }
 
+            
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
 
+    setIsAiFiltering(true);
     try {
-      await createGroup.mutateAsync({ name, isPublic: newGroupPublic });
-      toast({ title: 'Group created', description: `${name} has been created.` });
+      // Create group
+      const group = await createGroup.mutateAsync({ name, isPublic: newGroupPublic });
+
+      // If AI prompt provided, use it to filter and add properties
+      if (aiPrompt.trim()) {
+        try {
+
+          const response = await supabase.functions.invoke('smart-group-filter', {
+            body: { prompt: aiPrompt.trim() },
+          });
+
+          if (response.data?.propertyIds?.length > 0) {
+            await supabase
+              .from('group_properties')
+              .insert(response.data.propertyIds.map((pid: string) => ({
+                group_id: group.id,
+                property_id: pid,
+              })));
+
+            queryClient.invalidateQueries({ queryKey: ['group-properties'] });
+
+            toast({
+              title: 'Group created',
+              description: `${name} created with ${response.data.propertyIds.length} properties.`,
+            });
+          } else {
+            toast({
+              title: 'Group created',
+              description: `${name} created. No properties matched your prompt — add them manually.`,
+            });
+          }
+        } catch (aiError) {
+          console.error('AI filter error:', aiError);
+          toast({
+            title: 'Group created',
+            description: `${name} created but AI filtering failed. Add properties manually.`,
+          });
+        }
+      } else {
+        toast({ title: 'Group created', description: `${name} has been created.` });
+      }
+
       setIsCreateOpen(false);
-      setNewGroupPublic(false);
+      setNewGroupPublic(true);
+      setAiPrompt('');
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to create group.' });
     }
+    setIsAiFiltering(false);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -185,19 +235,38 @@ export default function Groups() {
                       required
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ai_prompt">
+                      <div className="flex items-center gap-2">
+                        <Wand2 className="h-4 w-4 text-accent" />
+                        <span>AI Property Filter</span>
+                        <span className="text-xs text-muted-foreground">(optional)</span>
+                      </div>
+                    </Label>
+                    <Textarea
+                      id="ai_prompt"
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder='e.g., "All competitors in California with avg score above 8" or "Hotels in NYC and Boston"'
+                      className="min-h-[72px] resize-none rounded-md text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Describe which properties to include. Leave blank to add manually.
+                    </p>
+                  </div>
                   <div className="flex items-center space-x-3">
                     <Checkbox
-                      id="is_public"
-                      checked={newGroupPublic}
-                      onCheckedChange={(checked) => setNewGroupPublic(checked === true)}
+                      id="is_private"
+                      checked={!newGroupPublic}
+                      onCheckedChange={(checked) => setNewGroupPublic(checked !== true)}
                     />
-                    <Label htmlFor="is_public" className="cursor-pointer">
+                    <Label htmlFor="is_private" className="cursor-pointer">
                       <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 text-muted-foreground" />
-                        <span>Make this group public</span>
+                        <Lock className="h-4 w-4 text-muted-foreground" />
+                        <span>Make this group private</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Public groups can be viewed by other users
+                        Private groups are only visible to you
                       </p>
                     </Label>
                   </div>
@@ -205,9 +274,14 @@ export default function Groups() {
                     type="submit" 
                     variant="secondary"
                     className="h-12 w-full" 
-                    disabled={createGroup.isPending}
+                    disabled={createGroup.isPending || isAiFiltering}
                   >
-                    {createGroup.isPending ? 'Creating...' : 'Create Group'}
+                    {isAiFiltering ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        AI filtering properties...
+                      </>
+                    ) : createGroup.isPending ? 'Creating...' : 'Create Group'}
                   </Button>
                 </form>
               </DialogContent>
