@@ -8,7 +8,7 @@ import { HelpModal } from '@/components/layout/HelpModal';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/insights', label: 'So What?', icon: BarChart3 },
+  { href: '/insights', label: 'KasaSights', icon: BarChart3 },
   { href: '/groups', label: 'Groups', icon: FolderOpen },
   { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/kasa', label: 'Kasa', icon: Star },
