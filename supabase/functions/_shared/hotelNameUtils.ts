@@ -263,6 +263,14 @@ export function analyzeHotelMatch(searchName: string, resultName: string): Match
       // Same brand + containment = good enough match
       isMatch = true;
       reason = `Same brand "${searchBrand}" + containment match`;
+    } else if (
+      // If the SEARCH name is contained in the result, and the search has a distinctive word (6+ chars),
+      // accept it. E.g., "Rittenhouse" (9 chars) matching "Rittenhouse Philadelphia"
+      normalizedResult.includes(normalizedSearch) &&
+      shorterSignificant.some(w => w.length >= 6)
+    ) {
+      isMatch = true;
+      reason = `Search name "${normalizedSearch}" is distinctive enough and contained in result`;
     } else {
       isMatch = false;
       reason = `Containment match rejected: "${shorter}" is too generic`;
