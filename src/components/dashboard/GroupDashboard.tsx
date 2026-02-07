@@ -117,9 +117,9 @@ export function GroupDashboard({ group, groupSelector }: GroupDashboardProps) {
       const propertyScores = scores[property.id];
       let { avgScore, totalReviews } = calculatePropertyMetrics(propertyScores);
 
-      // Fallback to Kasa fields if no OTA snapshot data
+      // Fallback to Kasa fields if no OTA snapshot data (kasa_aggregated_score is on 5-point scale)
       if (avgScore === null && property.kasa_aggregated_score) {
-        avgScore = property.kasa_aggregated_score;
+        avgScore = (property.kasa_aggregated_score / 5) * 10;
         totalReviews = property.kasa_review_count ?? 0;
       }
 

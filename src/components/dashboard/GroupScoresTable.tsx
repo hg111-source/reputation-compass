@@ -59,8 +59,8 @@ export function GroupScoresTable({
         }))
       );
 
-      // For Kasa properties without OTA snapshots, fall back to kasa_aggregated_score
-      const finalWeightedScore = weightedScore ?? property.kasa_aggregated_score ?? null;
+      // For Kasa properties without OTA snapshots, fall back to kasa_aggregated_score (5-point scale → normalize to 10)
+      const finalWeightedScore = weightedScore ?? (property.kasa_aggregated_score ? (property.kasa_aggregated_score / 5) * 10 : null);
       const finalTotalReviews = totalReviews > 0 ? totalReviews : (property.kasa_review_count ?? 0);
 
       return {
