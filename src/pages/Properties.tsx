@@ -74,7 +74,7 @@ export default function Properties() {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [historyProperty, setHistoryProperty] = useState<Property | null>(null);
   const [insightsProperty, setInsightsProperty] = useState<Property | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   const [isAirbnbDiscoveryOpen, setIsAirbnbDiscoveryOpen] = useState(false);
   const [isBulkInsightsOpen, setIsBulkInsightsOpen] = useState(false);
