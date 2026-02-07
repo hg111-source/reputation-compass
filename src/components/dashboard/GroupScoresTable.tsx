@@ -112,7 +112,7 @@ export function GroupScoresTable({
           {propertiesWithScores.map(property => {
             const isKasa = !!(property.kasa_url || property.kasa_aggregated_score);
             return (
-            <TableRow key={property.id} className={cn('group', isKasa && 'bg-blue-50/60 dark:bg-blue-950/20')}>
+            <TableRow key={property.id} className={cn('group', isKasa && 'bg-blue-100/70 dark:bg-blue-950/40')}>
               <TableCell className="py-4 font-medium">{property.name}</TableCell>
               <TableCell className="py-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
