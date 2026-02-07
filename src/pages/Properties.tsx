@@ -371,9 +371,9 @@ export default function Properties() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight">Properties</h1>
+            <h1 className="text-4xl font-bold tracking-tight">Competitors</h1>
             <p className="mt-2 text-muted-foreground">
-              Manage your hotel and property listings
+              View and sort competitor property details
             </p>
           </div>
 
