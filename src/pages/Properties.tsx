@@ -581,7 +581,7 @@ export default function Properties() {
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
-                    className="font-semibold"
+                    className="font-semibold text-center"
                   >
                     Average Score
                   </SortableTableHead>
@@ -590,7 +590,7 @@ export default function Properties() {
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
-                    className="font-semibold"
+                    className="font-semibold text-center"
                   >
                     Total Reviews
                   </SortableTableHead>
@@ -674,18 +674,20 @@ export default function Properties() {
                       </button>
                     </div>
                   </SortableTableHead>
-                  <TableHead className="w-12">
-                    <button
-                      onClick={() => {
-                        setIsBulkInsightsOpen(true);
-                        bulkInsights.run(sortedProperties);
-                      }}
-                      disabled={bulkInsights.isRunning}
-                      className="p-1 rounded hover:bg-muted/50"
-                      title="Fetch AI insights for all properties"
-                    >
-                      <Brain className={cn('h-4 w-4 text-muted-foreground/50 hover:text-muted-foreground', bulkInsights.isRunning && 'animate-pulse text-accent')} />
-                    </button>
+                  <TableHead className="w-12 text-center">
+                    <div className="flex items-center justify-center">
+                      <button
+                        onClick={() => {
+                          setIsBulkInsightsOpen(true);
+                          bulkInsights.run(sortedProperties);
+                        }}
+                        disabled={bulkInsights.isRunning}
+                        className="p-1 rounded hover:bg-muted/50"
+                        title="Fetch AI insights for all properties"
+                      >
+                        <Brain className={cn('h-4 w-4 text-muted-foreground/50 hover:text-muted-foreground', bulkInsights.isRunning && 'animate-pulse text-accent')} />
+                      </button>
+                    </div>
                   </TableHead>
                 </TableRow>
               </TableHeader>
