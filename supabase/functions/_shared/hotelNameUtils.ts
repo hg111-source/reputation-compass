@@ -364,7 +364,31 @@ export function validateCity(resultAddress: string | undefined, expectedCity: st
   const normalizedAddress = resultAddress.toLowerCase();
   const normalizedCity = expectedCity.toLowerCase().split(',')[0].trim();
   
-  return normalizedAddress.includes(normalizedCity);
+  // Direct match
+  if (normalizedAddress.includes(normalizedCity)) return true;
+  
+  // Handle common abbreviation variants (St. ↔ Saint, Ft. ↔ Fort, Mt. ↔ Mount)
+  const abbreviations: [string, string][] = [
+    ['saint', 'st.'],
+    ['saint', 'st'],
+    ['fort', 'ft.'],
+    ['fort', 'ft'],
+    ['mount', 'mt.'],
+    ['mount', 'mt'],
+  ];
+  
+  for (const [full, abbr] of abbreviations) {
+    if (normalizedCity.includes(full)) {
+      const variant = normalizedCity.replace(full, abbr);
+      if (normalizedAddress.includes(variant)) return true;
+    }
+    if (normalizedCity.includes(abbr)) {
+      const variant = normalizedCity.replace(abbr, full);
+      if (normalizedAddress.includes(variant)) return true;
+    }
+  }
+  
+  return false;
 }
 
 /**
