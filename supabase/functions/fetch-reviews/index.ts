@@ -3,15 +3,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const APIFY_BASE_URL = 'https://api.apify.com/v2';
 
-// Apify actor IDs
 const ACTORS = {
-  tripadvisor: 'dbEyMBriog95Fv8CW', // maxcopell/tripadvisor
-  google: 'nwua9Gu5YrADL7ZDj', // compass/crawler-google-places
+  tripadvisor: 'dbEyMBriog95Fv8CW',
+  google: 'nwua9Gu5YrADL7ZDj',
 };
 
 interface ApifyRunResponse {
@@ -159,6 +158,27 @@ async function fetchGoogleReviews(
   };
 }
 
+// Retry helper
+async function retryOperation<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 2,
+  label: string = 'operation'
+): Promise<T> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`${label} attempt ${attempt + 1}/${maxRetries + 1} failed: ${lastError.message}`);
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -197,6 +217,7 @@ serve(async (req) => {
       : [platform];
 
     const results: { platform: string; reviews: any[]; hotelName: string }[] = [];
+    const errors: { platform: string; error: string }[] = [];
 
     // Fetch from each platform
     for (const p of platformsToFetch) {
@@ -211,23 +232,18 @@ serve(async (req) => {
           results.push({ platform: 'google', ...googleResult });
         }
       } catch (err) {
-        console.error(`Error fetching from ${p}:`, err);
-        // Continue with other platforms
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`Error fetching from ${p}:`, msg);
+        errors.push({ platform: p, error: msg });
       }
     }
 
     let totalReviews = 0;
+    const saveErrors: { platform: string; error: string }[] = [];
 
-    // Store reviews for each platform
+    // Store reviews for each platform — with retry and atomic save
     for (const result of results) {
       if (result.reviews.length === 0) continue;
-
-      // Delete existing reviews for this property/platform
-      await supabase
-        .from('review_texts')
-        .delete()
-        .eq('property_id', propertyId)
-        .eq('platform', result.platform);
 
       const reviewsToInsert = result.reviews
         .filter((r: { text?: string }) => r.text && r.text.length > 10)
@@ -240,25 +256,63 @@ serve(async (req) => {
           reviewer_name: r.reviewer || null,
         }));
 
-      if (reviewsToInsert.length > 0) {
-        const { error: insertError } = await supabase
-          .from('review_texts')
-          .insert(reviewsToInsert);
+      if (reviewsToInsert.length === 0) continue;
 
-        if (insertError) {
-          console.error(`Failed to insert ${result.platform} reviews:`, insertError);
-        } else {
-          totalReviews += reviewsToInsert.length;
-          console.log(`Inserted ${reviewsToInsert.length} ${result.platform} reviews`);
-        }
+      try {
+        await retryOperation(async () => {
+          // Delete old reviews
+          const { error: deleteError } = await supabase
+            .from('review_texts')
+            .delete()
+            .eq('property_id', propertyId)
+            .eq('platform', result.platform);
+
+          if (deleteError) {
+            throw new Error(`Delete failed: ${deleteError.message}`);
+          }
+
+          // Insert new reviews
+          const { error: insertError } = await supabase
+            .from('review_texts')
+            .insert(reviewsToInsert);
+
+          if (insertError) {
+            throw new Error(`Insert failed: ${insertError.message}`);
+          }
+
+          // Verify save by counting
+          const { count, error: countError } = await supabase
+            .from('review_texts')
+            .select('*', { count: 'exact', head: true })
+            .eq('property_id', propertyId)
+            .eq('platform', result.platform);
+
+          if (countError) {
+            throw new Error(`Verification query failed: ${countError.message}`);
+          }
+
+          if ((count || 0) < reviewsToInsert.length) {
+            throw new Error(`Verification failed: expected ${reviewsToInsert.length} reviews, found ${count}`);
+          }
+
+          console.log(`✅ Verified ${count} ${result.platform} reviews saved for ${propertyId}`);
+        }, 2, `save-${result.platform}-reviews`);
+
+        totalReviews += reviewsToInsert.length;
+      } catch (saveErr) {
+        const msg = saveErr instanceof Error ? saveErr.message : String(saveErr);
+        console.error(`❌ Failed to save ${result.platform} reviews after retries:`, msg);
+        saveErrors.push({ platform: result.platform, error: msg });
       }
     }
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: saveErrors.length === 0 && errors.length === 0,
         reviewCount: totalReviews,
         platforms: results.map(r => ({ platform: r.platform, count: r.reviews.length })),
+        fetchErrors: errors.length > 0 ? errors : undefined,
+        saveErrors: saveErrors.length > 0 ? saveErrors : undefined,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
