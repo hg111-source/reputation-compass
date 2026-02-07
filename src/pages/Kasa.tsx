@@ -180,7 +180,7 @@ export default function Kasa() {
   
   // Track which properties have fetched review data
   const { data: propertiesWithReviews = new Set<string>() } = useQuery({
-    queryKey: ['properties-with-reviews-kasa', user?.id],
+    queryKey: ['properties-with-reviews', user?.id, 'kasa'],
     queryFn: async () => {
       if (!user || kasaPropertyIds.length === 0) return new Set<string>();
       const { data, error } = await supabase
