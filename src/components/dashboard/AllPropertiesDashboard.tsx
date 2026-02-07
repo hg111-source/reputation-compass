@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { ReviewSource } from '@/lib/types';
 import { useProperties } from '@/hooks/useProperties';
 import { useLatestPropertyScores } from '@/hooks/useSnapshots';
+import { useLatestKasaSnapshots, calculateWeightedAverage } from '@/hooks/useKasaSnapshots';
 import { useUnifiedRefresh } from '@/hooks/useUnifiedRefresh';
 import { GroupScoresTable } from './GroupScoresTable';
 import { PlatformBreakdown } from './PlatformBreakdown';
@@ -24,6 +25,10 @@ export function AllPropertiesDashboard({ groupSelector }: AllPropertiesDashboard
   const { data: scores = {}, isLoading: scoresLoading } = useLatestPropertyScores(propertyIds);
   const { toast } = useToast();
   const [isRefreshDialogOpen, setIsRefreshDialogOpen] = useState(false);
+
+  // Kasa properties - uses cached snapshots from the Kasa tab (no refetch)
+  const kasaPropertyIds = useMemo(() => properties.filter(p => p.kasa_url || p.kasa_aggregated_score).map(p => p.id), [properties]);
+  const { data: kasaSnapshots = {} } = useLatestKasaSnapshots(kasaPropertyIds);
   
   const {
     isRunning,
@@ -55,43 +60,45 @@ export function AllPropertiesDashboard({ groupSelector }: AllPropertiesDashboard
     toast({ title: 'Export complete', description: 'CSV file has been downloaded.' });
   };
 
-  // Calculate portfolio-wide metrics (Kasa properties use kasa_aggregated_score, others use OTA scores)
+  // Calculate portfolio-wide metrics using Kasa snapshots + OTA scores
   const portfolioMetrics = useMemo(() => {
     if (properties.length === 0) {
       return { weightedAvg: null, totalReviews: 0, propertiesWithData: 0 };
     }
 
-    let groupWeightedSum = 0;
-    let groupTotalReviews = 0;
-    let propertiesWithData = 0;
+    // Kasa stats from cached snapshots
+    const kasaStats = calculateWeightedAverage(kasaSnapshots);
+
+    // OTA stats for non-Kasa properties
+    let otaWeightedSum = 0;
+    let otaTotalReviews = 0;
+    let otaPropertiesWithData = 0;
 
     for (const property of properties) {
-      // For Kasa properties, use the pre-aggregated kasa score
-      if (property.kasa_aggregated_score != null) {
-        const kasaReviews = property.kasa_review_count || 1;
-        groupWeightedSum += property.kasa_aggregated_score * kasaReviews;
-        groupTotalReviews += kasaReviews;
-        propertiesWithData++;
-        continue;
-      }
+      // Skip Kasa properties — already counted above
+      if (property.kasa_url || property.kasa_aggregated_score) continue;
 
-      // For non-Kasa properties, use OTA platform scores
       const propertyScores = scores[property.id];
       const { avgScore, totalReviews } = calculatePropertyMetrics(propertyScores);
 
       if (avgScore !== null && totalReviews > 0) {
-        groupWeightedSum += avgScore * totalReviews;
-        groupTotalReviews += totalReviews;
-        propertiesWithData++;
+        otaWeightedSum += avgScore * totalReviews;
+        otaTotalReviews += totalReviews;
+        otaPropertiesWithData++;
       }
     }
 
+    // Combine Kasa + OTA
+    const combinedWeightedSum = (kasaStats.weightedAverage !== null ? kasaStats.weightedAverage * kasaStats.totalReviews : 0) + otaWeightedSum;
+    const combinedTotalReviews = kasaStats.totalReviews + otaTotalReviews;
+    const combinedPropertiesWithData = kasaStats.totalProperties + otaPropertiesWithData;
+
     return {
-      weightedAvg: groupTotalReviews > 0 ? groupWeightedSum / groupTotalReviews : null,
-      totalReviews: groupTotalReviews,
-      propertiesWithData,
+      weightedAvg: combinedTotalReviews > 0 ? combinedWeightedSum / combinedTotalReviews : null,
+      totalReviews: combinedTotalReviews,
+      propertiesWithData: combinedPropertiesWithData,
     };
-  }, [properties, scores]);
+  }, [properties, scores, kasaSnapshots]);
 
   if (propertiesLoading || scoresLoading) {
     return (
