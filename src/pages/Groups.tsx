@@ -139,7 +139,7 @@ export default function Groups() {
           <div>
             <h1 className="text-4xl font-bold tracking-tight">Groups</h1>
             <p className="mt-2 text-muted-foreground">
-              Organize properties into groups for comparison (private and public)
+              Organize properties into groups for comparison (public by default, can make private)
             </p>
           </div>
 
