@@ -674,18 +674,19 @@ export default function Properties() {
                       </button>
                     </div>
                   </SortableTableHead>
-                  <TableHead className="w-12 text-center">
-                    <div className="flex items-center justify-center">
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="text-xs font-semibold text-muted-foreground">Insights</span>
                       <button
                         onClick={() => {
                           setIsBulkInsightsOpen(true);
                           bulkInsights.run(sortedProperties);
                         }}
                         disabled={bulkInsights.isRunning}
-                        className="p-1 rounded hover:bg-muted/50"
+                        className="p-0.5 rounded hover:bg-muted/50"
                         title="Fetch AI insights for all properties"
                       >
-                        <Brain className={cn('h-4 w-4 text-muted-foreground/50 hover:text-muted-foreground', bulkInsights.isRunning && 'animate-pulse text-accent')} />
+                        <Brain className={cn('h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground', bulkInsights.isRunning && 'animate-pulse text-accent')} />
                       </button>
                     </div>
                   </TableHead>
