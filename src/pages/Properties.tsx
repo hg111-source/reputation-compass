@@ -675,7 +675,7 @@ export default function Properties() {
                     </div>
                   </SortableTableHead>
                   <TableHead className="text-center">
-                    <div className="flex items-center justify-center gap-1">
+                    <div className="flex items-center justify-start gap-1">
                       <span className="text-xs font-semibold text-muted-foreground">Insights</span>
                       <button
                         onClick={() => {
