@@ -72,11 +72,19 @@ export function GroupAnalysisDialog({
         description: 'Portfolio themes have been identified.',
       });
     } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Analysis failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-      });
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      if (msg.includes('No reviews found')) {
+        toast({
+          title: 'No reviews available',
+          description: 'Fetch reviews for individual properties first.',
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Analysis failed',
+          description: msg,
+        });
+      }
     } finally {
       setIsAnalyzing(false);
     }

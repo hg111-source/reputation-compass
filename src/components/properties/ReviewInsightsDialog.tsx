@@ -210,11 +210,20 @@ export function ReviewInsightsDialog({
         description: 'AI has re-analyzed existing reviews for updated themes.',
       });
     } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Re-analysis failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-      });
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      // Don't show destructive toast for "no reviews" — it's expected
+      if (msg.includes('No reviews found')) {
+        toast({
+          title: 'No reviews available',
+          description: 'Fetch reviews first using "Fetch & Analyze Reviews" below.',
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Re-analysis failed',
+          description: msg,
+        });
+      }
     }
   };
 
