@@ -173,6 +173,8 @@ function LeaderBadge({ kasaVal, compVal }: { kasaVal: number; compVal: number })
 
 function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 'positive' | 'negative' }) {
   const maxVal = Math.max(...themes.flatMap(t => [t.kasaMentions, t.compMentions]), 1);
+  const totalKasa = themes.reduce((sum, t) => sum + t.kasaMentions, 0) || 1;
+  const totalComp = themes.reduce((sum, t) => sum + t.compMentions, 0) || 1;
 
   return (
     <div>
@@ -186,8 +188,10 @@ function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 
         <span className="text-right"></span>
       </div>
       {themes.map((t, i) => {
-        const kasaPct = (t.kasaMentions / maxVal) * 100;
-        const compPct = (t.compMentions / maxVal) * 100;
+        const kasaBarPct = (t.kasaMentions / maxVal) * 100;
+        const compBarPct = (t.compMentions / maxVal) * 100;
+        const kasaSharePct = Math.round((t.kasaMentions / totalKasa) * 100);
+        const compSharePct = Math.round((t.compMentions / totalComp) * 100);
         const kasaColor = type === 'positive' ? 'bg-teal-500' : 'bg-rose-400';
         const compColor = type === 'positive' ? 'bg-blue-500' : 'bg-orange-400';
 
@@ -203,30 +207,35 @@ function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 
 
             {/* Diverging bar: Kasa ← | → Comps */}
             <div className="flex items-center gap-0 h-5">
-              {/* Kasa side (right-aligned, grows left) */}
+              {/* Kasa side */}
               <div className="flex-1 flex justify-end items-center gap-1.5">
-                <span className={cn(
-                  'text-[11px] tabular-nums font-semibold',
-                  t.kasaMentions >= t.compMentions ? 'text-teal-600 dark:text-teal-400' : 'text-muted-foreground'
-                )}>
-                  {t.kasaMentions || ''}
+                <span
+                  className={cn(
+                    'text-[11px] tabular-nums font-semibold cursor-default',
+                    t.kasaMentions >= t.compMentions ? 'text-teal-600 dark:text-teal-400' : 'text-muted-foreground'
+                  )}
+                  title={`${t.kasaMentions} mentions`}
+                >
+                  {t.kasaMentions ? `${kasaSharePct}%` : ''}
                 </span>
                 <div className="w-[60%] h-2.5 rounded-l-full bg-muted/50 overflow-hidden flex justify-end">
-                  <div className={cn('h-full rounded-l-full', kasaColor)} style={{ width: `${kasaPct}%` }} />
+                  <div className={cn('h-full rounded-l-full', kasaColor)} style={{ width: `${kasaBarPct}%` }} />
                 </div>
               </div>
-              {/* Center divider */}
               <div className="w-px h-4 bg-border shrink-0" />
-              {/* Comp side (left-aligned, grows right) */}
+              {/* Comp side */}
               <div className="flex-1 flex items-center gap-1.5">
                 <div className="w-[60%] h-2.5 rounded-r-full bg-muted/50 overflow-hidden">
-                  <div className={cn('h-full rounded-r-full', compColor)} style={{ width: `${compPct}%` }} />
+                  <div className={cn('h-full rounded-r-full', compColor)} style={{ width: `${compBarPct}%` }} />
                 </div>
-                <span className={cn(
-                  'text-[11px] tabular-nums font-semibold',
-                  t.compMentions > t.kasaMentions ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
-                )}>
-                  {t.compMentions || ''}
+                <span
+                  className={cn(
+                    'text-[11px] tabular-nums font-semibold cursor-default',
+                    t.compMentions > t.kasaMentions ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
+                  )}
+                  title={`${t.compMentions} mentions`}
+                >
+                  {t.compMentions ? `${compSharePct}%` : ''}
                 </span>
               </div>
             </div>
