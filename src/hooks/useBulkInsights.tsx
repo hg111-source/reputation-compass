@@ -34,13 +34,11 @@ export function useBulkInsights() {
     }));
     setStates(initialStates);
 
-    for (let i = 0; i < properties.length; i++) {
-      if (abortRef.current) break;
-      const property = properties[i];
-      setCurrentIndex(i);
+    const CONCURRENCY = 3;
 
+    const processProperty = async (property: Property) => {
+      if (abortRef.current) return;
       try {
-        // Fetch all reviews in parallel (Google + Expedia)
         updateState(property.id, { status: 'fetching' });
         await supabase.functions.invoke('fetch-reviews', {
           body: {
@@ -52,9 +50,8 @@ export function useBulkInsights() {
           },
         });
 
-        if (abortRef.current) break;
+        if (abortRef.current) return;
 
-        // AI analysis
         updateState(property.id, { status: 'analyzing' });
         const { data, error } = await supabase.functions.invoke('analyze-reviews', {
           body: { propertyId: property.id },
@@ -65,21 +62,26 @@ export function useBulkInsights() {
         }
 
         updateState(property.id, { status: 'done' });
-
-        // Invalidate caches
         queryClient.invalidateQueries({ queryKey: ['review-analysis', property.id] });
         queryClient.invalidateQueries({ queryKey: ['review-texts-count', property.id] });
-
       } catch (err) {
         updateState(property.id, {
           status: 'error',
           error: err instanceof Error ? err.message : 'Unknown error',
         });
       }
+    };
 
-      // Small delay between properties to avoid rate limiting
-      if (i < properties.length - 1 && !abortRef.current) {
-        await new Promise(r => setTimeout(r, 2000));
+    // Process in batches of CONCURRENCY
+    for (let i = 0; i < properties.length; i += CONCURRENCY) {
+      if (abortRef.current) break;
+      setCurrentIndex(i);
+      const batch = properties.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(processProperty));
+
+      // Small delay between batches
+      if (i + CONCURRENCY < properties.length && !abortRef.current) {
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
 
