@@ -23,7 +23,7 @@ interface ReviewInsightsDialogProps {
   property: Property | null;
 }
 
-type FetchStep = 'idle' | 'tripadvisor' | 'google' | 'ai-analysis' | 'complete';
+type FetchStep = 'idle' | 'fetching-reviews' | 'ai-analysis' | 'complete';
 
 const THEME_ICONS: Record<string, string> = {
   'clean': '🧹', 'staff': '👤', 'location': '📍', 'comfortable': '🛏️',
@@ -45,8 +45,7 @@ function getThemeIcon(theme: string): string {
 
 const STEP_MESSAGES: Record<FetchStep, string> = {
   idle: '',
-  tripadvisor: 'Fetching TripAdvisor reviews...',
-  google: 'Fetching Google reviews...',
+  'fetching-reviews': 'Fetching reviews from Google & Expedia...',
   'ai-analysis': 'AI is analyzing themes & sentiment...',
   complete: 'Analysis complete!',
 };
@@ -73,52 +72,32 @@ export function ReviewInsightsDialog({
       setPlatformResults([]);
       const warnings: string[] = [];
       
-      // Step 1: Fetch TripAdvisor reviews
-      setStep('tripadvisor');
-      setProgress(10);
+      // Step 1: Fetch all reviews in parallel (Google + Expedia)
+      setStep('fetching-reviews');
+      setProgress(15);
       
-      const tripResponse = await supabase.functions.invoke('fetch-reviews', {
+      const response = await supabase.functions.invoke('fetch-reviews', {
         body: { 
           propertyId: property.id,
           hotelName: property.name,
           city: property.city,
-          platform: 'tripadvisor',
+          platform: 'all',
           maxReviews: 25,
         },
       });
 
-      if (tripResponse.data?.platforms) {
-        setPlatformResults(prev => [...prev, ...tripResponse.data.platforms]);
+      if (response.data?.platforms) {
+        setPlatformResults(response.data.platforms);
       }
-      if (tripResponse.data?.saveErrors?.length > 0) {
-        warnings.push(`TripAdvisor save failed: ${tripResponse.data.saveErrors[0].error}`);
+      if (response.data?.saveErrors?.length > 0) {
+        for (const e of response.data.saveErrors) {
+          warnings.push(`${e.platform} save failed: ${e.error}`);
+        }
       }
-      if (tripResponse.data?.fetchErrors?.length > 0) {
-        warnings.push(`TripAdvisor fetch failed: ${tripResponse.data.fetchErrors[0].error}`);
-      }
-      setProgress(30);
-
-      // Step 2: Fetch Google reviews
-      setStep('google');
-      
-      const googleResponse = await supabase.functions.invoke('fetch-reviews', {
-        body: { 
-          propertyId: property.id,
-          hotelName: property.name,
-          city: property.city,
-          platform: 'google',
-          maxReviews: 25,
-        },
-      });
-
-      if (googleResponse.data?.platforms) {
-        setPlatformResults(prev => [...prev, ...googleResponse.data.platforms]);
-      }
-      if (googleResponse.data?.saveErrors?.length > 0) {
-        warnings.push(`Google save failed: ${googleResponse.data.saveErrors[0].error}`);
-      }
-      if (googleResponse.data?.fetchErrors?.length > 0) {
-        warnings.push(`Google fetch failed: ${googleResponse.data.fetchErrors[0].error}`);
+      if (response.data?.fetchErrors?.length > 0) {
+        for (const e of response.data.fetchErrors) {
+          warnings.push(`${e.platform} fetch failed: ${e.error}`);
+        }
       }
       setProgress(60);
 
@@ -252,7 +231,7 @@ export function ReviewInsightsDialog({
               <div className="space-y-2">
                 <p className="font-medium text-lg">{STEP_MESSAGES[step]}</p>
                 <p className="text-sm text-muted-foreground">
-                  {step === 'ai-analysis' ? 'AI is reading reviews and identifying patterns...' : 'This may take 60-90 seconds per platform'}
+                  {step === 'ai-analysis' ? 'AI is reading reviews and identifying patterns...' : 'Fetching from all platforms in parallel...'}
                 </p>
               </div>
             </div>
@@ -260,13 +239,28 @@ export function ReviewInsightsDialog({
             <Progress value={progress} className="w-64 mx-auto" />
 
             <div className="max-w-xs mx-auto space-y-2">
-              <StepIndicator current={step} target="tripadvisor" label="TripAdvisor reviews" results={platformResults} />
-              <StepIndicator current={step} target="google" label="Google reviews" results={platformResults} />
+              <div className="flex items-center gap-3 text-sm">
+                {step === 'fetching-reviews' ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                )}
+                <span className={step === 'fetching-reviews' ? 'text-foreground font-medium' : 'text-muted-foreground'}>
+                  Google & Expedia reviews
+                  {platformResults.length > 0 && (
+                    <span className="ml-2 text-emerald-600">
+                      ({platformResults.reduce((sum, p) => sum + p.count, 0)} found)
+                    </span>
+                  )}
+                </span>
+              </div>
               <div className="flex items-center gap-3 text-sm">
                 {step === 'ai-analysis' ? (
                   <Brain className="h-4 w-4 animate-pulse text-accent" />
-                ) : (
+                ) : step === 'fetching-reviews' ? (
                   <div className="h-4 w-4 rounded-full border-2 border-muted" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 )}
                 <span className={step === 'ai-analysis' ? 'text-foreground font-medium' : 'text-muted-foreground'}>
                   AI theme analysis
@@ -301,7 +295,7 @@ export function ReviewInsightsDialog({
               Fetch & Analyze Reviews
             </Button>
             <p className="text-xs text-muted-foreground">
-              Fetches ~25 reviews from TripAdvisor & Google, then runs AI theme analysis
+              Fetches reviews from Google & Expedia, then runs AI theme analysis
             </p>
           </div>
         )}
@@ -392,39 +386,7 @@ export function ReviewInsightsDialog({
   );
 }
 
-// --- Sub-components ---
 
-function StepIndicator({ current, target, label, results }: {
-  current: FetchStep;
-  target: string;
-  label: string;
-  results: { platform: string; count: number }[];
-}) {
-  const stepsOrder = ['tripadvisor', 'google', 'ai-analysis', 'complete'];
-  const currentIdx = stepsOrder.indexOf(current);
-  const targetIdx = stepsOrder.indexOf(target);
-  const isDone = currentIdx > targetIdx;
-  const isActive = current === target;
-  const result = results.find(p => p.platform === target);
-
-  return (
-    <div className="flex items-center gap-3 text-sm">
-      {isActive ? (
-        <Loader2 className="h-4 w-4 animate-spin text-accent" />
-      ) : isDone ? (
-        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-      ) : (
-        <div className="h-4 w-4 rounded-full border-2 border-muted" />
-      )}
-      <span className={isActive ? 'text-foreground font-medium' : 'text-muted-foreground'}>
-        {label}
-        {result?.count !== undefined && (
-          <span className="ml-2 text-emerald-600">({result.count} found)</span>
-        )}
-      </span>
-    </div>
-  );
-}
 
 interface ThemeItem {
   theme: string;
