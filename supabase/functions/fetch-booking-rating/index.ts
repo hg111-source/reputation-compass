@@ -29,7 +29,7 @@ interface BookingResult {
   url?: string;
 }
 
-async function waitForRun(runId: string, token: string, maxWaitMs = 120000): Promise<string> {
+async function waitForRun(runId: string, token: string, maxWaitMs = 50000): Promise<string> {
   const startTime = Date.now();
   
   while (Date.now() - startTime < maxWaitMs) {
@@ -46,8 +46,8 @@ async function waitForRun(runId: string, token: string, maxWaitMs = 120000): Pro
       throw new Error(`Apify run ${data.data.status}`);
     }
     
-    // Poll every 5 seconds
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    // Poll every 3 seconds
+    await new Promise(resolve => setTimeout(resolve, 3000));
   }
   
   throw new Error('Apify run timeout - try again later');
