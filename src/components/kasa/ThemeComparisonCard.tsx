@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, ArrowLeftRight, Eye, EyeOff, Building2, MessageSquareQuote, TrendingUp, Minus } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ArrowLeftRight, Eye, EyeOff, Building2, MessageSquareQuote, TrendingUp, Minus, Sparkles, RefreshCw, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 interface AggregatedTheme {
@@ -294,9 +296,36 @@ function FullThemeList({ themes, label, type }: { themes: AggregatedTheme[]; lab
     </div>
   );
 }
+// Simple markdown-like renderer
+function SummaryRenderer({ content }: { content: string }) {
+  const lines = content.split('\n');
+  return (
+    <div className="space-y-2">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+        const boldMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
+        if (boldMatch) return <p key={i} className="font-bold text-foreground text-sm">{boldMatch[1]}</p>;
+        if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+          const text = trimmed.slice(2);
+          return (
+            <div key={i} className="flex gap-2 text-xs">
+              <span className="text-muted-foreground mt-0.5">•</span>
+              <span dangerouslySetInnerHTML={{ __html: text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
+            </div>
+          );
+        }
+        return <p key={i} className="text-xs" dangerouslySetInnerHTML={{ __html: trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />;
+      })}
+    </div>
+  );
+}
 
 export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: ThemeComparisonCardProps) {
   const [showAllThemes, setShowAllThemes] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const consolidated = useMemo(() => {
     if (!kasaThemes || !compThemes) return null;
@@ -309,6 +338,62 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
     );
   }, [kasaThemes, compThemes]);
 
+  const canGenerate = !isLoading && (kasaThemes || compThemes);
+
+  const generateSummary = async () => {
+    if (!canGenerate) return;
+    setGenerating(true);
+    setSummaryError(null);
+
+    try {
+      const sections: string[] = [];
+      if (kasaThemes) {
+        const pos = kasaThemes.positiveThemes.map(t => `  - "${t.theme}" (${t.totalMentions} mentions across ${t.propertyCount} properties)`).join('\n');
+        const neg = kasaThemes.negativeThemes.map(t => `  - "${t.theme}" (${t.totalMentions} mentions across ${t.propertyCount} properties)`).join('\n');
+        sections.push(`Kasa Portfolio (${kasaThemes.totalAnalyzed} of ${kasaThemes.totalProperties} properties analyzed):\n  Strengths:\n${pos}\n  Pain Points:\n${neg}`);
+      }
+      if (compThemes) {
+        const pos = compThemes.positiveThemes.map(t => `  - "${t.theme}" (${t.totalMentions} mentions across ${t.propertyCount} properties)`).join('\n');
+        const neg = compThemes.negativeThemes.map(t => `  - "${t.theme}" (${t.totalMentions} mentions across ${t.propertyCount} properties)`).join('\n');
+        sections.push(`Competitor Set (${compThemes.totalAnalyzed} of ${compThemes.totalProperties} properties analyzed):\n  Strengths:\n${pos}\n  Pain Points:\n${neg}`);
+      }
+
+      const prompt = `You are a hospitality industry strategist specializing in tech-enabled accommodation brands.
+
+CRITICAL CONTEXT about Kasa:
+- Kasa is a TECH-ENABLED hospitality company — NOT a traditional hotel chain
+- Kasa properties have NO on-site front desk staff and NO traditional concierge
+- Guest communication is primarily digital (app, SMS, automated messaging)
+- Check-in is fully self-service (keyless entry, digital guides)
+- Kasa competes with traditional hotels on quality but with a lean, scalable tech model
+- Recommendations should focus on technology, digital experience, automation, and operational efficiency — NOT hiring staff or in-person service training
+
+Given the aggregated guest review theme analysis below (Kasa = our managed properties, Comps = competitor hotels):
+
+${sections.join('\n\n')}
+
+Requirements:
+- Start with the single most important strategic insight (1 sentence, bold)
+- Then 3-4 bullet points covering: competitive advantages, vulnerabilities, and one actionable recommendation
+- Use data (mention counts, property counts) to support claims
+- Recommendations must be relevant to Kasa's tech-enabled model (e.g., improve automated communication, enhance digital check-in, optimize app experience)
+- Do NOT suggest hiring staff, training front desk employees, or implementing traditional hotel service programs
+- Keep total under 200 words
+- Use markdown formatting`;
+
+      const { data, error: fnError } = await supabase.functions.invoke('analyze-executive-summary', {
+        body: { prompt },
+      });
+
+      if (fnError) throw fnError;
+      if (data?.error) throw new Error(data.error);
+      setSummary(data.summary);
+    } catch (err) {
+      setSummaryError(err instanceof Error ? err.message : 'Failed to generate summary');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   if (isLoading || !consolidated) {
     return null;
@@ -322,16 +407,18 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
             <ArrowLeftRight className="h-5 w-5 text-purple-500" />
             <div>
               <CardTitle>What Guests Talk About</CardTitle>
-              <CardDescription>Top themes from AI analysis of guest reviews — comparing what Kasa guests mention vs. competitor guests</CardDescription>
+              <CardDescription>AI analysis of guest reviews — Kasa vs. competitors</CardDescription>
             </div>
           </div>
-          <button
-            onClick={() => setShowAllThemes(!showAllThemes)}
-            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md border bg-background hover:bg-muted"
-          >
-            {showAllThemes ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            {showAllThemes ? 'Hide Raw Themes' : 'View Raw Themes'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAllThemes(!showAllThemes)}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md border bg-background hover:bg-muted"
+            >
+              {showAllThemes ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {showAllThemes ? 'Hide Raw' : 'Raw Themes'}
+            </button>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground mt-3 bg-muted/50 rounded-md px-3 py-2">
           <strong>How to read:</strong> Each % shows how much of that portfolio's review conversation is about that theme. Longer bar = more discussed. Hover any % to see the raw mention count.
@@ -341,7 +428,45 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500" /> Comps</span>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        {/* Executive "So What" — integrated */}
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              <span className="font-semibold text-sm">So What?</span>
+              <span className="text-xs text-muted-foreground">— AI strategic takeaway from the data below</span>
+            </div>
+            <Button
+              size="sm"
+              variant={summary ? 'outline' : 'default'}
+              onClick={generateSummary}
+              disabled={!canGenerate || generating}
+              className={cn('h-7 text-xs', summary && '!bg-amber-100 !border-amber-300 !text-amber-900 hover:!bg-amber-200')}
+            >
+              {generating ? (
+                <><Loader2 className="h-3 w-3 animate-spin" /> Thinking…</>
+              ) : summary ? (
+                <><RefreshCw className="h-3 w-3" /> Regenerate</>
+              ) : (
+                <><Sparkles className="h-3 w-3" /> Generate</>
+              )}
+            </Button>
+          </div>
+          {summaryError && <p className="text-sm text-destructive">{summaryError}</p>}
+          {!summary && !generating && !summaryError && (
+            <p className="text-xs text-muted-foreground">Click "Generate" to get AI-powered strategic insights from the theme data.</p>
+          )}
+          {generating && !summary && (
+            <div className="flex items-center gap-2 text-muted-foreground py-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span className="text-xs">Analyzing themes…</span>
+            </div>
+          )}
+          {summary && <SummaryRenderer content={summary} />}
+        </div>
+
+        {/* Theme tables */}
         <div className="grid md:grid-cols-2 gap-8">
           {/* Strengths */}
           <div>

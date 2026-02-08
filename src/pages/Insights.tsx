@@ -6,7 +6,6 @@ import { useLatestKasaSnapshots } from '@/hooks/useKasaSnapshots';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { KasaBenchmarkTab } from '@/components/kasa/KasaBenchmarkTab';
 import { ThemeComparisonCard } from '@/components/kasa/ThemeComparisonCard';
-import { ExecutiveSummaryCard } from '@/components/kasa/ExecutiveSummaryCard';
 import { usePortfolioThemes } from '@/hooks/usePortfolioThemes';
 
 export default function Insights() {
@@ -56,21 +55,14 @@ export default function Insights() {
           </p>
         </div>
 
-        {/* 1. Executive "So What" — most important, top of page */}
-        <ExecutiveSummaryCard
-          kasaThemes={kasaThemes}
-          compThemes={compThemes}
-          isLoading={themesLoading}
-        />
-
-        {/* 2. Theme Comparison (replaces individual sentiment cards) */}
+        {/* 1. Theme Comparison with integrated Executive Summary */}
         <ThemeComparisonCard
           kasaThemes={kasaThemes}
           compThemes={compThemes}
           isLoading={themesLoading}
         />
 
-        {/* 3. SWOT Analysis, 4. Channel Benchmarks, 5. Geographic Map, 6. Score Distribution (collapsed) */}
+        {/* 2. SWOT Analysis, 3. Channel Benchmarks, 4. Geographic Map, 5. Score Distribution (collapsed) */}
         <KasaBenchmarkTab 
           properties={kasaProperties} 
           snapshots={kasaSnapshots}
