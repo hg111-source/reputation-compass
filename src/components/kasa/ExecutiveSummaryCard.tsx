@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sparkles, RefreshCw, Loader2, TrendingUp, BarChart3, MessageSquareText } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { useExecutiveSummary } from '@/hooks/useExecutiveSummary';
 
 interface AggregatedTheme {
   theme: string;
@@ -51,109 +50,11 @@ interface ExecutiveSummaryCardProps {
   isLoading: boolean;
 }
 
-function formatThemesSection(label: string, data: PortfolioThemesResult): string {
-  const pos = data.positiveThemes.slice(0, 5).map(t => `  - "${t.theme}" (${t.totalMentions} mentions, ${t.propertyCount} properties)`).join('\n');
-  const neg = data.negativeThemes.slice(0, 5).map(t => `  - "${t.theme}" (${t.totalMentions} mentions, ${t.propertyCount} properties)`).join('\n');
-  return `${label} Guest Themes (${data.totalAnalyzed}/${data.totalProperties} properties analyzed):\n  Strengths:\n${pos}\n  Pain Points:\n${neg}`;
-}
-
 export function ExecutiveSummaryCard({ kasaThemes, compThemes, portfolioMetrics, otaBenchmarks, topPerformers, needsAttention, isLoading }: ExecutiveSummaryCardProps) {
-  const [summary, setSummary] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { summary, generating, error, canGenerate, generate } = useExecutiveSummary(
+    kasaThemes, compThemes, portfolioMetrics, otaBenchmarks, topPerformers, needsAttention, isLoading
+  );
 
-  const canGenerate = !isLoading && (kasaThemes || compThemes || portfolioMetrics);
-
-  const generate = async () => {
-    if (!canGenerate) return;
-    setGenerating(true);
-    setError(null);
-
-    try {
-      const sections: string[] = [];
-
-      // Portfolio score overview
-      if (portfolioMetrics && portfolioMetrics.avgScore !== null) {
-        sections.push(`PORTFOLIO OVERVIEW:
-- ${portfolioMetrics.totalProperties} Kasa properties, average score: ${portfolioMetrics.avgScore.toFixed(2)}/10
-- ${portfolioMetrics.veryGoodPlusPercent}% rated "Very Good" (8.0) or higher
-- ${portfolioMetrics.exceptionalCount} properties scoring 9.5+ ("Exceptional")
-- ${portfolioMetrics.belowGoodCount} properties below 7.0 needing attention
-- ${portfolioMetrics.totalReviews.toLocaleString()} total guest reviews`);
-      }
-
-      // OTA benchmarks
-      if (otaBenchmarks.length > 0) {
-        const otaLines = otaBenchmarks
-          .filter(b => b.percentile !== null)
-          .map(b => `  - ${b.platform}: ${b.kasaScore.toFixed(2)}/10 (Top ${Math.max(1, Math.round(100 - b.percentile!))}%)`)
-          .join('\n');
-        if (otaLines) {
-          sections.push(`OTA CHANNEL BENCHMARKS (vs. competitor properties):\n${otaLines}`);
-        }
-      }
-
-      // Top performers & needs attention
-      if (topPerformers.length > 0) {
-        const lines = topPerformers.slice(0, 5).map(p => `  - ${p.name} (${p.city}, ${p.state}): ${p.score.toFixed(2)}/10`).join('\n');
-        sections.push(`TOP PERFORMERS (9.5+):\n${lines}`);
-      }
-      if (needsAttention.length > 0) {
-        const lines = needsAttention.slice(0, 5).map(p => `  - ${p.name} (${p.city}, ${p.state}): ${p.score.toFixed(2)}/10`).join('\n');
-        sections.push(`NEEDS ATTENTION (<7.0):\n${lines}`);
-      }
-
-      // Guest themes
-      if (kasaThemes) sections.push(formatThemesSection('Kasa', kasaThemes));
-      if (compThemes) sections.push(formatThemesSection('Competitor', compThemes));
-
-      const prompt = `You are a hospitality industry strategist. Write a scannable executive briefing.
-
-CONTEXT: Kasa is a tech-enabled hospitality company with NO on-site staff. Digital-first (app, SMS, keyless entry). Never suggest hiring staff.
-
-DATA:
-${sections.join('\n\n')}
-
-FORMAT (use exactly these section headers with emojis):
-
-**🏆 HEADLINE**
-One punchy sentence with the single most important number. Make it bold, specific, provocative. Example style: "Kasa ranks Top 4% on Google across 79 properties — but Booking.com is a blind spot."
-
-**📊 Portfolio**
-- One short bullet: avg score, % Very Good+
-- One short bullet: standout or concern
-
-**📡 Channels**
-- One bullet per channel: score + percentile rank. Use ✅ for Top 10%, ⚠️ for below Top 25%
-
-**💬 Guests Say**
-- Top positive theme: name + Kasa % vs Comp %
-- Top negative theme: name + Kasa % vs Comp %
-
-**🎯 #1 Action**
-One sentence. Specific. Tech-focused. Tied to the weakest data point above.
-
-RULES:
-- Max 150 words total
-- Short sentences. No filler.
-- Every bullet ≤ 20 words
-- Use numbers, not adjectives`;
-
-
-      const { data, error: fnError } = await supabase.functions.invoke('analyze-executive-summary', {
-        body: { prompt },
-      });
-
-      if (fnError) throw fnError;
-      if (data?.error) throw new Error(data.error);
-
-      setSummary(data.summary);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate summary');
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   return (
     <Card className="border-l-4 border-l-amber-500 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
