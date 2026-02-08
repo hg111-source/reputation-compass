@@ -172,9 +172,11 @@ function KasaHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">Refreshing Data</h3>
         <p>
-          Kasa scores are synced from the Kasa platform. Use the refresh controls to
-          re-fetch the latest aggregated scores and review counts for individual properties
-          or the entire portfolio.
+          Click the <span className="font-medium text-foreground">Refresh Data</span> button
+          in the top-right to re-scrape all Kasa properties from kasa.com. This safely
+          updates scores and review counts — existing data is preserved if a property
+          fails to scrape. A progress bar tracks the operation. Additional buttons appear
+          automatically when there are unknown locations or missing scores to fix.
         </p>
       </section>
 
