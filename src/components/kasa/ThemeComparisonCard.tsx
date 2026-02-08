@@ -171,42 +171,72 @@ function LeaderBadge({ kasaVal, compVal }: { kasaVal: number; compVal: number })
   return <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground"><Minus className="h-3 w-3 mr-0.5" />Even</Badge>;
 }
 
-function ComparisonTable({ themes }: { themes: ConsolidatedTheme[] }) {
+function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 'positive' | 'negative' }) {
+  const maxVal = Math.max(...themes.flatMap(t => [t.kasaMentions, t.compMentions]), 1);
+
   return (
     <div>
       {/* Table header */}
-      <div className="grid grid-cols-[1fr_80px_80px_75px] gap-2 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold border-b">
+      <div className="grid grid-cols-[120px_1fr_120px] gap-1 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold border-b">
         <span>Theme</span>
-        <span className="text-right">Kasa mentions</span>
-        <span className="text-right">Comp mentions</span>
+        <div className="flex justify-between px-1">
+          <span>← Kasa</span>
+          <span>Comps →</span>
+        </div>
         <span className="text-right"></span>
       </div>
-      {themes.map((t, i) => (
-        <div
-          key={t.canonical}
-          className={cn(
-            'grid grid-cols-[1fr_80px_80px_75px] gap-2 px-3 py-2.5 items-center',
-            i % 2 === 0 ? 'bg-muted/30' : ''
-          )}
-        >
-          <span className="text-sm font-medium truncate">{t.canonical}</span>
-          <span className={cn(
-            'text-sm text-right tabular-nums font-semibold',
-            t.kasaMentions > t.compMentions ? 'text-teal-600 dark:text-teal-400' : 'text-muted-foreground'
-          )}>
-            {t.kasaMentions || '—'}
-          </span>
-          <span className={cn(
-            'text-sm text-right tabular-nums font-semibold',
-            t.compMentions > t.kasaMentions ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
-          )}>
-            {t.compMentions || '—'}
-          </span>
-          <div className="flex justify-end">
-            <LeaderBadge kasaVal={t.kasaMentions} compVal={t.compMentions} />
+      {themes.map((t, i) => {
+        const kasaPct = (t.kasaMentions / maxVal) * 100;
+        const compPct = (t.compMentions / maxVal) * 100;
+        const kasaColor = type === 'positive' ? 'bg-teal-500' : 'bg-rose-400';
+        const compColor = type === 'positive' ? 'bg-blue-500' : 'bg-orange-400';
+
+        return (
+          <div
+            key={t.canonical}
+            className={cn(
+              'grid grid-cols-[120px_1fr_120px] gap-1 px-3 py-2 items-center',
+              i % 2 === 0 ? 'bg-muted/30' : ''
+            )}
+          >
+            <span className="text-sm font-medium truncate">{t.canonical}</span>
+
+            {/* Diverging bar: Kasa ← | → Comps */}
+            <div className="flex items-center gap-0 h-5">
+              {/* Kasa side (right-aligned, grows left) */}
+              <div className="flex-1 flex justify-end items-center gap-1.5">
+                <span className={cn(
+                  'text-[11px] tabular-nums font-semibold',
+                  t.kasaMentions >= t.compMentions ? 'text-teal-600 dark:text-teal-400' : 'text-muted-foreground'
+                )}>
+                  {t.kasaMentions || ''}
+                </span>
+                <div className="w-[60%] h-2.5 rounded-l-full bg-muted/50 overflow-hidden flex justify-end">
+                  <div className={cn('h-full rounded-l-full', kasaColor)} style={{ width: `${kasaPct}%` }} />
+                </div>
+              </div>
+              {/* Center divider */}
+              <div className="w-px h-4 bg-border shrink-0" />
+              {/* Comp side (left-aligned, grows right) */}
+              <div className="flex-1 flex items-center gap-1.5">
+                <div className="w-[60%] h-2.5 rounded-r-full bg-muted/50 overflow-hidden">
+                  <div className={cn('h-full rounded-r-full', compColor)} style={{ width: `${compPct}%` }} />
+                </div>
+                <span className={cn(
+                  'text-[11px] tabular-nums font-semibold',
+                  t.compMentions > t.kasaMentions ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
+                )}>
+                  {t.compMentions || ''}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <LeaderBadge kasaVal={t.kasaMentions} compVal={t.compMentions} />
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -308,7 +338,7 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
               <span className="font-semibold text-sm">Strengths</span>
               <Badge variant="secondary" className="text-[10px] ml-auto">{consolidated.strengths.length} themes</Badge>
             </div>
-            <ComparisonTable themes={consolidated.strengths} />
+            <ComparisonTable themes={consolidated.strengths} type="positive" />
           </div>
 
           {/* Pain Points */}
@@ -318,7 +348,7 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
               <span className="font-semibold text-sm">Pain Points</span>
               <Badge variant="secondary" className="text-[10px] ml-auto">{consolidated.painPoints.length} themes</Badge>
             </div>
-            <ComparisonTable themes={consolidated.painPoints} />
+            <ComparisonTable themes={consolidated.painPoints} type="negative" />
           </div>
         </div>
 
