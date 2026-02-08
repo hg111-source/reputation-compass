@@ -242,7 +242,7 @@ export function PropertyRow({
             size="sm"
             className={cn(
               'h-7 gap-1 text-xs',
-              hasReviewData && 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/50'
+              hasReviewData && '!bg-amber-100 !border-amber-300 !text-amber-900 hover:!bg-amber-200 dark:!bg-amber-950/40 dark:!border-amber-700 dark:!text-amber-200 dark:hover:!bg-amber-900/50'
             )}
             onClick={() => onAnalyzeReviews(property)}
             title="Analyze reviews with AI"
