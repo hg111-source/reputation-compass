@@ -861,7 +861,7 @@ export default function Kasa() {
             </div>
 
             {/* Location Filter */}
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-between gap-4">
               <Select value={locationFilter} onValueChange={setLocationFilter}>
                 <SelectTrigger className="w-[320px] h-11 text-base">
                   <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
