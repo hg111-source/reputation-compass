@@ -520,28 +520,34 @@ function GroupCardSections({
   onManage: (id: string) => void;
   onNavigateDashboard: () => void;
 }) {
-  const { portfolioGroups, scoreGroups, stateGroups, otherGroups } = useMemo(() => {
+  const { portfolioGroups, scoreGroups, stateGroups, customGroups } = useMemo(() => {
     const portfolio: typeof sortedMyGroups = [];
     const score: typeof sortedMyGroups = [];
     const state: typeof sortedMyGroups = [];
-    const other: typeof sortedMyGroups = [];
+    const custom: typeof sortedMyGroups = [];
+
+    const portfolioKeywords = ['all', 'portfolio', 'comp set', 'kasa only', 'kasa'];
 
     for (const g of sortedMyGroups) {
-      if (g.name.toLowerCase().includes('all') || g.name.toLowerCase().includes('portfolio') || g.name.toLowerCase().includes('test')) {
-        portfolio.push(g);
-      } else if (SCORE_TIER_NAMES.includes(g.name)) {
+      const nameLower = g.name.toLowerCase();
+      if (SCORE_TIER_NAMES.includes(g.name)) {
         score.push(g);
       } else if (STATE_PATTERN.test(g.name)) {
         state.push(g);
+      } else if (
+        portfolioKeywords.some(k => nameLower === k || nameLower.includes(k)) ||
+        nameLower === 'other'
+      ) {
+        portfolio.push(g);
       } else {
-        other.push(g);
+        custom.push(g);
       }
     }
 
     // Sort state groups alphabetically
     state.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { portfolioGroups: portfolio, scoreGroups: score, stateGroups: state, otherGroups: other };
+    return { portfolioGroups: portfolio, scoreGroups: score, stateGroups: state, customGroups: custom };
   }, [sortedMyGroups]);
 
   const gridClass = "grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
@@ -593,7 +599,6 @@ function GroupCardSections({
             </CardContent>
           </Card>
           {renderCards(portfolioGroups)}
-          {renderCards(otherGroups)}
         </div>
       </div>
 
@@ -613,6 +618,16 @@ function GroupCardSections({
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">By State</h3>
           <div className={gridClass}>
             {renderCards(stateGroups)}
+          </div>
+        </div>
+      )}
+
+      {/* By Custom Search section */}
+      {customGroups.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">By Custom Search</h3>
+          <div className={gridClass}>
+            {renderCards(customGroups)}
           </div>
         </div>
       )}
