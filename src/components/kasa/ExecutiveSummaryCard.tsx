@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw, Loader2 } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, TrendingUp, BarChart3, MessageSquareText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
@@ -131,27 +131,36 @@ Rules:
   };
 
   return (
-    <Card className="border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/10">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-amber-500" />
-            <h2 className="text-lg font-bold">Executive Briefing</h2>
-            <span className="text-xs text-muted-foreground">— AI-powered portfolio intelligence</span>
+    <Card className="border-l-4 border-l-amber-500 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
+      <CardContent className="pt-6 pb-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold leading-tight">Executive Briefing</h2>
+              <p className="text-xs text-muted-foreground">AI-powered portfolio intelligence</p>
+            </div>
           </div>
           <Button
             size="sm"
             onClick={generate}
             disabled={!canGenerate || generating}
-            className={cn(summary && '!bg-amber-100 !border-amber-300 !text-amber-900 hover:!bg-amber-200')}
+            className={cn(
+              'gap-1.5',
+              summary
+                ? '!bg-amber-100 !border-amber-300 !text-amber-900 hover:!bg-amber-200 dark:!bg-amber-900/40 dark:!text-amber-300 dark:!border-amber-700'
+                : 'bg-amber-600 hover:bg-amber-700 text-white'
+            )}
             variant={summary ? 'outline' : 'default'}
           >
             {generating ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Thinking…</>
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyzing…</>
             ) : summary ? (
               <><RefreshCw className="h-3.5 w-3.5" /> Regenerate</>
             ) : (
-              <><Sparkles className="h-3.5 w-3.5" /> Generate</>
+              <><Sparkles className="h-3.5 w-3.5" /> Generate Briefing</>
             )}
           </Button>
         </div>
@@ -159,19 +168,42 @@ Rules:
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {!summary && !generating && !error && (
-          <p className="text-sm text-muted-foreground py-4">
-            Click "Generate" for a comprehensive AI briefing covering portfolio scores, OTA rankings, and guest sentiment.
-          </p>
-        )}
-
-        {generating && !summary && (
-          <div className="flex items-center gap-2 text-muted-foreground py-4">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Analyzing portfolio data…</span>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Get a comprehensive AI briefing synthesizing all your portfolio data:
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="flex items-center gap-2 rounded-md border bg-background/60 px-3 py-2">
+                <TrendingUp className="h-4 w-4 text-teal-500 shrink-0" />
+                <span className="text-xs font-medium">Portfolio Scores</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-md border bg-background/60 px-3 py-2">
+                <BarChart3 className="h-4 w-4 text-blue-500 shrink-0" />
+                <span className="text-xs font-medium">OTA Rankings</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-md border bg-background/60 px-3 py-2">
+                <MessageSquareText className="h-4 w-4 text-purple-500 shrink-0" />
+                <span className="text-xs font-medium">Guest Sentiment</span>
+              </div>
+            </div>
           </div>
         )}
 
-        {summary && <SummaryRenderer content={summary} />}
+        {generating && !summary && (
+          <div className="flex flex-col items-center gap-3 py-6">
+            <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
+            <div className="text-center">
+              <p className="text-sm font-medium">Analyzing portfolio data…</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Synthesizing scores, benchmarks, and guest themes</p>
+            </div>
+          </div>
+        )}
+
+        {summary && (
+          <div className="rounded-lg border bg-background/80 p-4">
+            <SummaryRenderer content={summary} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
