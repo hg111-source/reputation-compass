@@ -6,18 +6,18 @@ import { useLatestKasaSnapshots } from '@/hooks/useKasaSnapshots';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { KasaBenchmarkTab } from '@/components/kasa/KasaBenchmarkTab';
 import { PortfolioThemesCard } from '@/components/kasa/PortfolioThemesCard';
+import { ThemeComparisonCard } from '@/components/kasa/ThemeComparisonCard';
+import { ExecutiveSummaryCard } from '@/components/kasa/ExecutiveSummaryCard';
 import { usePortfolioThemes } from '@/hooks/usePortfolioThemes';
 
 export default function Insights() {
   const { user, loading } = useAuth();
   const { properties } = useProperties();
 
-  // Filter properties that have Kasa data
   const kasaProperties = useMemo(() => {
     return properties.filter(p => p.kasa_url || p.kasa_aggregated_score);
   }, [properties]);
 
-  // Comp properties (non-Kasa)
   const compProperties = useMemo(() => {
     return properties.filter(p => !p.kasa_url && !p.kasa_aggregated_score);
   }, [properties]);
@@ -25,12 +25,12 @@ export default function Insights() {
   const kasaPropertyIds = useMemo(() => kasaProperties.map(p => p.id), [kasaProperties]);
   const compPropertyIds = useMemo(() => compProperties.map(p => p.id), [compProperties]);
   
-  // Fetch latest Kasa snapshots
   const { data: kasaSnapshots = {} } = useLatestKasaSnapshots(kasaPropertyIds);
 
-  // Portfolio-wide AI themes
   const { data: kasaThemes, isLoading: kasaThemesLoading } = usePortfolioThemes(kasaPropertyIds, 'kasa');
   const { data: compThemes, isLoading: compThemesLoading } = usePortfolioThemes(compPropertyIds, 'comps');
+
+  const themesLoading = kasaThemesLoading || compThemesLoading;
 
   if (loading) {
     return (
@@ -50,7 +50,6 @@ export default function Insights() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Header */}
         <div>
           <h1 className="text-4xl font-bold tracking-tight">KasaSights</h1>
           <p className="mt-2 text-muted-foreground">
@@ -58,7 +57,21 @@ export default function Insights() {
           </p>
         </div>
 
-        {/* Portfolio-wide AI Theme Analysis */}
+        {/* AI Executive Summary */}
+        <ExecutiveSummaryCard
+          kasaThemes={kasaThemes}
+          compThemes={compThemes}
+          isLoading={themesLoading}
+        />
+
+        {/* Side-by-side Theme Comparison */}
+        <ThemeComparisonCard
+          kasaThemes={kasaThemes}
+          compThemes={compThemes}
+          isLoading={themesLoading}
+        />
+
+        {/* Individual Portfolio Sentiment Cards */}
         <div className="space-y-6">
           <PortfolioThemesCard
             title="Kasa Portfolio — Guest Sentiment"
@@ -76,7 +89,6 @@ export default function Insights() {
           />
         </div>
 
-        {/* Benchmarking Content */}
         <KasaBenchmarkTab 
           properties={kasaProperties} 
           snapshots={kasaSnapshots}
