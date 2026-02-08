@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
 import { useLatestKasaSnapshots } from '@/hooks/useKasaSnapshots';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { KasaBenchmarkTab } from '@/components/kasa/KasaBenchmarkTab';
+import { KasaBenchmarkTab, KasaGeographicSection, KasaScoreDistribution } from '@/components/kasa/KasaBenchmarkTab';
 import { ThemeComparisonCard } from '@/components/kasa/ThemeComparisonCard';
 import { ExecutiveSummaryCard } from '@/components/kasa/ExecutiveSummaryCard';
 import { usePortfolioThemes } from '@/hooks/usePortfolioThemes';
@@ -141,16 +141,28 @@ export default function Insights() {
           isLoading={themesLoading}
         />
 
-        {/* 2. Theme Comparison */}
+        {/* 2. Portfolio Scorecard + 3. Channel Benchmarks */}
+        <KasaBenchmarkTab 
+          properties={kasaProperties} 
+          snapshots={kasaSnapshots}
+        />
+
+        {/* 4. Theme Comparison — explains WHY scores are what they are */}
         <ThemeComparisonCard
           kasaThemes={kasaThemes}
           compThemes={compThemes}
           isLoading={themesLoading}
         />
 
-        {/* 3. SWOT, Channel Benchmarks, Geographic, Score Distribution */}
-        <KasaBenchmarkTab 
-          properties={kasaProperties} 
+        {/* 5. Geographic Map */}
+        <KasaGeographicSection
+          properties={kasaProperties}
+          snapshots={kasaSnapshots}
+        />
+
+        {/* 6. Score Distribution — collapsed by default */}
+        <KasaScoreDistribution
+          properties={kasaProperties}
           snapshots={kasaSnapshots}
         />
       </div>

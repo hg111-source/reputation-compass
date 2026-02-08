@@ -245,91 +245,139 @@ export function KasaBenchmarkTab({ properties, snapshots }: KasaBenchmarkTabProp
 
   return (
     <div className="space-y-6">
-      {/* SWOT Analysis */}
+      {/* 2. Portfolio Scorecard (SWOT) */}
       <SwotAnalysis properties={properties} snapshots={snapshots} />
 
-      {/* Kasa Portfolio by Platform - Dynamic benchmarking against non-Kasa properties */}
+      {/* 3. Channel Benchmarks */}
       <KasaOTAPlatformCard />
-
-      {/* Geographic Analysis */}
-      <GeographicAnalysis properties={properties} snapshots={snapshots} />
-
-      {/* Score Distribution — collapsed by default */}
-      <Collapsible>
-        <Card>
-          <CardHeader className="cursor-pointer">
-            <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
-              <div>
-                <CardTitle>Score Distribution</CardTitle>
-                <CardDescription>
-                  How properties are distributed across score ranges
-                  {metrics.median !== null && metrics.stdDev !== null && (
-                    <span className="ml-2 text-foreground">
-                      • Median: {metrics.median.toFixed(2)} • Std Dev: {metrics.stdDev.toFixed(2)}
-                    </span>
-                  )}
-                </CardDescription>
-              </div>
-              <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0 transition-transform duration-200 [&[data-state=open]]:rotate-180" />
-            </CollapsibleTrigger>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={distribution} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                    <XAxis dataKey="label" />
-                    <YAxis allowDecimals={false} />
-                    <RechartsTooltip 
-                      content={({ active, payload }) => {
-                        if (!active || !payload?.length) return null;
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-background border rounded-lg p-2 shadow-lg">
-                            <p className="font-medium">{data.label} score range</p>
-                            <p className="text-sm text-muted-foreground">{data.count} properties</p>
-                          </div>
-                        );
-                      }}
-                    />
-                    {metrics.median && (
-                      <ReferenceLine 
-                        x={distribution.find(d => metrics.median! >= d.min && metrics.median! < d.max)?.label}
-                        stroke="hsl(var(--primary))"
-                        strokeDasharray="5 5"
-                        label={{ value: 'Median', position: 'top', fill: 'hsl(var(--muted-foreground))' }}
-                      />
-                    )}
-                    <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                      {distribution.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={
-                            entry.min >= 9.5 ? '#059669' :
-                            entry.min >= 9 ? '#10b981' :
-                            entry.min >= 8 ? '#3b82f6' :
-                            entry.min >= 7 ? '#eab308' :
-                            entry.min >= 6 ? '#f97316' :
-                            '#ef4444'
-                          }
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex flex-wrap justify-center gap-4 mt-4 text-xs">
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500" /> &lt;6 Needs Work</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500" /> 6-7 Pleasant</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-500" /> 7-8 Good</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500" /> 8-9 Very Good</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500" /> 9-9.5 Wonderful</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-600" /> 9.5+ Exceptional</span>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
     </div>
+  );
+}
+
+// Exported separately so Insights page can control ordering
+export function KasaGeographicSection({ properties, snapshots }: KasaBenchmarkTabProps) {
+  return <GeographicAnalysis properties={properties} snapshots={snapshots} />;
+}
+
+export function KasaScoreDistribution({ properties, snapshots }: KasaBenchmarkTabProps) {
+  // Calculate portfolio metrics
+  const metrics = useMemo(() => {
+    const scores: number[] = [];
+    properties.forEach(p => {
+      const snapshot = snapshots[p.id];
+      const score5 = snapshot?.score_raw ?? p.kasa_aggregated_score;
+      if (score5 !== null && score5 !== undefined) {
+        scores.push(Number(score5) * 2);
+      }
+    });
+    if (scores.length === 0) return { avg: null, median: null, stdDev: null, scores };
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const sorted = [...scores].sort((a, b) => a - b);
+    const median = sorted.length % 2 === 0
+      ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+      : sorted[Math.floor(sorted.length / 2)];
+    const squaredDiffs = scores.map(s => Math.pow(s - avg, 2));
+    const avgSquaredDiff = squaredDiffs.reduce((a, b) => a + b, 0) / scores.length;
+    const stdDev = Math.sqrt(avgSquaredDiff);
+    return { avg, median, stdDev, scores };
+  }, [properties, snapshots]);
+
+  const distribution = useMemo(() => {
+    const ranges = [
+      { label: '<6', min: 0, max: 6, count: 0 },
+      { label: '6.0-6.5', min: 6, max: 6.5, count: 0 },
+      { label: '6.5-7.0', min: 6.5, max: 7, count: 0 },
+      { label: '7.0-7.5', min: 7, max: 7.5, count: 0 },
+      { label: '7.5-8.0', min: 7.5, max: 8, count: 0 },
+      { label: '8.0-8.5', min: 8, max: 8.5, count: 0 },
+      { label: '8.5-9.0', min: 8.5, max: 9, count: 0 },
+      { label: '9.0-9.5', min: 9, max: 9.5, count: 0 },
+      { label: '9.5-10', min: 9.5, max: 10.01, count: 0 },
+    ];
+    metrics.scores.forEach(score => {
+      const range = ranges.find(r => score >= r.min && score < r.max);
+      if (range) range.count++;
+    });
+    return ranges.filter(r => r.count > 0);
+  }, [metrics.scores]);
+
+  if (properties.length === 0) return null;
+
+  return (
+    <Collapsible>
+      <Card>
+        <CardHeader className="cursor-pointer">
+          <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
+            <div>
+              <CardTitle>Score Distribution</CardTitle>
+              <CardDescription>
+                Statistical breakdown for deep divers
+                {metrics.median !== null && metrics.stdDev !== null && (
+                  <span className="ml-2 text-foreground">
+                    • Median: {metrics.median.toFixed(2)} • Std Dev: {metrics.stdDev.toFixed(2)}
+                  </span>
+                )}
+              </CardDescription>
+            </div>
+            <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0 transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+          </CollapsibleTrigger>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={distribution} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                  <XAxis dataKey="label" />
+                  <YAxis allowDecimals={false} />
+                  <RechartsTooltip 
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-background border rounded-lg p-2 shadow-lg">
+                          <p className="font-medium">{data.label} score range</p>
+                          <p className="text-sm text-muted-foreground">{data.count} properties</p>
+                        </div>
+                      );
+                    }}
+                  />
+                  {metrics.median && (
+                    <ReferenceLine 
+                      x={distribution.find(d => metrics.median! >= d.min && metrics.median! < d.max)?.label}
+                      stroke="hsl(var(--primary))"
+                      strokeDasharray="5 5"
+                      label={{ value: 'Median', position: 'top', fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                  )}
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    {distribution.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={
+                          entry.min >= 9.5 ? '#059669' :
+                          entry.min >= 9 ? '#10b981' :
+                          entry.min >= 8 ? '#3b82f6' :
+                          entry.min >= 7 ? '#eab308' :
+                          entry.min >= 6 ? '#f97316' :
+                          '#ef4444'
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap justify-center gap-4 mt-4 text-xs">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500" /> &lt;6 Needs Work</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500" /> 6-7 Pleasant</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-500" /> 7-8 Good</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500" /> 8-9 Very Good</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500" /> 9-9.5 Wonderful</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-600" /> 9.5+ Exceptional</span>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }
