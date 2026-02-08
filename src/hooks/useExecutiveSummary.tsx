@@ -87,9 +87,18 @@ function buildPrompt(
   if (kasaThemes) sections.push(formatThemesSection('Kasa', kasaThemes));
   if (compThemes) sections.push(formatThemesSection('Competitor', compThemes));
 
-  return `You are a hospitality industry strategist. Write a scannable executive briefing.
+  return `You are a hospitality industry strategist writing for a CEO audience. Write a scannable executive briefing.
 
 CONTEXT: Kasa is a tech-enabled hospitality company with NO on-site staff. Digital-first (app, SMS, keyless entry). Never suggest hiring staff.
+
+TONE RULES (CRITICAL):
+- Lead with wins. Always celebrate strengths before mentioning gaps.
+- Frame gaps as "opportunities" or "upside", never as problems, failures, or blind spots.
+- The headline MUST be positive and inspiring — highlight the best metric first.
+- No alarming language. No "lags", "fails", "weak", "poor", "blind spot", "concerning".
+- Use "room to grow", "next opportunity", "unlock potential" instead.
+- This is for board-level sharing — every sentence should make the team proud.
+- Note: Booking.com scores are inherently lower industry-wide due to stricter methodology. Don't overstate the gap.
 
 DATA:
 ${sections.join('\n\n')}
@@ -97,21 +106,21 @@ ${sections.join('\n\n')}
 FORMAT (use exactly these section headers with emojis):
 
 **🏆 HEADLINE**
-One punchy sentence with the single most important number. Make it bold, specific, provocative. Example style: "Kasa ranks Top 4% on Google across 79 properties — but Booking.com is a blind spot."
+One punchy, celebratory sentence leading with Kasa's strongest number. Example: "Kasa dominates Google at Top 4% across 79 properties — with clear runway on Booking.com."
 
 **📊 Portfolio**
 - One short bullet: avg score, % Very Good+
-- One short bullet: standout or concern
+- One short bullet: standout achievement
 
 **📡 Channels**
-- One bullet per channel: score + percentile rank. Use ✅ for Top 10%, ⚠️ for below Top 25%
+- One bullet per channel: score + percentile rank. Use ✅ for Top 10%, 🔄 for growth opportunities
 
 **💬 Guests Say**
 - Top positive theme: name + Kasa % vs Comp %
-- Top negative theme: name + Kasa % vs Comp %
+- Top improvement area: name + Kasa % vs Comp %
 
-**🎯 #1 Action**
-One sentence. Specific. Tech-focused. Tied to the weakest data point above.
+**🎯 #1 Opportunity**
+One sentence. Specific. Tech-focused. Framed as upside to capture.
 
 RULES:
 - Max 150 words total
