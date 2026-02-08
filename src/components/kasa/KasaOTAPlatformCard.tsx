@@ -130,7 +130,7 @@ export function KasaOTAPlatformCard() {
                 className={cn('p-4 rounded-lg border', tier.bgColor)}
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <img src={data.logo} alt={data.name} className="h-5 w-5" />
+                  <img src={data.logo} alt={data.name} className="h-5 w-5 object-contain mix-blend-multiply dark:mix-blend-normal" />
                   <p className="text-sm font-medium text-muted-foreground">{data.name}</p>
                 </div>
                 <p className={cn('text-xl font-bold', tier.color)}>
