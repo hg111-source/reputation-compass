@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, ArrowLeftRight } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ArrowLeftRight, Eye, EyeOff, Building2, MessageSquareQuote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AggregatedTheme {
@@ -123,7 +123,54 @@ function UniqueThemeList({ themes, label, color }: { themes: AggregatedTheme[]; 
   );
 }
 
+function FullThemeList({ themes, label, type }: { themes: AggregatedTheme[]; label: string; type: 'positive' | 'negative' }) {
+  if (themes.length === 0) return null;
+  const maxMentions = themes[0]?.totalMentions || 1;
+
+  return (
+    <div className="space-y-3">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</h4>
+      {themes.map((t, i) => {
+        const barWidth = (t.totalMentions / maxMentions) * 100;
+        return (
+          <div key={t.theme} className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium truncate mr-2">{t.theme}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant="secondary" className="text-xs font-normal">
+                  {t.totalMentions} mentions
+                </Badge>
+                <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                  <Building2 className="h-3 w-3" />
+                  {t.propertyCount}
+                </span>
+              </div>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all',
+                  type === 'positive' ? 'bg-emerald-500' : 'bg-red-400'
+                )}
+                style={{ width: `${barWidth}%` }}
+              />
+            </div>
+            {i < 3 && t.topQuote && (
+              <p className="text-xs text-muted-foreground italic pl-2 border-l-2 border-muted line-clamp-2 mt-1">
+                <MessageSquareQuote className="h-3 w-3 inline mr-1 -mt-0.5" />
+                "{t.topQuote}"
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: ThemeComparisonCardProps) {
+  const [showAllThemes, setShowAllThemes] = useState(false);
+
   const comparison = useMemo(() => {
     if (!kasaThemes || !compThemes) return null;
 
@@ -150,12 +197,21 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
   return (
     <Card className="border-l-4 border-l-purple-500">
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <ArrowLeftRight className="h-5 w-5 text-purple-500" />
-          <div>
-            <CardTitle>Kasa vs Comp — Theme Comparison</CardTitle>
-            <CardDescription>Shared and unique guest sentiment themes</CardDescription>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ArrowLeftRight className="h-5 w-5 text-purple-500" />
+            <div>
+              <CardTitle>Kasa vs Comp — Theme Comparison</CardTitle>
+              <CardDescription>Shared and unique guest sentiment themes</CardDescription>
+            </div>
           </div>
+          <button
+            onClick={() => setShowAllThemes(!showAllThemes)}
+            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md border bg-background hover:bg-muted"
+          >
+            {showAllThemes ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            {showAllThemes ? 'Hide Full Detail' : 'View All Themes'}
+          </button>
         </div>
         <div className="flex items-center gap-4 text-xs mt-2">
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-500" /> Kasa</span>
@@ -220,6 +276,38 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
             </div>
           </div>
         </div>
+
+        {/* Expandable full theme detail */}
+        {showAllThemes && (
+          <div className="mt-8 pt-6 border-t space-y-8">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <span className="w-3 h-3 rounded bg-teal-500" /> Kasa Portfolio — All Themes
+                  {kasaThemes && (
+                    <Badge variant="outline" className="text-[10px] ml-auto">
+                      {kasaThemes.totalAnalyzed}/{kasaThemes.totalProperties} analyzed
+                    </Badge>
+                  )}
+                </h3>
+                <FullThemeList themes={kasaThemes?.positiveThemes ?? []} label="Strengths" type="positive" />
+                <FullThemeList themes={kasaThemes?.negativeThemes ?? []} label="Pain Points" type="negative" />
+              </div>
+              <div className="space-y-6">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <span className="w-3 h-3 rounded bg-blue-500" /> Comp Set — All Themes
+                  {compThemes && (
+                    <Badge variant="outline" className="text-[10px] ml-auto">
+                      {compThemes.totalAnalyzed}/{compThemes.totalProperties} analyzed
+                    </Badge>
+                  )}
+                </h3>
+                <FullThemeList themes={compThemes?.positiveThemes ?? []} label="Strengths" type="positive" />
+                <FullThemeList themes={compThemes?.negativeThemes ?? []} label="Pain Points" type="negative" />
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

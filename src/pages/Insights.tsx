@@ -5,7 +5,6 @@ import { useProperties } from '@/hooks/useProperties';
 import { useLatestKasaSnapshots } from '@/hooks/useKasaSnapshots';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { KasaBenchmarkTab } from '@/components/kasa/KasaBenchmarkTab';
-import { PortfolioThemesCard } from '@/components/kasa/PortfolioThemesCard';
 import { ThemeComparisonCard } from '@/components/kasa/ThemeComparisonCard';
 import { ExecutiveSummaryCard } from '@/components/kasa/ExecutiveSummaryCard';
 import { usePortfolioThemes } from '@/hooks/usePortfolioThemes';
@@ -57,38 +56,21 @@ export default function Insights() {
           </p>
         </div>
 
-        {/* AI Executive Summary */}
+        {/* 1. Executive "So What" — most important, top of page */}
         <ExecutiveSummaryCard
           kasaThemes={kasaThemes}
           compThemes={compThemes}
           isLoading={themesLoading}
         />
 
-        {/* Side-by-side Theme Comparison */}
+        {/* 2. Theme Comparison (replaces individual sentiment cards) */}
         <ThemeComparisonCard
           kasaThemes={kasaThemes}
           compThemes={compThemes}
           isLoading={themesLoading}
         />
 
-        {/* Individual Portfolio Sentiment Cards */}
-        <div className="space-y-6">
-          <PortfolioThemesCard
-            title="Kasa Portfolio — Guest Sentiment"
-            description="Aggregated AI themes across all Kasa properties"
-            data={kasaThemes}
-            isLoading={kasaThemesLoading}
-            accentColor="teal"
-          />
-          <PortfolioThemesCard
-            title="Comp Set — Guest Sentiment"
-            description="Aggregated AI themes across all competitor properties"
-            data={compThemes}
-            isLoading={compThemesLoading}
-            accentColor="blue"
-          />
-        </div>
-
+        {/* 3. SWOT Analysis, 4. Channel Benchmarks, 5. Geographic Map, 6. Score Distribution (collapsed) */}
         <KasaBenchmarkTab 
           properties={kasaProperties} 
           snapshots={kasaSnapshots}
