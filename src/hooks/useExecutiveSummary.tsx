@@ -41,8 +41,8 @@ interface PropertyHighlight {
 const QUERY_KEY = ['executive-summary'];
 
 function formatThemesSection(label: string, data: PortfolioThemesResult): string {
-  const pos = data.positiveThemes.slice(0, 5).map(t => `  - "${t.theme}" (${t.totalMentions} mentions, ${t.propertyCount} properties)`).join('\n');
-  const neg = data.negativeThemes.slice(0, 5).map(t => `  - "${t.theme}" (${t.totalMentions} mentions, ${t.propertyCount} properties)`).join('\n');
+  const pos = data.positiveThemes.slice(0, 5).map(t => `  - "${t.theme}" (${t.totalMentions} mentions, ${t.propertyCount} properties) — sample quote: "${t.topQuote}"`).join('\n');
+  const neg = data.negativeThemes.slice(0, 5).map(t => `  - "${t.theme}" (${t.totalMentions} mentions, ${t.propertyCount} properties) — sample quote: "${t.topQuote}"`).join('\n');
   return `${label} Guest Themes (${data.totalAnalyzed}/${data.totalProperties} properties analyzed):\n  Strengths:\n${pos}\n  Pain Points:\n${neg}`;
 }
 
@@ -120,7 +120,7 @@ One punchy, celebratory sentence leading with Kasa's strongest number. Example: 
 - Top improvement area: name + Kasa % vs Comp %
 
 **🎯 #1 Opportunity**
-One sentence. Specific. Tech-focused. Framed as upside to capture.
+Two sentences max. Reference the SPECIFIC complaint from guest quotes above (e.g., "street noise at night", "no parking garage nearby"). Name the exact issue guests describe, then propose a concrete tech solution. Do NOT be vague — cite what guests actually said.
 
 RULES:
 - Max 150 words total
