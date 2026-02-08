@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sparkles, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,24 +19,41 @@ interface PortfolioThemesResult {
   totalAnalyzed: number;
 }
 
+interface PortfolioMetrics {
+  avgScore: number | null;
+  totalProperties: number;
+  totalReviews: number;
+  veryGoodPlusPercent: number;
+  exceptionalCount: number;
+  belowGoodCount: number;
+}
+
+interface OTABenchmark {
+  platform: string;
+  kasaScore: number;
+  percentile: number | null;
+}
+
 interface ExecutiveSummaryCardProps {
   kasaThemes: PortfolioThemesResult | null | undefined;
   compThemes: PortfolioThemesResult | null | undefined;
+  portfolioMetrics: PortfolioMetrics | null;
+  otaBenchmarks: OTABenchmark[];
   isLoading: boolean;
 }
 
-function formatThemesForPrompt(label: string, data: PortfolioThemesResult): string {
-  const pos = data.positiveThemes.map(t => `  - "${t.theme}" (${t.totalMentions} mentions across ${t.propertyCount} properties)`).join('\n');
-  const neg = data.negativeThemes.map(t => `  - "${t.theme}" (${t.totalMentions} mentions across ${t.propertyCount} properties)`).join('\n');
-  return `${label} (${data.totalAnalyzed} of ${data.totalProperties} properties analyzed):\n  Strengths:\n${pos}\n  Pain Points:\n${neg}`;
+function formatThemesSection(label: string, data: PortfolioThemesResult): string {
+  const pos = data.positiveThemes.slice(0, 5).map(t => `  - "${t.theme}" (${t.totalMentions} mentions, ${t.propertyCount} properties)`).join('\n');
+  const neg = data.negativeThemes.slice(0, 5).map(t => `  - "${t.theme}" (${t.totalMentions} mentions, ${t.propertyCount} properties)`).join('\n');
+  return `${label} Guest Themes (${data.totalAnalyzed}/${data.totalProperties} properties analyzed):\n  Strengths:\n${pos}\n  Pain Points:\n${neg}`;
 }
 
-export function ExecutiveSummaryCard({ kasaThemes, compThemes, isLoading }: ExecutiveSummaryCardProps) {
+export function ExecutiveSummaryCard({ kasaThemes, compThemes, portfolioMetrics, otaBenchmarks, isLoading }: ExecutiveSummaryCardProps) {
   const [summary, setSummary] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canGenerate = !isLoading && (kasaThemes || compThemes);
+  const canGenerate = !isLoading && (kasaThemes || compThemes || portfolioMetrics);
 
   const generate = async () => {
     if (!canGenerate) return;
@@ -45,8 +62,31 @@ export function ExecutiveSummaryCard({ kasaThemes, compThemes, isLoading }: Exec
 
     try {
       const sections: string[] = [];
-      if (kasaThemes) sections.push(formatThemesForPrompt('Kasa Portfolio', kasaThemes));
-      if (compThemes) sections.push(formatThemesForPrompt('Competitor Set', compThemes));
+
+      // Portfolio score overview
+      if (portfolioMetrics && portfolioMetrics.avgScore !== null) {
+        sections.push(`PORTFOLIO OVERVIEW:
+- ${portfolioMetrics.totalProperties} Kasa properties, average score: ${portfolioMetrics.avgScore.toFixed(2)}/10
+- ${portfolioMetrics.veryGoodPlusPercent}% rated "Very Good" (8.0) or higher
+- ${portfolioMetrics.exceptionalCount} properties scoring 9.5+ ("Exceptional")
+- ${portfolioMetrics.belowGoodCount} properties below 7.0 needing attention
+- ${portfolioMetrics.totalReviews.toLocaleString()} total guest reviews`);
+      }
+
+      // OTA benchmarks
+      if (otaBenchmarks.length > 0) {
+        const otaLines = otaBenchmarks
+          .filter(b => b.percentile !== null)
+          .map(b => `  - ${b.platform}: ${b.kasaScore.toFixed(2)}/10 (Top ${Math.max(1, Math.round(100 - b.percentile!))}%)`)
+          .join('\n');
+        if (otaLines) {
+          sections.push(`OTA CHANNEL BENCHMARKS (vs. competitor properties):\n${otaLines}`);
+        }
+      }
+
+      // Guest themes
+      if (kasaThemes) sections.push(formatThemesSection('Kasa', kasaThemes));
+      if (compThemes) sections.push(formatThemesSection('Competitor', compThemes));
 
       const prompt = `You are a hospitality industry strategist specializing in tech-enabled accommodation brands.
 
@@ -58,18 +98,22 @@ CRITICAL CONTEXT about Kasa:
 - Kasa competes with traditional hotels on quality but with a lean, scalable tech model
 - Recommendations should focus on technology, digital experience, automation, and operational efficiency — NOT hiring staff or in-person service training
 
-Given the aggregated guest review theme analysis below (Kasa = our managed properties, Comps = competitor hotels):
+Below is a comprehensive portfolio analysis covering scores, OTA channel rankings, and guest sentiment themes:
 
 ${sections.join('\n\n')}
 
-Requirements:
-- Start with the single most important strategic insight (1 sentence, bold)
-- Then 3-4 bullet points covering: competitive advantages, vulnerabilities, and one actionable recommendation
-- Use data (mention counts, property counts) to support claims
-- Recommendations must be relevant to Kasa's tech-enabled model (e.g., improve automated communication, enhance digital check-in, optimize app experience)
-- Do NOT suggest hiring staff, training front desk employees, or implementing traditional hotel service programs
-- Keep total under 200 words
-- Use markdown formatting`;
+Write a COMPREHENSIVE executive briefing:
+1. **Lead with the headline** — one bold sentence capturing the portfolio's position
+2. **Portfolio Health** — 1-2 bullets on score distribution and standout metrics
+3. **Channel Performance** — 1-2 bullets on OTA rankings and where Kasa dominates or trails
+4. **Guest Sentiment** — 1-2 bullets on the strongest themes (positive & negative) vs. competitors
+5. **Top Recommendation** — one concrete, actionable next step relevant to Kasa's tech-enabled model
+
+Rules:
+- Use specific numbers from the data
+- Keep total under 250 words
+- Use markdown formatting (bold headers, bullet points)
+- Do NOT suggest hiring staff or traditional hotel service programs`;
 
       const { data, error: fnError } = await supabase.functions.invoke('analyze-executive-summary', {
         body: { prompt },
@@ -87,15 +131,13 @@ Requirements:
   };
 
   return (
-    <Card className="border-l-4 border-l-amber-500">
-      <CardHeader>
-        <div className="flex items-center justify-between">
+    <Card className="border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/10">
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-amber-500" />
-            <div>
-              <CardTitle>Executive "So What"</CardTitle>
-              <CardDescription>AI-generated strategic takeaways from guest sentiment</CardDescription>
-            </div>
+            <h2 className="text-lg font-bold">Executive Briefing</h2>
+            <span className="text-xs text-muted-foreground">— AI-powered portfolio intelligence</span>
           </div>
           <Button
             size="sm"
@@ -113,49 +155,37 @@ Requirements:
             )}
           </Button>
         </div>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <p className="text-sm text-destructive">{error}</p>
-        )}
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
         {!summary && !generating && !error && (
-          <p className="text-sm text-muted-foreground text-center py-6">
-            Click "Generate" to create an AI-powered executive summary comparing Kasa and competitor guest sentiment.
+          <p className="text-sm text-muted-foreground py-4">
+            Click "Generate" for a comprehensive AI briefing covering portfolio scores, OTA rankings, and guest sentiment.
           </p>
         )}
+
         {generating && !summary && (
-          <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
+          <div className="flex items-center gap-2 text-muted-foreground py-4">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Analyzing themes and generating insights…</span>
+            <span className="text-sm">Analyzing portfolio data…</span>
           </div>
         )}
-        {summary && (
-          <div className="prose prose-sm dark:prose-invert max-w-none">
-            <SummaryRenderer content={summary} />
-          </div>
-        )}
+
+        {summary && <SummaryRenderer content={summary} />}
       </CardContent>
     </Card>
   );
 }
 
-// Simple markdown-like renderer (bold, bullets, paragraphs)
 function SummaryRenderer({ content }: { content: string }) {
   const lines = content.split('\n');
-  
   return (
     <div className="space-y-2">
       {lines.map((line, i) => {
         const trimmed = line.trim();
         if (!trimmed) return null;
-        
-        // Bold line (starts with **)
         const boldMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
-        if (boldMatch) {
-          return <p key={i} className="font-bold text-foreground text-base">{boldMatch[1]}</p>;
-        }
-
-        // Bullet point
+        if (boldMatch) return <p key={i} className="font-bold text-foreground text-base">{boldMatch[1]}</p>;
         if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
           const text = trimmed.slice(2);
           return (
@@ -165,11 +195,7 @@ function SummaryRenderer({ content }: { content: string }) {
             </div>
           );
         }
-
-        // Regular paragraph
-        return (
-          <p key={i} className="text-sm" dangerouslySetInnerHTML={{ __html: trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
-        );
+        return <p key={i} className="text-sm" dangerouslySetInnerHTML={{ __html: trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />;
       })}
     </div>
   );
