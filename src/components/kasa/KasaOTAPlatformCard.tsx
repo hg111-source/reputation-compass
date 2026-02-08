@@ -7,9 +7,9 @@ import { usePortfolioBenchmark, calculatePercentileInDistribution } from '@/hook
 
 // Import platform logos
 import googleLogo from '@/assets/logos/google.svg';
-import tripadvisorLogo from '@/assets/logos/tripadvisor.svg';
-import bookingLogo from '@/assets/logos/booking.svg';
-import expediaLogo from '@/assets/logos/expedia.svg';
+import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
+import bookingLogo from '@/assets/logos/booking.png';
+import expediaLogo from '@/assets/logos/expedia.png';
 
 type Platform = 'google' | 'tripadvisor' | 'booking' | 'expedia';
 
@@ -152,6 +152,9 @@ export function KasaOTAPlatformCard() {
             );
           })}
         </div>
+        <p className="text-xs text-muted-foreground mt-4 text-center">
+          * Percentile rank within full portfolio of competitor properties
+        </p>
       </CardContent>
     </Card>
   );
