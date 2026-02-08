@@ -177,6 +177,38 @@ function KasaHelp() {
           or the entire portfolio.
         </p>
       </section>
+
+      <Separator />
+
+      <section>
+        <h3 className="font-semibold text-foreground mb-1">📌 How Scores Work</h3>
+        <p>
+          The aggregated score shown for each Kasa property is pulled directly from
+          <span className="font-medium text-foreground"> kasa.com</span>. Kasa pre-aggregates
+          guest ratings across multiple OTA platforms (Google, TripAdvisor, Booking.com,
+          Expedia) into a single weighted score — so what you see here is already a
+          cross-platform composite.
+        </p>
+      </section>
+
+      <Separator />
+
+      <section>
+        <h3 className="font-semibold text-foreground mb-1">🔮 Future Improvements</h3>
+        <ul className="space-y-2 list-disc list-inside">
+          <li>
+            <span className="font-medium text-foreground">Per-OTA Review Fetching</span> —
+            pull individual reviews directly from Google, TripAdvisor, Booking.com, and
+            Expedia for each Kasa property, enabling platform-level sentiment analysis
+            and theme comparison (similar to what the Competitors page offers today).
+          </li>
+          <li>
+            <span className="font-medium text-foreground">Platform Score Breakdown</span> —
+            show separate scores per OTA alongside the Kasa aggregate, so you can spot
+            which channels are lifting or dragging a property's rating.
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }
