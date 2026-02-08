@@ -40,7 +40,7 @@ export default function Insights() {
       <div className="space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">So What?</h1>
+          <h1 className="text-4xl font-bold tracking-tight">KasaSights</h1>
           <p className="mt-2 text-muted-foreground">
             Portfolio benchmarking and executive insights
           </p>
