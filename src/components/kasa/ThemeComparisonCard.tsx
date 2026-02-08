@@ -321,8 +321,8 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
           <div className="flex items-center gap-2">
             <ArrowLeftRight className="h-5 w-5 text-purple-500" />
             <div>
-              <CardTitle>Kasa vs Comp — Theme Comparison</CardTitle>
-              <CardDescription>Consolidated guest sentiment themes across portfolios</CardDescription>
+              <CardTitle>What Guests Talk About</CardTitle>
+              <CardDescription>Top themes from AI analysis of guest reviews — comparing what Kasa guests mention vs. competitor guests</CardDescription>
             </div>
           </div>
           <button
@@ -333,6 +333,9 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
             {showAllThemes ? 'Hide Raw Themes' : 'View Raw Themes'}
           </button>
         </div>
+        <p className="text-xs text-muted-foreground mt-3 bg-muted/50 rounded-md px-3 py-2">
+          <strong>How to read:</strong> Each % shows how much of that portfolio's review conversation is about that theme. Longer bar = more discussed. Hover any % to see the raw mention count.
+        </p>
         <div className="flex items-center gap-4 text-xs mt-2">
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-500" /> Kasa</span>
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500" /> Comps</span>
