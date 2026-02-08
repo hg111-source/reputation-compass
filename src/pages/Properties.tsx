@@ -379,22 +379,8 @@ export default function Properties() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsAirbnbDiscoveryOpen(true)}
-            >
-              <Home className="mr-2 h-4 w-4" />
-              Discover Airbnb
-            </Button>
             {nonKasaProperties.length > 0 && (
               <>
-                <Button
-                  variant="outline"
-                  onClick={handleExportCSV}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export CSV
-                </Button>
                 <Button
                   variant="outline"
                   onClick={() => handleRefreshPending()}
@@ -402,23 +388,6 @@ export default function Properties() {
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Resolve Pending
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleRefreshAll}
-                  disabled={isRunning}
-                >
-                  {isRunning ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Refreshing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Refresh All
-                    </>
-                  )}
                 </Button>
               </>
             )}
