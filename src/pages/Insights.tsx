@@ -90,6 +90,21 @@ export default function Insights() {
     });
   }, [benchmark]);
 
+  // Top performers & needs attention for executive summary
+  const { topPerformers, needsAttention } = useMemo(() => {
+    const scored = kasaProperties.map(p => {
+      const snapshot = kasaSnapshots[p.id];
+      const score5 = snapshot?.score_raw ?? p.kasa_aggregated_score;
+      const score = score5 ? Number(score5) * 2 : null;
+      return { name: p.name, city: p.city, state: p.state, score: score! };
+    }).filter(p => p.score !== null && !isNaN(p.score));
+
+    return {
+      topPerformers: scored.filter(p => p.score >= 9.5).sort((a, b) => b.score - a.score),
+      needsAttention: scored.filter(p => p.score < 7.0).sort((a, b) => a.score - b.score),
+    };
+  }, [kasaProperties, kasaSnapshots]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -121,6 +136,8 @@ export default function Insights() {
           compThemes={compThemes}
           portfolioMetrics={portfolioMetrics}
           otaBenchmarks={otaBenchmarks}
+          topPerformers={topPerformers}
+          needsAttention={needsAttention}
           isLoading={themesLoading}
         />
 
