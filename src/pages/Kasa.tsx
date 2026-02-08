@@ -178,17 +178,19 @@ export default function Kasa() {
 
   const kasaPropertyIds = useMemo(() => kasaProperties.map(p => p.id), [kasaProperties]);
   
-  // Track which properties have fetched review data
-  const { data: propertiesWithReviews = new Set<string>() } = useQuery({
+  // Track which properties have cached AI analysis
+  const { data: propertiesWithReviewsMap = {} } = useQuery<Record<string, boolean>>({
     queryKey: ['properties-with-reviews', user?.id, 'kasa'],
     queryFn: async () => {
-      if (!user || kasaPropertyIds.length === 0) return new Set<string>();
+      if (!user || kasaPropertyIds.length === 0) return {};
       const { data, error } = await supabase
-        .from('review_texts')
+        .from('review_analysis')
         .select('property_id')
         .in('property_id', kasaPropertyIds);
       if (error) throw error;
-      return new Set(data?.map(r => r.property_id) || []);
+      const map: Record<string, boolean> = {};
+      data?.forEach(r => { map[r.property_id] = true; });
+      return map;
     },
     enabled: !!user && kasaPropertyIds.length > 0,
   });
@@ -1038,7 +1040,7 @@ export default function Kasa() {
                                 size="sm"
                                 className={cn(
                                   'h-7 gap-1 text-xs',
-                                  propertiesWithReviews.has(property.id) && 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/50'
+                                  !!propertiesWithReviewsMap[property.id] && '!bg-amber-100 !border-amber-300 !text-amber-900 hover:!bg-amber-200 dark:!bg-amber-950/40 dark:!border-amber-700 dark:!text-amber-200 dark:hover:!bg-amber-900/50'
                                 )}
                                 onClick={() => setInsightsProperty(property)}
                                 title="Analyze reviews with AI"

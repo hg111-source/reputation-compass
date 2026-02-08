@@ -90,17 +90,18 @@ export default function Properties() {
   const propertyIds = properties.map(p => p.id);
   const { data: scores = {} } = useLatestPropertyScores(propertyIds);
 
-  // Track which properties have fetched review data
-  const { data: propertiesWithReviews = new Set<string>() } = useQuery({
+  // Track which properties have cached AI analysis
+  const { data: propertiesWithReviewsMap = {} } = useQuery<Record<string, boolean>>({
     queryKey: ['properties-with-reviews', user?.id],
     queryFn: async () => {
-      if (!user || propertyIds.length === 0) return new Set<string>();
+      if (!user || propertyIds.length === 0) return {};
       const { data, error } = await supabase
-        .from('review_texts')
-        .select('property_id')
-        .in('property_id', propertyIds);
+        .from('review_analysis')
+        .select('property_id');
       if (error) throw error;
-      return new Set(data?.map(r => r.property_id) || []);
+      const map: Record<string, boolean> = {};
+      data?.forEach(r => { map[r.property_id] = true; });
+      return map;
     },
     enabled: !!user && propertyIds.length > 0,
   });
@@ -707,7 +708,7 @@ export default function Properties() {
                       refreshingPropertyId={propertyStates.find(ps => ps.phase === 'fetching' || ps.phase === 'resolving')?.property.id ?? null}
                       currentPlatform={currentPlatform}
                       getHealingStatus={getItemStatus}
-                      hasReviewData={propertiesWithReviews.has(property.id)}
+                      hasReviewData={!!propertiesWithReviewsMap[property.id]}
                     />
                 ))}
               </TableBody>
