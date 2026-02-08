@@ -107,32 +107,38 @@ export function ExecutiveSummaryCard({ kasaThemes, compThemes, portfolioMetrics,
       if (kasaThemes) sections.push(formatThemesSection('Kasa', kasaThemes));
       if (compThemes) sections.push(formatThemesSection('Competitor', compThemes));
 
-      const prompt = `You are a hospitality industry strategist specializing in tech-enabled accommodation brands.
+      const prompt = `You are a hospitality industry strategist. Write a scannable executive briefing.
 
-CRITICAL CONTEXT about Kasa:
-- Kasa is a TECH-ENABLED hospitality company — NOT a traditional hotel chain
-- Kasa properties have NO on-site front desk staff and NO traditional concierge
-- Guest communication is primarily digital (app, SMS, automated messaging)
-- Check-in is fully self-service (keyless entry, digital guides)
-- Kasa competes with traditional hotels on quality but with a lean, scalable tech model
-- Recommendations should focus on technology, digital experience, automation, and operational efficiency — NOT hiring staff or in-person service training
+CONTEXT: Kasa is a tech-enabled hospitality company with NO on-site staff. Digital-first (app, SMS, keyless entry). Never suggest hiring staff.
 
-Below is a comprehensive portfolio analysis covering scores, OTA channel rankings, and guest sentiment themes:
-
+DATA:
 ${sections.join('\n\n')}
 
-Write a COMPREHENSIVE executive briefing:
-1. **Lead with the headline** — one bold sentence capturing the portfolio's position
-2. **Portfolio Health** — 1-2 bullets on score distribution and standout metrics
-3. **Channel Performance** — 1-2 bullets on OTA rankings and where Kasa dominates or trails
-4. **Guest Sentiment** — 1-2 bullets on the strongest themes (positive & negative) vs. competitors
-5. **Top Recommendation** — one concrete, actionable next step relevant to Kasa's tech-enabled model
+FORMAT (use exactly these section headers with emojis):
 
-Rules:
-- Use specific numbers from the data
-- Keep total under 250 words
-- Use markdown formatting (bold headers, bullet points)
-- Do NOT suggest hiring staff or traditional hotel service programs`;
+**🏆 HEADLINE**
+One punchy sentence with the single most important number. Make it bold, specific, provocative. Example style: "Kasa ranks Top 4% on Google across 79 properties — but Booking.com is a blind spot."
+
+**📊 Portfolio**
+- One short bullet: avg score, % Very Good+
+- One short bullet: standout or concern
+
+**📡 Channels**
+- One bullet per channel: score + percentile rank. Use ✅ for Top 10%, ⚠️ for below Top 25%
+
+**💬 Guests Say**
+- Top positive theme: name + Kasa % vs Comp %
+- Top negative theme: name + Kasa % vs Comp %
+
+**🎯 #1 Action**
+One sentence. Specific. Tech-focused. Tied to the weakest data point above.
+
+RULES:
+- Max 150 words total
+- Short sentences. No filler.
+- Every bullet ≤ 20 words
+- Use numbers, not adjectives`;
+
 
       const { data, error: fnError } = await supabase.functions.invoke('analyze-executive-summary', {
         body: { prompt },
@@ -231,22 +237,54 @@ Rules:
 function SummaryRenderer({ content }: { content: string }) {
   const lines = content.split('\n');
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {lines.map((line, i) => {
         const trimmed = line.trim();
         if (!trimmed) return null;
-        const boldMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
-        if (boldMatch) return <p key={i} className="font-bold text-foreground text-base">{boldMatch[1]}</p>;
+
+        // Section header: **🏆 HEADLINE** or **📊 Portfolio**
+        const sectionMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
+        if (sectionMatch) {
+          const text = sectionMatch[1];
+          // Headline section gets special treatment
+          const isHeadline = text.includes('HEADLINE') || text.includes('🏆');
+          if (isHeadline) {
+            return null; // Skip the header label, the next line IS the headline
+          }
+          return (
+            <div key={i} className="pt-3 first:pt-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{text}</p>
+            </div>
+          );
+        }
+
+        // Standalone bold line (the actual headline text)
+        if (i <= 2 && !trimmed.startsWith('-') && !trimmed.startsWith('•')) {
+          const cleaned = trimmed.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^[""]|[""]$/g, '');
+          if (cleaned.length > 10) {
+            return (
+              <p key={i} className="text-base font-bold text-foreground leading-snug pb-2 border-b border-amber-200 dark:border-amber-800 mb-1">
+                {cleaned}
+              </p>
+            );
+          }
+        }
+
+        // Bullet point
         if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
           const text = trimmed.slice(2);
           return (
-            <div key={i} className="flex gap-2 text-sm">
-              <span className="text-muted-foreground mt-0.5">•</span>
+            <div key={i} className="flex gap-2 text-[13px] leading-relaxed py-0.5">
+              <span className="text-muted-foreground mt-0.5 shrink-0">•</span>
               <span dangerouslySetInnerHTML={{ __html: text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
             </div>
           );
         }
-        return <p key={i} className="text-sm" dangerouslySetInnerHTML={{ __html: trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />;
+
+        // Regular text
+        return (
+          <p key={i} className="text-[13px] leading-relaxed" dangerouslySetInnerHTML={{ __html: trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
+        );
       })}
     </div>
   );
