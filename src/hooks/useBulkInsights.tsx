@@ -40,27 +40,14 @@ export function useBulkInsights() {
       setCurrentIndex(i);
 
       try {
-        // Fetch TripAdvisor reviews
+        // Fetch all reviews in parallel (Google + Expedia)
         updateState(property.id, { status: 'fetching' });
         await supabase.functions.invoke('fetch-reviews', {
           body: {
             propertyId: property.id,
             hotelName: property.name,
             city: property.city,
-            platform: 'tripadvisor',
-            maxReviews: 25,
-          },
-        });
-
-        if (abortRef.current) break;
-
-        // Fetch Google reviews
-        await supabase.functions.invoke('fetch-reviews', {
-          body: {
-            propertyId: property.id,
-            hotelName: property.name,
-            city: property.city,
-            platform: 'google',
+            platform: 'all',
             maxReviews: 25,
           },
         });
