@@ -152,7 +152,7 @@ export function KasaOTAPlatformCard() {
             );
           })}
         </div>
-        <p className="text-xs text-muted-foreground mt-4 text-center">
+        <p className="text-xs text-muted-foreground mt-4">
           * Percentile rank within full portfolio of competitor properties
         </p>
       </CardContent>
