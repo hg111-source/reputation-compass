@@ -8,6 +8,7 @@ import { KasaBenchmarkTab, KasaGeographicSection, KasaScoreDistribution } from '
 import { ThemeComparisonCard } from '@/components/kasa/ThemeComparisonCard';
 import { ExecutiveSummaryCard } from '@/components/kasa/ExecutiveSummaryCard';
 import { usePortfolioThemes } from '@/hooks/usePortfolioThemes';
+import { PropertyOwnerInsights } from '@/components/kasa/PropertyOwnerInsights';
 import { usePortfolioBenchmark, calculatePercentileInDistribution } from '@/hooks/usePortfolioBenchmark';
 
 // Kasa's actual portfolio OTA averages
@@ -165,6 +166,9 @@ export default function Insights() {
           properties={kasaProperties}
           snapshots={kasaSnapshots}
         />
+
+        {/* 7. Property Owner Insights — roadmap placeholder */}
+        <PropertyOwnerInsights />
       </div>
     </DashboardLayout>
   );
