@@ -505,6 +505,24 @@ export default function Groups() {
 const STATE_PATTERN = /^[A-Z]{2}_Comp Set$/;
 const SCORE_TIER_NAMES = ['Wonderful (9.0+)', 'Very Good (8.0-8.99)', 'Good (7.0-7.99)', 'Pleasant (6.0-6.99)', 'Needs Work (0-5.99)'];
 
+function getGroupTooltip(name: string): string {
+  const lower = name.toLowerCase();
+  if (name === 'Comp Set') return 'All competitor properties (excludes Kasa)';
+  if (name === 'Kasa Only') return 'All Kasa-branded properties';
+  if (lower === 'other') return 'Properties not assigned to other portfolio groups';
+  if (lower.includes('all') || lower.includes('portfolio')) return 'All properties across the full portfolio';
+  if (name === 'Wonderful (9.0+)') return 'Properties with weighted avg score ≥ 9.0';
+  if (name === 'Very Good (8.0-8.99)') return 'Properties with weighted avg score 8.0–8.99';
+  if (name === 'Good (7.0-7.99)') return 'Properties with weighted avg score 7.0–7.99';
+  if (name === 'Pleasant (6.0-6.99)') return 'Properties with weighted avg score 6.0–6.99';
+  if (name === 'Needs Work (0-5.99)') return 'Properties with weighted avg score below 6.0';
+  if (STATE_PATTERN.test(name)) {
+    const stateCode = name.split('_')[0];
+    return `Competitor properties located in ${stateCode}`;
+  }
+  return 'Custom group created via search or manual selection';
+}
+
 function GroupCardSections({
   allPropertiesMetrics,
   sortedMyGroups,
@@ -713,8 +731,13 @@ function GroupCard({
 
   const isPrivate = !group.is_public;
 
+  const tooltipText = getGroupTooltip(group.name);
+
   return (
     <>
+      <TooltipProvider delayDuration={400}>
+        <Tooltip>
+          <TooltipTrigger asChild>
       <Card 
         className={cn(
           'shadow-kasa transition-all hover:shadow-kasa-hover cursor-pointer',
@@ -831,6 +854,12 @@ function GroupCard({
           </div>
         </CardContent>
       </Card>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs max-w-xs">
+            {tooltipText}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <GroupAnalysisDialog
         open={isAnalysisOpen}
