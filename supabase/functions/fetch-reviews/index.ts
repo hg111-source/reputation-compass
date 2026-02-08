@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const APIFY_BASE_URL = 'https://api.apify.com/v2';
+const RAPIDAPI_HOST = 'hotels-com-provider.p.rapidapi.com';
 
 const ACTORS = {
   tripadvisor: 'dbEyMBriog95Fv8CW',
@@ -158,6 +159,91 @@ async function fetchGoogleReviews(
   };
 }
 
+/**
+ * Fetch Expedia/Hotels.com reviews via RapidAPI reviews/list endpoint.
+ * Uses the hotel_aliases table to get the platform_id (Hotels.com hotel ID).
+ */
+async function fetchExpediaReviews(
+  rapidApiKey: string,
+  propertyId: string,
+  supabase: any,
+  maxReviews: number
+): Promise<{ reviews: any[]; hotelName: string }> {
+  // Get the Expedia hotel_id from hotel_aliases
+  const { data: alias, error: aliasError } = await supabase
+    .from('hotel_aliases')
+    .select('platform_id, platform_url')
+    .eq('property_id', propertyId)
+    .eq('source', 'expedia')
+    .not('resolution_status', 'eq', 'not_listed')
+    .maybeSingle();
+
+  if (aliasError || !alias?.platform_id) {
+    console.log(`No Expedia alias/hotel_id for property ${propertyId}, skipping`);
+    return { reviews: [], hotelName: '' };
+  }
+
+  const hotelId = alias.platform_id;
+  console.log(`Fetching Expedia reviews for hotel_id: ${hotelId}`);
+
+  const url = `https://${RAPIDAPI_HOST}/v2/hotels/reviews/list?hotel_id=${hotelId}&locale=en_US&domain=US&page_number=1`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'x-rapidapi-host': RAPIDAPI_HOST,
+      'x-rapidapi-key': rapidApiKey,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Expedia reviews API error: ${response.status} - ${errorText}`);
+    throw new Error(`Expedia reviews API failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log(`Expedia reviews response keys: ${Object.keys(data).join(', ')}`);
+  console.log(`Expedia reviews response sample: ${JSON.stringify(data).substring(0, 1500)}`);
+
+  // Parse reviews from response - the structure may vary
+  const reviews: any[] = [];
+  
+  // Parse reviews - response structure: { reviewInfo: { reviews: [...] } }
+  const reviewItems = data.reviewInfo?.reviews || data.reviewData?.reviews || data.reviews || [];
+  
+  for (const r of reviewItems) {
+    const text = r.text || r.reviewText || '';
+    const title = r.title || '';
+    const fullText = title && title.length > 0 ? `${title}. ${text}` : text;
+    
+    // Parse rating from "10/10 Exceptional" format
+    let rating: number | null = null;
+    const ratingStr = r.reviewScoreWithDescription?.value || r.rating;
+    if (ratingStr) {
+      const match = String(ratingStr).replace(',', '.').match(/([\d.]+)/);
+      if (match) rating = parseFloat(match[1]);
+    }
+
+    // Parse reviewer from footer
+    const reviewer = r.reviewFooter?.messages?.[0]?.text?.text || r.reviewerName || null;
+    
+    if (fullText.length > 10) {
+      reviews.push({
+        text: fullText,
+        rating,
+        date: r.submissionTimeLocalized || r.stayDate || null,
+        reviewer,
+      });
+    }
+    
+    if (reviews.length >= maxReviews) break;
+  }
+
+  console.log(`Parsed ${reviews.length} Expedia reviews for hotel_id ${hotelId}`);
+  return { reviews, hotelName: '' };
+}
+
 // Retry helper
 async function retryOperation<T>(
   fn: () => Promise<T>,
@@ -213,11 +299,14 @@ serve(async (req) => {
     console.log(`Fetching ${platform} reviews for: ${searchQuery}`);
 
     const platformsToFetch = platform === 'all' 
-      ? ['tripadvisor', 'google'] 
+      ? ['tripadvisor', 'google', 'expedia'] 
       : [platform];
 
     const results: { platform: string; reviews: any[]; hotelName: string }[] = [];
     const errors: { platform: string; error: string }[] = [];
+
+    // Get RapidAPI key for Expedia
+    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY') || '';
 
     // Fetch from each platform
     for (const p of platformsToFetch) {
@@ -230,6 +319,14 @@ serve(async (req) => {
         } else if (p === 'google') {
           const googleResult = await fetchGoogleReviews(apiToken, searchQuery, maxReviews);
           results.push({ platform: 'google', ...googleResult });
+        } else if (p === 'expedia') {
+          if (!rapidApiKey) {
+            console.warn('RAPIDAPI_KEY not configured, skipping Expedia reviews');
+            errors.push({ platform: 'expedia', error: 'RAPIDAPI_KEY not configured' });
+          } else {
+            const expediaResult = await fetchExpediaReviews(rapidApiKey, propertyId, supabase, maxReviews);
+            results.push({ platform: 'expedia', ...expediaResult });
+          }
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
