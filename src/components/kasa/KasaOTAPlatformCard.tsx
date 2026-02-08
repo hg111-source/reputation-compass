@@ -127,9 +127,9 @@ export function KasaOTAPlatformCard() {
             return (
               <div 
                 key={data.platform} 
-                className={cn('p-4 rounded-lg border text-center', tier.bgColor)}
+                className={cn('p-4 rounded-lg border', tier.bgColor)}
               >
-                <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-3">
                   <img src={data.logo} alt={data.name} className="h-5 w-5" />
                   <p className="text-sm font-medium text-muted-foreground">{data.name}</p>
                 </div>
@@ -145,16 +145,13 @@ export function KasaOTAPlatformCard() {
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="text-xs text-muted-foreground">
-                    No data ({data.portfolioCount} props)
+                    No data
                   </Badge>
                 )}
               </div>
             );
           })}
         </div>
-        <p className="text-xs text-muted-foreground mt-4 text-center">
-          * Percentile rank within full portfolio ({(benchmark?.totalProperties || 0) + 1} properties including Kasa)
-        </p>
       </CardContent>
     </Card>
   );
