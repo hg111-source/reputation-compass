@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, ArrowLeftRight, Eye, EyeOff, Building2, MessageSquareQuote, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ArrowLeftRight, Eye, EyeOff, Building2, MessageSquareQuote, TrendingUp, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AggregatedTheme {
@@ -171,59 +171,42 @@ function LeaderBadge({ kasaVal, compVal }: { kasaVal: number; compVal: number })
   return <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground"><Minus className="h-3 w-3 mr-0.5" />Even</Badge>;
 }
 
-function ComparisonTable({ themes, type, maxMentions }: { themes: ConsolidatedTheme[]; type: 'positive' | 'negative'; maxMentions: number }) {
+function ComparisonTable({ themes }: { themes: ConsolidatedTheme[] }) {
   return (
-    <div className="space-y-0.5">
+    <div>
       {/* Table header */}
-      <div className="grid grid-cols-[1fr_60px_60px_70px] gap-2 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold border-b">
+      <div className="grid grid-cols-[1fr_80px_80px_75px] gap-2 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold border-b">
         <span>Theme</span>
-        <span className="text-right">Kasa</span>
-        <span className="text-right">Comps</span>
-        <span className="text-right">Leader</span>
+        <span className="text-right">Kasa mentions</span>
+        <span className="text-right">Comp mentions</span>
+        <span className="text-right"></span>
       </div>
-      {themes.map(t => {
-        const total = t.kasaMentions + t.compMentions;
-        const kasaPct = total > 0 ? (t.kasaMentions / maxMentions) * 100 : 0;
-        const compPct = total > 0 ? (t.compMentions / maxMentions) * 100 : 0;
-
-        return (
-          <div key={t.canonical} className="group">
-            <div className="grid grid-cols-[1fr_60px_60px_70px] gap-2 px-3 py-2 items-center hover:bg-muted/50 rounded-md transition-colors">
-              <span className="text-sm font-medium truncate">{t.canonical}</span>
-              <span className={cn(
-                'text-sm text-right tabular-nums font-medium',
-                t.kasaMentions > t.compMentions ? 'text-teal-600 dark:text-teal-400' : 'text-muted-foreground'
-              )}>
-                {t.kasaMentions || '—'}
-              </span>
-              <span className={cn(
-                'text-sm text-right tabular-nums font-medium',
-                t.compMentions > t.kasaMentions ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
-              )}>
-                {t.compMentions || '—'}
-              </span>
-              <div className="flex justify-end">
-                <LeaderBadge kasaVal={t.kasaMentions} compVal={t.compMentions} />
-              </div>
-            </div>
-            {/* Inline comparison bars */}
-            <div className="px-3 pb-1.5 flex items-center gap-1.5">
-              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                <div
-                  className={cn('h-full rounded-full', type === 'positive' ? 'bg-teal-500' : 'bg-rose-400')}
-                  style={{ width: `${kasaPct}%` }}
-                />
-              </div>
-              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                <div
-                  className={cn('h-full rounded-full', type === 'positive' ? 'bg-blue-500' : 'bg-orange-400')}
-                  style={{ width: `${compPct}%` }}
-                />
-              </div>
-            </div>
+      {themes.map((t, i) => (
+        <div
+          key={t.canonical}
+          className={cn(
+            'grid grid-cols-[1fr_80px_80px_75px] gap-2 px-3 py-2.5 items-center',
+            i % 2 === 0 ? 'bg-muted/30' : ''
+          )}
+        >
+          <span className="text-sm font-medium truncate">{t.canonical}</span>
+          <span className={cn(
+            'text-sm text-right tabular-nums font-semibold',
+            t.kasaMentions > t.compMentions ? 'text-teal-600 dark:text-teal-400' : 'text-muted-foreground'
+          )}>
+            {t.kasaMentions || '—'}
+          </span>
+          <span className={cn(
+            'text-sm text-right tabular-nums font-semibold',
+            t.compMentions > t.kasaMentions ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
+          )}>
+            {t.compMentions || '—'}
+          </span>
+          <div className="flex justify-end">
+            <LeaderBadge kasaVal={t.kasaMentions} compVal={t.compMentions} />
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -287,14 +270,6 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
     );
   }, [kasaThemes, compThemes]);
 
-  const maxMentions = useMemo(() => {
-    if (!consolidated) return 1;
-    const all = [
-      ...consolidated.strengths.flatMap(t => [t.kasaMentions, t.compMentions]),
-      ...consolidated.painPoints.flatMap(t => [t.kasaMentions, t.compMentions]),
-    ];
-    return Math.max(...all, 1);
-  }, [consolidated]);
 
   if (isLoading || !consolidated) {
     return null;
@@ -333,7 +308,7 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
               <span className="font-semibold text-sm">Strengths</span>
               <Badge variant="secondary" className="text-[10px] ml-auto">{consolidated.strengths.length} themes</Badge>
             </div>
-            <ComparisonTable themes={consolidated.strengths} type="positive" maxMentions={maxMentions} />
+            <ComparisonTable themes={consolidated.strengths} />
           </div>
 
           {/* Pain Points */}
@@ -343,7 +318,7 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
               <span className="font-semibold text-sm">Pain Points</span>
               <Badge variant="secondary" className="text-[10px] ml-auto">{consolidated.painPoints.length} themes</Badge>
             </div>
-            <ComparisonTable themes={consolidated.painPoints} type="negative" maxMentions={maxMentions} />
+            <ComparisonTable themes={consolidated.painPoints} />
           </div>
         </div>
 
