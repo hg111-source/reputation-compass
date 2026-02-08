@@ -784,19 +784,7 @@ export default function Kasa() {
                 )}
               </Button>
             )}
-            <Button onClick={handleImportFromKasa} disabled={isImporting || isFixingLocations || isUpdatingMissing}>
-              {isImporting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Search className="mr-2 h-4 w-4" />
-                  Import from Kasa.com
-                </>
-              )}
-            </Button>
+            {/* Import button hidden for demo */}
           </div>
         </div>
 
