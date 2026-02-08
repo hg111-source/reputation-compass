@@ -25,6 +25,39 @@ const DELAY_BETWEEN_CALLS_MS = 5000;
 const RETRY_DELAY_MS = 10000;
 const MAX_RETRIES = 1;
 
+/** Fire-and-forget: fetch reviews then run AI analysis for a single property */
+async function fetchInsightsForProperty(property: Property, queryClient?: any): Promise<void> {
+  console.log(`[auto-insights] Starting for ${property.name}`);
+  
+  // Step 1: Fetch reviews from all available platforms
+  await supabase.functions.invoke('fetch-reviews', {
+    body: {
+      propertyId: property.id,
+      hotelName: property.name,
+      city: property.city,
+      platform: 'all',
+      maxReviews: 25,
+    },
+  });
+
+  // Step 2: Run AI analysis
+  const { data, error } = await supabase.functions.invoke('analyze-reviews', {
+    body: { propertyId: property.id },
+  });
+
+  if (error || data?.error) {
+    console.warn(`[auto-insights] Analysis failed for ${property.name}:`, error?.message || data?.error);
+    return;
+  }
+
+  console.log(`[auto-insights] ${property.name} complete`);
+  if (queryClient) {
+    queryClient.invalidateQueries({ queryKey: ['review-analysis', property.id] });
+    queryClient.invalidateQueries({ queryKey: ['review-texts-count', property.id] });
+    queryClient.invalidateQueries({ queryKey: ['properties-with-reviews'] });
+  }
+}
+
 const PLATFORM_CONFIG: Record<Platform, { displayName: string; scale: number; functionName: string }> = {
   google: { displayName: 'Google', scale: 5, functionName: 'fetch-place-rating' },
   tripadvisor: { displayName: 'TripAdvisor', scale: 5, functionName: 'fetch-tripadvisor-rating' },
@@ -478,6 +511,13 @@ export function useUnifiedRefresh() {
         title: 'Refresh complete',
         description: `${property.name}: ${successCount} found, ${notListedCount} not listed, ${failedCount} failed`,
       });
+
+      // Auto-fetch insights in the background (non-blocking)
+      if (successCount > 0) {
+        fetchInsightsForProperty(currentProperty, queryClient).catch(err => {
+          console.warn(`[auto-insights] ${property.name} failed:`, err);
+        });
+      }
     } finally {
       setIsRunning(false);
       setIsComplete(true);
