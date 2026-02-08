@@ -195,19 +195,13 @@ function KasaHelp() {
 
       <section>
         <h3 className="font-semibold text-foreground mb-1">🔮 Future Improvements</h3>
-        <ul className="space-y-2 list-disc list-inside">
-          <li>
-            <span className="font-medium text-foreground">Per-OTA Review Fetching</span> —
-            pull individual reviews directly from Google, TripAdvisor, Booking.com, and
-            Expedia for each Kasa property, enabling platform-level sentiment analysis
-            and theme comparison (similar to what the Competitors page offers today).
-          </li>
-          <li>
-            <span className="font-medium text-foreground">Platform Score Breakdown</span> —
-            show separate scores per OTA alongside the Kasa aggregate, so you can spot
-            which channels are lifting or dragging a property's rating.
-          </li>
-        </ul>
+        <p>
+          <span className="font-medium text-foreground">Per-OTA Scores &amp; Reviews</span> —
+          fetch individual scores and reviews from Google, TripAdvisor, Booking.com, and
+          Expedia for each Kasa property. This would enable per-platform score breakdowns
+          and sentiment analysis, similar to what the Competitors page offers today.
+          Right now, the score shown is a single aggregate pulled from kasa.com.
+        </p>
       </section>
     </div>
   );
