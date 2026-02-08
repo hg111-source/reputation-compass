@@ -68,8 +68,12 @@ export function useProperties() {
       if (error) throw error;
       return data as Property;
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['properties'] });
+      // Auto-trigger insights for the newly created property in the background
+      autoInsightsBatch([created], queryClient).catch(err => {
+        console.warn('[auto-insights] single property failed:', err);
+      });
     },
   });
 
