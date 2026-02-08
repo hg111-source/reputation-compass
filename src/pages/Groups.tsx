@@ -605,7 +605,8 @@ function GroupCardSections({
       {/* By Score section */}
       {scoreGroups.length > 0 && (
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">By Score</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">By Score</h3>
+          <p className="text-[11px] text-muted-foreground mb-2">All properties sorted into score bands via Auto-Group</p>
           <div className={gridClass}>
             {renderCards(scoreGroups)}
           </div>
