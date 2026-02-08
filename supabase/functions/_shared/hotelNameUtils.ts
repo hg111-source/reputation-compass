@@ -228,11 +228,25 @@ export function hotelNamesMatch(
   // Word-based matching
   const matchingWords = countMatchingWords(searchName, resultName);
   const searchWords = getSignificantWords(normalized1);
+  const resultSignificant = getSignificantWords(normalized2);
   
   // For short names (1-2 significant words), require all words to match
   if (searchWords.length <= 2) {
     // All significant words from search must be in result
     return matchingWords >= searchWords.length && searchWords.length > 0;
+  }
+  
+  // Reverse match: if ALL result words match search and at least one is distinctive
+  if (resultSignificant.length >= 1) {
+    let reverseMatches = 0;
+    for (const rw of resultSignificant) {
+      if (searchWords.some(sw => wordsMatchFuzzy(sw, rw))) {
+        reverseMatches++;
+      }
+    }
+    if (reverseMatches === resultSignificant.length && resultSignificant.some(w => w.length >= 5)) {
+      return true;
+    }
   }
   
   // For longer names, require at least minMatchingWords
@@ -327,12 +341,26 @@ export function analyzeHotelMatch(searchName: string, resultName: string): Match
   
   // Word-based matching (runs if no decision made yet, or after containment rejection fallthrough)
   if (!isMatch && !reason.includes('Brand mismatch') && !reason.includes('no brand in result')) {
+    // Also count reverse matches: how many result words match search words
+    let reverseMatches = 0;
+    for (const rw of resultWords) {
+      if (searchWords.some(sw => wordsMatchFuzzy(sw, rw))) {
+        reverseMatches++;
+      }
+    }
+    
     if (searchWords.length <= 2) {
       // For short names, require ALL significant words to match
       isMatch = matchingWords >= searchWords.length && searchWords.length > 0;
       reason = isMatch 
         ? `Short name: all ${searchWords.length} significant words match`
         : `Short name: only ${matchingWords}/${searchWords.length} significant words match`;
+    } else if (resultWords.length >= 1 && reverseMatches === resultWords.length && resultWords.some(w => w.length >= 5)) {
+      // If ALL result's significant words match the search AND at least one is distinctive (5+ chars),
+      // accept it. E.g., "The Huntley Hotel" (result: ["huntley"]) vs "Huntley Hotel Santa Monica Beach"
+      // "huntley" (7 chars) matches and is the only significant word → match
+      isMatch = true;
+      reason = `All ${resultWords.length} result words match search (reverse match with distinctive word)`;
     } else {
       // For longer names, require at least 50% of words to match (minimum 2)
       const threshold = Math.max(2, Math.ceil(searchWords.length * 0.5));
