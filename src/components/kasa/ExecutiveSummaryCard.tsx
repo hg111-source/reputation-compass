@@ -34,11 +34,20 @@ interface OTABenchmark {
   percentile: number | null;
 }
 
+interface PropertyHighlight {
+  name: string;
+  city: string;
+  state: string;
+  score: number;
+}
+
 interface ExecutiveSummaryCardProps {
   kasaThemes: PortfolioThemesResult | null | undefined;
   compThemes: PortfolioThemesResult | null | undefined;
   portfolioMetrics: PortfolioMetrics | null;
   otaBenchmarks: OTABenchmark[];
+  topPerformers: PropertyHighlight[];
+  needsAttention: PropertyHighlight[];
   isLoading: boolean;
 }
 
@@ -48,7 +57,7 @@ function formatThemesSection(label: string, data: PortfolioThemesResult): string
   return `${label} Guest Themes (${data.totalAnalyzed}/${data.totalProperties} properties analyzed):\n  Strengths:\n${pos}\n  Pain Points:\n${neg}`;
 }
 
-export function ExecutiveSummaryCard({ kasaThemes, compThemes, portfolioMetrics, otaBenchmarks, isLoading }: ExecutiveSummaryCardProps) {
+export function ExecutiveSummaryCard({ kasaThemes, compThemes, portfolioMetrics, otaBenchmarks, topPerformers, needsAttention, isLoading }: ExecutiveSummaryCardProps) {
   const [summary, setSummary] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +91,16 @@ export function ExecutiveSummaryCard({ kasaThemes, compThemes, portfolioMetrics,
         if (otaLines) {
           sections.push(`OTA CHANNEL BENCHMARKS (vs. competitor properties):\n${otaLines}`);
         }
+      }
+
+      // Top performers & needs attention
+      if (topPerformers.length > 0) {
+        const lines = topPerformers.slice(0, 5).map(p => `  - ${p.name} (${p.city}, ${p.state}): ${p.score.toFixed(2)}/10`).join('\n');
+        sections.push(`TOP PERFORMERS (9.5+):\n${lines}`);
+      }
+      if (needsAttention.length > 0) {
+        const lines = needsAttention.slice(0, 5).map(p => `  - ${p.name} (${p.city}, ${p.state}): ${p.score.toFixed(2)}/10`).join('\n');
+        sections.push(`NEEDS ATTENTION (<7.0):\n${lines}`);
       }
 
       // Guest themes

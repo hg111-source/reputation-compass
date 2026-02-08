@@ -210,9 +210,9 @@ export function SwotAnalysis({ properties, snapshots }: SwotAnalysisProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          📊 Kasa Portfolio Analysis
+          📊 Portfolio Scorecard
         </CardTitle>
-        <p className="text-sm text-muted-foreground">Depth vs Breadth — Quality at scale across {swotData.total} properties</p>
+        <p className="text-sm text-muted-foreground">Detailed property-level breakdown — scores, tiers, and action items</p>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4 md:grid-cols-2">
