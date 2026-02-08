@@ -234,10 +234,17 @@ RULES:
   );
 }
 
+function renderBold(text: string) {
+  const parts = text.split(/\*\*(.+?)\*\*/g);
+  return parts.map((part, i) => i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part);
+}
+
 function SummaryRenderer({ content }: { content: string }) {
   const lines = content.split('\n');
+  let headlineFound = false;
+
   return (
-    <div className="space-y-1">
+    <div className="space-y-0.5 text-sm leading-relaxed">
       {lines.map((line, i) => {
         const trimmed = line.trim();
         if (!trimmed) return null;
@@ -246,24 +253,24 @@ function SummaryRenderer({ content }: { content: string }) {
         const sectionMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
         if (sectionMatch) {
           const text = sectionMatch[1];
-          // Headline section gets special treatment
-          const isHeadline = text.includes('HEADLINE') || text.includes('🏆');
-          if (isHeadline) {
-            return null; // Skip the header label, the next line IS the headline
+          if (text.includes('HEADLINE') || text.includes('🏆')) {
+            headlineFound = true;
+            return null;
           }
           return (
-            <div key={i} className="pt-3 first:pt-0">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{text}</p>
-            </div>
+            <p key={i} className="pt-3 pb-0.5 text-xs font-bold uppercase tracking-wider text-muted-foreground first:pt-0">{text}</p>
           );
         }
 
-        // Standalone bold line (the actual headline text)
-        if (i <= 2 && !trimmed.startsWith('-') && !trimmed.startsWith('•')) {
+        // First non-bullet after headline label = the actual headline
+        if (!headlineFound || (headlineFound && !trimmed.startsWith('-') && !trimmed.startsWith('•') && i <= 3)) {
           const cleaned = trimmed.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^[""]|[""]$/g, '');
-          if (cleaned.length > 10) {
+          if (cleaned.length > 10 && !headlineFound) {
+            // skip
+          } else if (cleaned.length > 10) {
+            headlineFound = false; // consume it
             return (
-              <p key={i} className="text-base font-bold text-foreground leading-snug pb-2 border-b border-amber-200 dark:border-amber-800 mb-1">
+              <p key={i} className="text-[15px] font-bold text-foreground leading-snug pb-2 mb-1 border-b border-amber-200 dark:border-amber-800">
                 {cleaned}
               </p>
             );
@@ -272,19 +279,16 @@ function SummaryRenderer({ content }: { content: string }) {
 
         // Bullet point
         if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
-          const text = trimmed.slice(2);
           return (
-            <div key={i} className="flex gap-2 text-[13px] leading-relaxed py-0.5">
-              <span className="text-muted-foreground mt-0.5 shrink-0">•</span>
-              <span dangerouslySetInnerHTML={{ __html: text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
+            <div key={i} className="flex gap-2 py-0.5 pl-1">
+              <span className="text-muted-foreground shrink-0">•</span>
+              <span>{renderBold(trimmed.slice(2))}</span>
             </div>
           );
         }
 
         // Regular text
-        return (
-          <p key={i} className="text-[13px] leading-relaxed" dangerouslySetInnerHTML={{ __html: trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
-        );
+        return <p key={i}>{renderBold(trimmed)}</p>;
       })}
     </div>
   );
