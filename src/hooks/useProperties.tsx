@@ -4,6 +4,33 @@ import { Property, ReviewSource } from '@/lib/types';
 import { useAuth } from './useAuth';
 import { ParsedProperty } from '@/lib/csv';
 
+/** Background insights: fetch reviews + AI analysis for new properties (batched) */
+async function autoInsightsBatch(properties: Property[], queryClient: any) {
+  const CONCURRENCY = 3;
+  for (let i = 0; i < properties.length; i += CONCURRENCY) {
+    const batch = properties.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (property) => {
+      try {
+        console.log(`[auto-insights-bulk] Starting ${property.name}`);
+        await supabase.functions.invoke('fetch-reviews', {
+          body: { propertyId: property.id, hotelName: property.name, city: property.city, platform: 'all', maxReviews: 25 },
+        });
+        await supabase.functions.invoke('analyze-reviews', {
+          body: { propertyId: property.id },
+        });
+        console.log(`[auto-insights-bulk] ${property.name} done`);
+        queryClient.invalidateQueries({ queryKey: ['review-analysis', property.id] });
+      } catch (err) {
+        console.warn(`[auto-insights-bulk] ${property.name} failed:`, err);
+      }
+    }));
+    if (i + CONCURRENCY < properties.length) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  queryClient.invalidateQueries({ queryKey: ['properties-with-reviews'] });
+}
+
 export function useProperties() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -141,9 +168,15 @@ export function useProperties() {
       
       return { created: createdProperties as Property[], skipped: skippedCount };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['properties'] });
       queryClient.invalidateQueries({ queryKey: ['hotel-aliases'] });
+      // Auto-trigger insights for newly created properties in the background
+      if (result.created && result.created.length > 0) {
+        autoInsightsBatch(result.created as Property[], queryClient).catch(err => {
+          console.warn('[auto-insights-bulk] batch failed:', err);
+        });
+      }
     },
   });
 
