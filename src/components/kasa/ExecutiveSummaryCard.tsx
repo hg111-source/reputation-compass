@@ -48,7 +48,17 @@ export function ExecutiveSummaryCard({ kasaThemes, compThemes, isLoading }: Exec
       if (kasaThemes) sections.push(formatThemesForPrompt('Kasa Portfolio', kasaThemes));
       if (compThemes) sections.push(formatThemesForPrompt('Competitor Set', compThemes));
 
-      const prompt = `You are a hospitality industry strategist. Given the aggregated guest review theme analysis below for a hotel portfolio (Kasa = our managed properties, Comps = competitor hotels), produce a concise executive "So What" summary.
+      const prompt = `You are a hospitality industry strategist specializing in tech-enabled accommodation brands.
+
+CRITICAL CONTEXT about Kasa:
+- Kasa is a TECH-ENABLED hospitality company — NOT a traditional hotel chain
+- Kasa properties have NO on-site front desk staff and NO traditional concierge
+- Guest communication is primarily digital (app, SMS, automated messaging)
+- Check-in is fully self-service (keyless entry, digital guides)
+- Kasa competes with traditional hotels on quality but with a lean, scalable tech model
+- Recommendations should focus on technology, digital experience, automation, and operational efficiency — NOT hiring staff or in-person service training
+
+Given the aggregated guest review theme analysis below (Kasa = our managed properties, Comps = competitor hotels):
 
 ${sections.join('\n\n')}
 
@@ -56,7 +66,8 @@ Requirements:
 - Start with the single most important strategic insight (1 sentence, bold)
 - Then 3-4 bullet points covering: competitive advantages, vulnerabilities, and one actionable recommendation
 - Use data (mention counts, property counts) to support claims
-- Be specific about hotel operations, not generic
+- Recommendations must be relevant to Kasa's tech-enabled model (e.g., improve automated communication, enhance digital check-in, optimize app experience)
+- Do NOT suggest hiring staff, training front desk employees, or implementing traditional hotel service programs
 - Keep total under 200 words
 - Use markdown formatting`;
 
