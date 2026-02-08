@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, Sparkles, Brain } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, Sparkles, Brain, RefreshCw } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { ReviewInsightsDialog } from '@/components/properties/ReviewInsightsDialog';
@@ -784,7 +784,25 @@ export default function Kasa() {
                 )}
               </Button>
             )}
-            {/* Import button hidden for demo */}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleImportFromKasa} 
+              disabled={isImporting || isFixingLocations || isUpdatingMissing}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {isImporting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh Data
+                </>
+              )}
+            </Button>
           </div>
         </div>
 
