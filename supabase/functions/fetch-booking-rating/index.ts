@@ -27,6 +27,8 @@ interface BookingResult {
   numberOfReviews?: number;
   reviews?: number;
   url?: string;
+  error?: string;
+  errorDescription?: string;
 }
 
 async function waitForRun(runId: string, token: string, maxWaitMs = 50000): Promise<string> {
@@ -164,8 +166,17 @@ async function tryDirectUrl(startUrl: string, apiToken: string): Promise<Booking
       return null;
     }
 
-    const results: BookingResult[] = await resultsResponse.json();
-    return results && results.length > 0 ? results[0] : null;
+    const results = await resultsResponse.json();
+    if (!results || results.length === 0) return null;
+    
+    // Check if the result is an error response from the scraper
+    const firstResult = results[0];
+    if (firstResult.error || firstResult.errorDescription) {
+      console.error(`Direct URL scraper error: ${firstResult.error} - ${firstResult.errorDescription}`);
+      return null;
+    }
+    
+    return firstResult;
   } catch (error) {
     console.error(`Direct URL fetch failed:`, error);
     return null;
