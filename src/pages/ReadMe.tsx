@@ -192,12 +192,15 @@ export default function ReadMe() {
         {/* Scope */}
         <Section icon={Crosshair} title="Scope">
           <ul className="list-disc pl-5 space-y-1.5">
-            <li>Covers <strong className="text-foreground">79 Kasa properties</strong> synchronized from Kasa.com</li>
             <li>Normalizes ratings across major review platforms to a universal 0–10 scale</li>
             <li>Computes review-weighted portfolio and group benchmarks</li>
             <li>Extracts AI-generated sentiment themes and executive summaries</li>
             <li>Enables trend monitoring and rapid performance diagnosis</li>
           </ul>
+          <div className="mt-3 rounded-lg bg-muted/30 border border-border/40 p-3 text-xs">
+            <p className="font-medium text-foreground mb-1">Bonus: Kasa Portfolio Integration</p>
+            <p>As a stretch extension, <strong className="text-foreground">79 Kasa properties</strong> were synchronized from Kasa.com to power the <strong className="text-foreground">KasaSights</strong> page — a dedicated executive layer providing portfolio-wide SWOT analysis, OTA benchmarking, geographic mapping, and AI-generated strategic briefings. This transforms the tool from a competitive tracker into a "so what" decision engine for Kasa leadership.</p>
+          </div>
         </Section>
 
         {/* Outcome */}
