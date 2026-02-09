@@ -11,6 +11,10 @@ import { usePortfolioThemes } from '@/hooks/usePortfolioThemes';
 import { PropertyOwnerInsights } from '@/components/kasa/PropertyOwnerInsights';
 import { usePortfolioBenchmark, useKasaOTAAverages, calculatePercentileInDistribution } from '@/hooks/usePortfolioBenchmark';
 import { useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { exportInsightsToCSV } from '@/lib/csv';
 
 const PLATFORM_NAMES: Record<string, string> = {
   google: 'Google',
@@ -121,14 +125,27 @@ export default function Insights() {
     return <Navigate to="/auth" replace />;
   }
 
+  const { toast } = useToast();
+
+  const handleExportInsights = () => {
+    exportInsightsToCSV(portfolioMetrics, otaBenchmarks, kasaThemes, compThemes);
+    toast({ title: 'Export complete', description: 'KasaSights data exported to CSV.' });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">KasaSights</h1>
-          <p className="mt-2 text-muted-foreground">
-            Portfolio benchmarking and executive insights
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">KasaSights</h1>
+            <p className="mt-2 text-muted-foreground">
+              Portfolio benchmarking and executive insights
+            </p>
+          </div>
+          <Button variant="outline" onClick={handleExportInsights}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
         </div>
 
         {/* 1. Comprehensive Executive Briefing — top of page */}

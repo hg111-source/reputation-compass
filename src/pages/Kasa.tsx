@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, Sparkles, Brain, RefreshCw, Scale, Lightbulb } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, Sparkles, Brain, RefreshCw, Scale, Lightbulb, Download } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { ReviewInsightsDialog } from '@/components/properties/ReviewInsightsDialog';
@@ -39,6 +39,7 @@ import { BulkInsightsDialog } from '@/components/properties/BulkInsightsDialog';
 import { KasaInsightsDialog } from '@/components/kasa/KasaInsightsDialog';
 
 import { getScoreColor, formatScore, REVIEW_SOURCES, calculatePropertyMetrics } from '@/lib/scoring';
+import { exportKasaPropertiesToCSV } from '@/lib/csv';
 import { Property, ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { TableHead } from '@/components/ui/table';
@@ -825,6 +826,19 @@ export default function Kasa() {
                   Refresh Data
                 </>
               )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                exportKasaPropertiesToCSV(sortedKasaProperties, kasaSnapshots);
+                toast({ title: 'Export complete', description: 'Kasa properties exported to CSV.' });
+              }}
+              disabled={sortedKasaProperties.length === 0}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export
             </Button>
           </div>
         </div>
