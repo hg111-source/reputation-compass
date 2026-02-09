@@ -998,7 +998,7 @@ export default function Kasa() {
                           className="text-center"
                         >
                           <img src={tripadvisorLogo} alt="TripAdvisor" className="h-4 w-4 inline mr-1" />
-                          TA
+                          TripAdvisor
                         </SortableTableHead>
                         <SortableTableHead
                           sortKey="booking"
