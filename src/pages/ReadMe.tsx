@@ -23,7 +23,7 @@ function Section({ icon: Icon, title, children }: { icon: React.ElementType; tit
   );
 }
 
-function MiniTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
+function MiniTable({ headers, rows }: { headers: string[]; rows: (string | React.ReactNode)[][] }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-border/50">
       <table className="w-full text-sm">
@@ -364,19 +364,19 @@ export default function ReadMe() {
           <MiniTable
             headers={['Priority', 'Improvement', 'Impact', 'Effort']}
             rows={[
-              ['🟢 P0', 'Date-range trend filtering', 'High', 'Low'],
-              ['🟢 P0', 'Bulk property deletion', 'High', 'Low'],
-              ['🟢 P0', 'AI briefing text in CSV export', 'High', 'Low'],
+              ['🟢 P0', <strong className="text-foreground">Date-range trend filtering</strong>, <strong className="text-foreground">High</strong>, 'Low'],
+              ['🟢 P0', <strong className="text-foreground">Bulk property deletion</strong>, <strong className="text-foreground">High</strong>, 'Low'],
+              ['🟢 P0', <strong className="text-foreground">AI briefing text in CSV export</strong>, <strong className="text-foreground">High</strong>, 'Low'],
               ['🟢 P0', 'Group-level CSV export', 'Medium', 'Low'],
-              ['🟡 P1', 'Re-enable TripAdvisor & Booking.com review text', 'High', 'Medium'],
-              ['🟡 P1', 'Sentiment trends over time', 'High', 'Medium'],
-              ['🟡 P1', 'Real-time score-drop alerts', 'High', 'Medium'],
+              ['🟡 P1', <strong className="text-foreground">Room-weighted portfolio scoring</strong>, <strong className="text-foreground">High</strong>, 'Medium'],
+              ['🟡 P1', <strong className="text-foreground">Re-enable TripAdvisor & Booking.com review text</strong>, <strong className="text-foreground">High</strong>, 'Medium'],
+              ['🟡 P1', <strong className="text-foreground">Sentiment trends over time</strong>, <strong className="text-foreground">High</strong>, 'Medium'],
+              ['🟡 P1', <strong className="text-foreground">Real-time score-drop alerts</strong>, <strong className="text-foreground">High</strong>, 'Medium'],
               ['🟡 P1', 'Automated competitor discovery', 'Medium', 'Medium'],
-              ['🟡 P1', 'Room-weighted portfolio scoring', 'High', 'Medium'],
+              ['🔵 P2', <strong className="text-foreground">Revenue correlation (ADR / RevPAR)</strong>, <strong className="text-foreground">High</strong>, 'High'],
+              ['🔵 P2', <strong className="text-foreground">Property Owner Insight Layer</strong>, <strong className="text-foreground">High</strong>, 'High'],
+              ['🔵 P2', <strong className="text-foreground">Revenue-aware reputation analytics</strong>, <strong className="text-foreground">High</strong>, 'High'],
               ['🔵 P2', 'Platform-specific calibration curves', 'Medium', 'Medium'],
-              ['🔵 P2', 'Revenue correlation (ADR / RevPAR)', 'High', 'High'],
-              ['🔵 P2', 'Property Owner Insight Layer', 'High', 'High'],
-              ['🔵 P2', 'Revenue-aware reputation analytics', 'High', 'High'],
               ['⚪ P3', 'Multi-language sentiment analysis', 'Medium', 'High'],
               ['⚪ P3', 'White-label multi-org support', 'Low', 'High'],
             ]}
