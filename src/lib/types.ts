@@ -21,6 +21,7 @@ export interface Group {
   name: string;
   created_at: string;
   is_public: boolean;
+  description?: string | null;
 }
  
  export interface GroupProperty {

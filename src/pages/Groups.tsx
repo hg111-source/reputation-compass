@@ -167,7 +167,7 @@ export default function Groups() {
     setIsAiFiltering(true);
     try {
       // Create group
-      const group = await createGroup.mutateAsync({ name, isPublic: newGroupPublic });
+      const group = await createGroup.mutateAsync({ name, isPublic: newGroupPublic, description: aiPrompt.trim() || undefined });
 
       // If AI prompt provided, use it to filter and add properties
       if (aiPrompt.trim()) {
@@ -505,7 +505,7 @@ export default function Groups() {
 const STATE_PATTERN = /^[A-Z]{2}_Comp Set$/;
 const SCORE_TIER_NAMES = ['Wonderful (9.0+)', 'Very Good (8.0-8.99)', 'Good (7.0-7.99)', 'Pleasant (6.0-6.99)', 'Needs Work (0-5.99)'];
 
-function getGroupTooltip(name: string): string {
+function getGroupTooltip(name: string, description?: string | null): string {
   const lower = name.toLowerCase();
   if (name === 'Comp Set') return 'All competitor properties (excludes Kasa)';
   if (name === 'Kasa Only') return 'All Kasa-branded properties';
@@ -520,7 +520,8 @@ function getGroupTooltip(name: string): string {
     const stateCode = name.split('_')[0];
     return `Competitor properties located in ${stateCode}`;
   }
-  return `AI-filtered group matching "${name}" — created via natural language search`;
+  if (description) return `AI filter: "${description}"`;
+  return 'Custom group — manually curated';
 }
 
 function GroupCardSections({
@@ -672,7 +673,7 @@ function GroupCard({
   isOwner = true,
   onCopy,
 }: {
-  group: { id: string; name: string; created_at: string; is_public?: boolean; user_id?: string };
+  group: { id: string; name: string; created_at: string; is_public?: boolean; user_id?: string; description?: string | null };
   onDelete: () => void;
   onManage: () => void;
   isSelected: boolean;
@@ -740,7 +741,7 @@ function GroupCard({
 
   const isPrivate = !group.is_public;
 
-  const tooltipText = getGroupTooltip(group.name);
+  const tooltipText = getGroupTooltip(group.name, group.description);
 
   return (
     <>
