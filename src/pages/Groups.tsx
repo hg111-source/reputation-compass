@@ -371,7 +371,8 @@ export default function Groups() {
               />
             ) : (
               /* Table View */
-              <Card className="overflow-hidden shadow-kasa">
+              <Card className="shadow-kasa">
+              <div className="max-h-[70vh] overflow-auto rounded-md">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -420,6 +421,7 @@ export default function Groups() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
               </Card>
             )}
           </div>
@@ -456,7 +458,8 @@ export default function Groups() {
                 ))}
               </div>
             ) : (
-              <Card className="overflow-hidden shadow-kasa">
+              <Card className="shadow-kasa">
+              <div className="max-h-[70vh] overflow-auto rounded-md">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -479,6 +482,7 @@ export default function Groups() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
               </Card>
             )}
           </div>
