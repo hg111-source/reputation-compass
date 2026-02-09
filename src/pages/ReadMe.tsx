@@ -68,7 +68,7 @@ export default function ReadMe() {
     <DashboardLayout>
       <div className="max-w-4xl space-y-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">Bravo Charts</h1>
+          <h1 className="text-4xl font-bold tracking-tight">Read Me</h1>
           <p className="mt-2 text-muted-foreground">AI-native reputation intelligence — context, architecture, and methodology</p>
         </div>
 
