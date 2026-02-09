@@ -130,10 +130,11 @@ export function GroupScoresTable({
 
   return (
     <Card className="overflow-hidden shadow-kasa">
+      <div className="max-h-[70vh] overflow-auto">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
-            <SortableTableHead sortKey="name" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="py-4 font-semibold text-left">Property</SortableTableHead>
+            <SortableTableHead sortKey="name" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="py-4 font-semibold text-left sticky left-0 z-20 bg-background">Property</SortableTableHead>
             <SortableTableHead sortKey="location" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="py-4 font-semibold text-left">Location</SortableTableHead>
             <SortableTableHead sortKey="weightedScore" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[110px] py-4 text-center font-semibold">Weighted Avg</SortableTableHead>
             <SortableTableHead sortKey="totalReviews" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[110px] py-4 text-center font-semibold">Total Reviews</SortableTableHead>
@@ -152,7 +153,7 @@ export function GroupScoresTable({
               )}
               onClick={(e) => handleRowClick(property, e)}
             >
-              <TableCell className="py-4 font-medium">
+              <TableCell className="py-4 font-medium sticky left-0 z-10 bg-background">
                 <div className="flex items-center gap-2">
                   {property.name}
                   <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -200,6 +201,7 @@ export function GroupScoresTable({
           })}
         </TableBody>
       </Table>
+      </div>
     </Card>
   );
 }
