@@ -31,11 +31,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, Sparkles, Brain, RefreshCw, Scale } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, Sparkles, Brain, RefreshCw, Scale, Lightbulb } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { ReviewInsightsDialog } from '@/components/properties/ReviewInsightsDialog';
 import { BulkInsightsDialog } from '@/components/properties/BulkInsightsDialog';
+import { KasaInsightsDialog } from '@/components/kasa/KasaInsightsDialog';
 
 import { getScoreColor, formatScore, REVIEW_SOURCES, calculatePropertyMetrics } from '@/lib/scoring';
 import { Property, ReviewSource } from '@/lib/types';
@@ -174,6 +175,7 @@ export default function Kasa() {
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [insightsProperty, setInsightsProperty] = useState<Property | null>(null);
   const [isBulkInsightsOpen, setIsBulkInsightsOpen] = useState(false);
+  const [isKasaInsightsOpen, setIsKasaInsightsOpen] = useState(false);
   const bulkInsights = useBulkInsights();
 
   // Filter properties that have Kasa data
@@ -901,20 +903,31 @@ export default function Kasa() {
 
             {/* Location Filter */}
             <div className="flex items-center justify-between gap-4">
-              <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger className="w-[320px] h-11 text-base">
-                  <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <SelectValue placeholder="Filter by location" />
-                </SelectTrigger>
-                <SelectContent className="bg-background">
-                  <SelectItem value="all">All Locations ({kasaProperties.length})</SelectItem>
-                  {locationOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select value={locationFilter} onValueChange={setLocationFilter}>
+                  <SelectTrigger className="w-[320px] h-11 text-base">
+                    <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Filter by location" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background">
+                    <SelectItem value="all">All Locations ({kasaProperties.length})</SelectItem>
+                    {locationOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-11 gap-1.5 text-sm"
+                  onClick={() => setIsKasaInsightsOpen(true)}
+                >
+                  <Lightbulb className="h-4 w-4 text-amber-500" />
+                  Kasa Insights
+                </Button>
+              </div>
               <ScoreLegend />
             </div>
 
@@ -1212,6 +1225,30 @@ export default function Kasa() {
         errorCount={bulkInsights.errorCount}
         total={bulkInsights.total}
         onCancel={bulkInsights.cancel}
+      />
+
+      {/* Kasa Portfolio Insights Dialog */}
+      <KasaInsightsDialog
+        open={isKasaInsightsOpen}
+        onOpenChange={setIsKasaInsightsOpen}
+        properties={sortedKasaProperties.map(property => {
+          const snapshot = kasaSnapshots[property.id];
+          const score5 = snapshot?.score_raw ?? property.kasa_aggregated_score;
+          const kasaScore = score5 ? Number(score5) * 2 : null;
+          const metrics = calculatePropertyMetrics(otaScores[property.id]);
+          return {
+            name: property.name,
+            city: property.city,
+            state: property.state,
+            kasaScore,
+            avgScore: metrics.avgScore,
+            totalReviews: metrics.totalReviews,
+            google: otaScores[property.id]?.google?.score ?? null,
+            tripadvisor: otaScores[property.id]?.tripadvisor?.score ?? null,
+            booking: otaScores[property.id]?.booking?.score ?? null,
+            expedia: otaScores[property.id]?.expedia?.score ?? null,
+          };
+        })}
       />
     </DashboardLayout>
   );
