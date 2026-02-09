@@ -58,7 +58,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                     className={cn(
                       'group flex items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
                       isActive
-                        ? 'bg-sidebar-accent text-white'
+                        ? 'bg-white/15 text-white shadow-sm border border-white/10'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-white'
                     )}
                   >
@@ -85,7 +85,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                     className={cn(
                       'group flex items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
                       isActive
-                        ? 'bg-sidebar-accent text-white'
+                        ? 'bg-white/15 text-white shadow-sm border border-white/10'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-white'
                     )}
                   >
