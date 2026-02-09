@@ -178,7 +178,7 @@ export default function ReadMe() {
           </div>
         </Section>
 
-        <div className="border-t border-border/50 pt-2" />
+        <div className="border-t-2 border-border pt-6 mt-2" />
         <div>
           <h2 className="text-2xl font-bold tracking-tight">System Architecture &amp; Methodology</h2>
           <p className="mt-1 text-muted-foreground text-sm">Technical design, data model, and scoring framework</p>
