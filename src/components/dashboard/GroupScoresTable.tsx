@@ -129,8 +129,8 @@ export function GroupScoresTable({
   }
 
   return (
-    <Card className="overflow-hidden shadow-kasa">
-      <div className="max-h-[70vh] overflow-auto">
+    <Card className="shadow-kasa">
+      <div className="max-h-[70vh] overflow-auto rounded-md">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
