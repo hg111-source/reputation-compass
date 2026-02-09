@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Building2, LayoutDashboard, Upload, FolderOpen, LogOut, ChevronRight, Lightbulb } from 'lucide-react';
+import { Building2, LayoutDashboard, Upload, FolderOpen, LogOut, ChevronRight, Lightbulb, Glasses } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HelpModal } from '@/components/layout/HelpModal';
 
@@ -19,6 +19,7 @@ const mainNavItems = [
 ];
 
 const adminNavItems = [
+  { href: '/readme', label: 'Read Me', icon: Glasses },
   { href: '/upload', label: 'Upload', icon: Upload },
 ];
 
