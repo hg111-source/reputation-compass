@@ -588,34 +588,43 @@ function GroupCardSections({
       <div>
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Portfolio</h3>
         <div className={gridClass}>
-          <Card
-            className="shadow-kasa transition-all hover:shadow-kasa-hover border-2 border-dashed border-accent/30 cursor-pointer"
-            onClick={onNavigateDashboard}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-              <CardTitle className="flex items-center gap-1.5 text-xs font-semibold">
-                <Globe className="h-3 w-3 text-accent" />
-                All Properties
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3 pt-0">
-              <div className="mb-2 flex items-center justify-center rounded-md bg-muted/50 py-2">
-                {allPropertiesMetrics.avgScore !== null ? (
-                  <div className="text-center">
-                    <div className={cn('text-xl font-bold', getScoreColor(allPropertiesMetrics.avgScore))}>
-                      {formatScore(allPropertiesMetrics.avgScore)}
+          <TooltipProvider delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card
+                  className="shadow-kasa transition-all hover:shadow-kasa-hover border-2 border-dashed border-accent/30 cursor-pointer"
+                  onClick={onNavigateDashboard}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
+                    <CardTitle className="flex items-center gap-1.5 text-xs font-semibold">
+                      <Globe className="h-3 w-3 text-accent" />
+                      All Properties
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-3 pb-3 pt-0">
+                    <div className="mb-2 flex items-center justify-center rounded-md bg-muted/50 py-2">
+                      {allPropertiesMetrics.avgScore !== null ? (
+                        <div className="text-center">
+                          <div className={cn('text-xl font-bold', getScoreColor(allPropertiesMetrics.avgScore))}>
+                            {formatScore(allPropertiesMetrics.avgScore)}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xl font-bold text-muted-foreground">—</div>
+                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-xl font-bold text-muted-foreground">—</div>
-                )}
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                <span><span className="font-semibold text-foreground">{allPropertiesMetrics.totalProperties}</span> props</span>
-                <span><span className="font-semibold text-foreground">{allPropertiesMetrics.totalReviews.toLocaleString()}</span> reviews</span>
-              </div>
-            </CardContent>
-          </Card>
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span><span className="font-semibold text-foreground">{allPropertiesMetrics.totalProperties}</span> props</span>
+                      <span><span className="font-semibold text-foreground">{allPropertiesMetrics.totalReviews.toLocaleString()}</span> reviews</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs max-w-xs">
+                All properties across the full portfolio
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {renderCards(portfolioGroups)}
         </div>
       </div>
