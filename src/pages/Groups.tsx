@@ -520,7 +520,7 @@ function getGroupTooltip(name: string): string {
     const stateCode = name.split('_')[0];
     return `Competitor properties located in ${stateCode}`;
   }
-  return 'Custom group created via search or manual selection';
+  return `AI-filtered group matching "${name}" — created via natural language search`;
 }
 
 function GroupCardSections({
