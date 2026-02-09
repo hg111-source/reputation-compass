@@ -194,11 +194,11 @@ export function generateSampleScores(): Array<{
  */
 export function getScoreColor(score: number | null): string {
   if (score === null) return 'text-muted-foreground';
-  if (score >= 9) return 'text-emerald-600 dark:text-emerald-400';
-  if (score >= 8) return 'text-foreground';
-  if (score >= 7) return 'text-foreground';
-  if (score >= 6) return 'text-amber-600 dark:text-amber-400';
-  return 'text-red-600 dark:text-red-400';
+  if (score >= 9) return 'text-emerald-500';  // Wonderful
+  if (score >= 8) return 'text-blue-500';     // Very Good
+  if (score >= 7) return 'text-yellow-500';   // Good
+  if (score >= 6) return 'text-orange-500';   // Pleasant
+  return 'text-red-500';                      // Needs Work
 }
 
 export function formatScore(score: number | null | undefined): string {

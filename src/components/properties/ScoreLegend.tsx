@@ -3,11 +3,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 
 const SCORE_TIERS = [
-  { min: 9, label: 'Wonderful', color: 'bg-emerald-600' },
-  { min: 8, label: 'Very Good', color: 'bg-foreground/70' },
-  { min: 7, label: 'Good', color: 'bg-foreground/70' },
-  { min: 6, label: 'Pleasant', color: 'bg-amber-600' },
-  { min: 0, label: 'Needs Work', color: 'bg-red-600' },
+  { min: 9, label: 'Wonderful', color: 'bg-emerald-500' },
+  { min: 8, label: 'Very Good', color: 'bg-blue-500' },
+  { min: 7, label: 'Good', color: 'bg-yellow-500' },
+  { min: 6, label: 'Pleasant', color: 'bg-orange-500' },
+  { min: 0, label: 'Needs Work', color: 'bg-red-500' },
 ];
 
 interface ScoreLegendProps {
