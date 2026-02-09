@@ -931,7 +931,7 @@ export default function Kasa() {
                       }
                     </CardDescription>
                   </div>
-                  <p className="text-xs text-muted-foreground italic text-right max-w-md">
+                  <p className="text-xs text-muted-foreground italic text-right max-w-2xl">
                     Kasa's displayed rating may vary from OTA averages because it possibly incorporates additional data sources such as Airbnb, recency weighting, normalization across platforms, and timing of review ingestion.
                   </p>
                 </div>
