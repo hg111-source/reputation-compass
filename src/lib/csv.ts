@@ -343,30 +343,28 @@ export function exportInsightsToCSV(
   kasaThemes: { positiveThemes: Array<{ theme: string; totalMentions: number }>; negativeThemes: Array<{ theme: string; totalMentions: number }> } | null | undefined,
   compThemes: { positiveThemes: Array<{ theme: string; totalMentions: number }>; negativeThemes: Array<{ theme: string; totalMentions: number }> } | null | undefined,
 ): void {
-  const allRows: Record<string, string | number>[] = [];
+  // Use a uniform column set so Papa.unparse renders all columns
+  const columns = ['Section', 'Label', 'Value 1', 'Value 2', 'Value 3', 'Value 4'];
+  const rows: string[][] = [];
 
   // Portfolio Summary
-  allRows.push({ Section: '--- PORTFOLIO SUMMARY ---' });
+  rows.push(['PORTFOLIO SUMMARY', '', '', '', '', '']);
   if (portfolioMetrics) {
-    allRows.push({ Metric: 'Average Score', Value: formatScore(portfolioMetrics.avgScore) });
-    allRows.push({ Metric: 'Total Properties', Value: portfolioMetrics.totalProperties });
-    allRows.push({ Metric: 'Total Reviews', Value: portfolioMetrics.totalReviews });
+    rows.push(['', 'Average Score', formatScore(portfolioMetrics.avgScore), '', '', '']);
+    rows.push(['', 'Total Properties', String(portfolioMetrics.totalProperties), '', '', '']);
+    rows.push(['', 'Total Reviews', String(portfolioMetrics.totalReviews), '', '', '']);
   }
 
   // OTA Benchmarks
-  allRows.push({ Section: '' });
-  allRows.push({ Section: '--- OTA BENCHMARKS ---' });
+  rows.push(['', '', '', '', '', '']);
+  rows.push(['OTA BENCHMARKS', 'Platform', 'Kasa Score', 'Percentile vs Comps', '', '']);
   otaBenchmarks.forEach(b => {
-    allRows.push({
-      Platform: b.platform,
-      'Kasa Score': formatScore(b.kasaScore),
-      'Percentile vs Comps': b.percentile !== null ? `${b.percentile}%` : '—',
-    });
+    rows.push(['', b.platform, formatScore(b.kasaScore), b.percentile !== null ? `${Math.round(b.percentile)}%` : '—', '', '']);
   });
 
   // Theme Comparison
-  allRows.push({ Section: '' });
-  allRows.push({ Section: '--- THEME COMPARISON ---' });
+  rows.push(['', '', '', '', '', '']);
+  rows.push(['THEME COMPARISON', 'Theme', 'Kasa Positive', 'Kasa Negative', 'Comps Positive', 'Comps Negative']);
 
   const allThemeNames = new Set<string>();
   const kasaPos: Record<string, number> = {};
@@ -380,16 +378,10 @@ export function exportInsightsToCSV(
   compThemes?.negativeThemes?.forEach(t => { allThemeNames.add(t.theme); compNeg[t.theme] = t.totalMentions; });
 
   allThemeNames.forEach(theme => {
-    allRows.push({
-      Theme: theme,
-      'Kasa Positive Mentions': kasaPos[theme] || 0,
-      'Kasa Negative Mentions': kasaNeg[theme] || 0,
-      'Comps Positive Mentions': compPos[theme] || 0,
-      'Comps Negative Mentions': compNeg[theme] || 0,
-    });
+    rows.push(['', theme, String(kasaPos[theme] || 0), String(kasaNeg[theme] || 0), String(compPos[theme] || 0), String(compNeg[theme] || 0)]);
   });
 
-  const csv = Papa.unparse(allRows);
+  const csv = Papa.unparse({ fields: columns, data: rows });
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
