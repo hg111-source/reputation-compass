@@ -188,13 +188,14 @@ export function useExecutiveSummary(
       // Cache in memory immediately
       queryClient.setQueryData(QUERY_KEY, summaryText);
 
-      // Persist to DB (upsert by user_id unique index)
-      await supabase
+      // Persist to DB (upsert by user_id primary key)
+      const { error: upsertError } = await supabase
         .from('executive_summaries')
         .upsert(
-          { user_id: user.id, summary: summaryText, generated_at: new Date().toISOString() },
+          { user_id: user.id, summary: summaryText, generated_at: new Date().toISOString() } as any,
           { onConflict: 'user_id' }
         );
+      if (upsertError) console.error('Failed to save executive summary:', upsertError);
 
       // Invalidate saved query to pick up new timestamp
       queryClient.invalidateQueries({ queryKey: ['executive-summary-saved', user.id] });
