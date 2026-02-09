@@ -40,9 +40,15 @@ export function useGroupMetrics(groupId: string | null): GroupMetrics {
       const { avgScore, totalReviews: propReviews } = calculatePropertyMetrics(propertyScores);
 
       if (avgScore !== null && propReviews > 0) {
-        // Each hotel's weighted avg × its total reviews
         weightedSum += avgScore * propReviews;
         totalReviews += propReviews;
+      }
+
+      // Fold in Kasa internal scores (same as PlatformBreakdown)
+      if (property.kasa_aggregated_score && property.kasa_review_count && property.kasa_review_count > 0) {
+        const normalizedScore = (property.kasa_aggregated_score / 5) * 10;
+        weightedSum += normalizedScore * property.kasa_review_count;
+        totalReviews += property.kasa_review_count;
       }
     }
 
