@@ -1028,7 +1028,7 @@ export default function Kasa() {
                           className="text-center"
                         >
                           <span title="Weighted by review count across platforms" className="flex flex-col items-center gap-0.5">
-                            <Scale className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">Σ</span>
                             <span>OTA Avg</span>
                           </span>
                         </SortableTableHead>
