@@ -477,6 +477,65 @@ function DefaultHelp() {
     </div>
   );
 }
+function ReadMeHelp() {
+  return (
+    <div className="space-y-5 text-sm text-muted-foreground">
+      <section>
+        <h3 className="font-semibold text-foreground mb-1">What Is This Page?</h3>
+        <p>
+          Read Me is the technical documentation and methodology reference for the
+          Bravo Charts reputation intelligence platform. It provides context on
+          <span className="font-medium text-foreground"> why </span> the tool was built,
+          <span className="font-medium text-foreground"> how </span> it works, and
+          <span className="font-medium text-foreground"> where </span> it's headed.
+        </p>
+      </section>
+
+      <Separator />
+
+      <section>
+        <h3 className="font-semibold text-foreground mb-1">What You'll Find</h3>
+        <ul className="space-y-2 list-disc list-inside">
+          <li>
+            <span className="font-medium text-foreground">Context &amp; Goal</span> — the
+            strategic rationale behind building an AI-native reputation dashboard.
+          </li>
+          <li>
+            <span className="font-medium text-foreground">Core Functionality</span> — a
+            summary of what the platform does across data aggregation, scoring, and analysis.
+          </li>
+          <li>
+            <span className="font-medium text-foreground">Architecture &amp; Data Model</span> — the
+            tech stack, table schema, and external data sources powering the system.
+          </li>
+          <li>
+            <span className="font-medium text-foreground">Scoring &amp; Normalization</span> — how
+            ratings from different platforms are normalized to a universal 0–10 scale.
+          </li>
+          <li>
+            <span className="font-medium text-foreground">AI Features</span> — the models and
+            prompting strategies used for sentiment analysis and executive briefings.
+          </li>
+          <li>
+            <span className="font-medium text-foreground">Impact vs. Effort Roadmap</span> — a
+            prioritized list (P0–P3) of future enhancements and their expected value.
+          </li>
+        </ul>
+      </section>
+
+      <Separator />
+
+      <section>
+        <h3 className="font-semibold text-foreground mb-1">Who Is It For?</h3>
+        <p>
+          This page is designed for stakeholders evaluating the platform's methodology,
+          engineers onboarding to the codebase, and leadership reviewing strategic
+          direction and technical depth.
+        </p>
+      </section>
+    </div>
+  );
+}
 
 const pageConfig: Record<string, { title: string; description: string; label: string; Component: () => JSX.Element }> = {
   '/properties': {
@@ -514,6 +573,12 @@ const pageConfig: Record<string, { title: string; description: string; label: st
     description: 'Bulk-import competitor properties via CSV or Excel.',
     label: 'How to Use',
     Component: UploadHelp,
+  },
+  '/readme': {
+    title: 'About Read Me',
+    description: 'Technical documentation, methodology, and roadmap reference.',
+    label: 'How to Use',
+    Component: ReadMeHelp,
   },
 };
 
