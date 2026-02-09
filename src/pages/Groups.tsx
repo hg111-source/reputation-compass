@@ -545,7 +545,8 @@ function GroupCardSections({
     const state: typeof sortedMyGroups = [];
     const custom: typeof sortedMyGroups = [];
 
-    const portfolioKeywords = ['all', 'portfolio', 'comp set', 'kasa only', 'kasa'];
+    const portfolioExactNames = ['comp set', 'kasa only', 'other'];
+    const portfolioContains = ['all properties', 'portfolio'];
 
     for (const g of sortedMyGroups) {
       const nameLower = g.name.toLowerCase();
@@ -554,8 +555,8 @@ function GroupCardSections({
       } else if (STATE_PATTERN.test(g.name)) {
         state.push(g);
       } else if (
-        portfolioKeywords.some(k => nameLower === k || nameLower.includes(k)) ||
-        nameLower === 'other'
+        portfolioExactNames.includes(nameLower) ||
+        portfolioContains.some(k => nameLower.includes(k))
       ) {
         portfolio.push(g);
       } else {
