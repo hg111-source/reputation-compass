@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { usePortfolioBenchmark, calculatePercentileInDistribution } from '@/hooks/usePortfolioBenchmark';
+import { usePortfolioBenchmark, useKasaOTAAverages, calculatePercentileInDistribution } from '@/hooks/usePortfolioBenchmark';
 
 // Import platform logos
 import googleLogo from '@/assets/logos/google.svg';
@@ -12,14 +12,6 @@ import bookingLogo from '@/assets/logos/booking.png';
 import expediaLogo from '@/assets/logos/expedia.png';
 
 type Platform = 'google' | 'tripadvisor' | 'booking' | 'expedia';
-
-// Kasa's actual portfolio OTA averages (from master spreadsheet)
-const KASA_OTA_SCORES: Record<Platform, number> = {
-  google: 9.28,      // 4.64/5 × 2
-  tripadvisor: 9.22, // 4.61/5 × 2
-  booking: 8.32,     // Already /10
-  expedia: 8.69,     // Already /10
-};
 
 // Platform order to match Properties table
 const PLATFORM_ORDER: Platform[] = ['google', 'tripadvisor', 'booking', 'expedia'];
@@ -41,13 +33,17 @@ function getPercentileTier(percentile: number): { color: string; bgColor: string
 }
 
 export function KasaOTAPlatformCard() {
-  const { data: benchmark, isLoading, error } = usePortfolioBenchmark();
+  const { data: benchmark, isLoading: benchmarkLoading, error } = usePortfolioBenchmark();
+  const { data: kasaOTA, isLoading: kasaLoading } = useKasaOTAAverages();
+
+  const isLoading = benchmarkLoading || kasaLoading;
 
   const platformData = useMemo(() => {
-    if (!benchmark || !benchmark.distributions) return [];
+    if (!benchmark || !benchmark.distributions || !kasaOTA) return [];
     
     return PLATFORM_ORDER.map(platform => {
-      const kasaScore = KASA_OTA_SCORES[platform];
+      const kasaData = kasaOTA[platform];
+      const kasaScore = kasaData?.score ?? null;
       const dist = benchmark.distributions?.[platform];
       
       if (!dist || kasaScore === null) {
@@ -55,8 +51,10 @@ export function KasaOTAPlatformCard() {
           platform,
           ...PLATFORM_INFO[platform],
           kasaScore,
-          portfolioAvg: null,
-          portfolioCount: 0,
+          kasaReviews: kasaData?.totalReviews ?? 0,
+          kasaPropertyCount: kasaData?.propertyCount ?? 0,
+          portfolioAvg: dist?.avg ?? null,
+          portfolioCount: dist?.count ?? 0,
           percentile: null,
         };
       }
@@ -69,12 +67,14 @@ export function KasaOTAPlatformCard() {
         platform,
         ...PLATFORM_INFO[platform],
         kasaScore,
+        kasaReviews: kasaData?.totalReviews ?? 0,
+        kasaPropertyCount: kasaData?.propertyCount ?? 0,
         portfolioAvg: dist.avg,
         portfolioCount: dist.count,
         percentile,
       };
     });
-  }, [benchmark]);
+  }, [benchmark, kasaOTA]);
 
   if (isLoading) {
     return (
@@ -113,7 +113,7 @@ export function KasaOTAPlatformCard() {
       <CardHeader>
         <CardTitle>Kasa Portfolio Avg Score & Percentile by Channel</CardTitle>
         <CardDescription>
-          Kasa OTA averages benchmarked against {benchmark?.totalProperties || 0} properties in All Properties
+          Weighted OTA averages benchmarked against {benchmark?.totalProperties || 0} competitor properties
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -134,10 +134,10 @@ export function KasaOTAPlatformCard() {
                   <p className="text-sm font-medium text-muted-foreground">{data.name}</p>
                 </div>
                 <p className={cn('text-xl font-bold', tier.color)}>
-                  {data.kasaScore.toFixed(2)}
+                  {data.kasaScore !== null ? data.kasaScore.toFixed(2) : '—'}
                 </p>
                 <p className="text-xs text-muted-foreground mb-2">
-                  /10 • Portfolio avg: {data.portfolioAvg?.toFixed(2) || 'N/A'}
+                  /10 • {data.kasaReviews.toLocaleString()} reviews
                 </p>
                 {topPercent !== null ? (
                   <Badge variant="outline" className={cn('text-sm font-semibold px-3 py-1', tier.color)}>

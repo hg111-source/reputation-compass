@@ -95,11 +95,17 @@ export function usePortfolioBenchmark() {
   });
 }
 
-// Calculate Kasa portfolio OTA averages dynamically from snapshot data
+// Calculate Kasa portfolio OTA weighted averages dynamically from snapshot data
+export interface KasaOTAAverage {
+  score: number;
+  totalReviews: number;
+  propertyCount: number;
+}
+
 export function useKasaOTAAverages() {
   return useQuery({
-    queryKey: ['kasa-ota-averages'],
-    queryFn: async (): Promise<Record<string, number>> => {
+    queryKey: ['kasa-ota-averages-weighted'],
+    queryFn: async (): Promise<Record<string, KasaOTAAverage>> => {
       // Get Kasa property IDs
       const { data: properties, error: propError } = await supabase
         .from('properties')
@@ -113,7 +119,7 @@ export function useKasaOTAAverages() {
       // Get latest OTA snapshots for Kasa properties
       const { data: snapshots, error: snapError } = await supabase
         .from('source_snapshots')
-        .select('property_id, source, normalized_score_0_10, collected_at')
+        .select('property_id, source, normalized_score_0_10, review_count, collected_at')
         .in('property_id', kasaIds)
         .in('source', ['google', 'tripadvisor', 'booking', 'expedia'])
         .not('normalized_score_0_10', 'is', null)
@@ -122,25 +128,35 @@ export function useKasaOTAAverages() {
       if (snapError) throw snapError;
 
       // Deduplicate: latest per property+platform
-      const latest = new Map<string, number>();
+      const latest = new Map<string, { score: number; count: number }>();
       snapshots?.forEach(s => {
         const key = `${s.property_id}-${s.source}`;
         if (!latest.has(key) && s.normalized_score_0_10 != null) {
-          latest.set(key, Number(s.normalized_score_0_10));
+          latest.set(key, { score: Number(s.normalized_score_0_10), count: s.review_count || 0 });
         }
       });
 
-      // Average by platform
-      const platformScores: Record<string, number[]> = {};
-      latest.forEach((score, key) => {
+      // Weighted average by platform
+      const platformData: Record<string, { totalPoints: number; totalReviews: number; propertyCount: number }> = {};
+      latest.forEach((data, key) => {
         const platform = key.split('-').pop()!;
-        if (!platformScores[platform]) platformScores[platform] = [];
-        platformScores[platform].push(score);
+        if (!platformData[platform]) platformData[platform] = { totalPoints: 0, totalReviews: 0, propertyCount: 0 };
+        if (data.score > 0 && data.count > 0) {
+          platformData[platform].totalPoints += data.score * data.count;
+          platformData[platform].totalReviews += data.count;
+          platformData[platform].propertyCount++;
+        }
       });
 
-      const averages: Record<string, number> = {};
-      Object.entries(platformScores).forEach(([platform, scores]) => {
-        averages[platform] = scores.reduce((a, b) => a + b, 0) / scores.length;
+      const averages: Record<string, KasaOTAAverage> = {};
+      Object.entries(platformData).forEach(([platform, d]) => {
+        if (d.totalReviews > 0) {
+          averages[platform] = {
+            score: d.totalPoints / d.totalReviews,
+            totalReviews: d.totalReviews,
+            propertyCount: d.propertyCount,
+          };
+        }
       });
 
       return averages;
