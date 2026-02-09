@@ -144,7 +144,7 @@ export function GroupScoresTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
-            <SortableTableHead sortKey="name" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="py-4 font-semibold text-left sticky left-0 z-20 bg-background">Property</SortableTableHead>
+            <SortableTableHead sortKey="name" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="py-4 font-semibold text-left sticky left-0 z-20 bg-muted/50">Property</SortableTableHead>
             <SortableTableHead sortKey="location" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="py-4 font-semibold text-left">Location</SortableTableHead>
             <SortableTableHead sortKey="weightedScore" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[110px] py-4 text-center font-semibold">Weighted Avg</SortableTableHead>
             <SortableTableHead sortKey="totalReviews" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[110px] py-4 text-center font-semibold">Total Reviews</SortableTableHead>
@@ -175,7 +175,7 @@ export function GroupScoresTable({
               )}
               onClick={(e) => handleRowClick(property, e)}
             >
-              <TableCell className={cn("py-4 font-medium sticky left-0 z-10", isKasa ? "bg-blue-100/70 dark:bg-blue-950/40" : "bg-background")}>
+              <TableCell className={cn("py-4 font-medium sticky left-0 z-10", isKasa ? "bg-blue-100/70 dark:bg-blue-950/40" : "bg-card")}>
                 <div className="flex items-center gap-2">
                   {property.name}
                   <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />

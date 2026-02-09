@@ -1029,7 +1029,7 @@ export default function Kasa() {
                           currentSort={sortKey}
                           currentDirection={sortDirection}
                           onSort={handleSort}
-                          className="text-left sticky left-0 z-20 bg-background"
+                          className="text-left sticky left-0 z-20 bg-muted/50"
                         >
                           Property Name
                         </SortableTableHead>
@@ -1141,7 +1141,7 @@ export default function Kasa() {
                           <TableRow 
                             key={property.id}
                           >
-                            <TableCell className="font-medium sticky left-0 z-10 bg-background"
+                            <TableCell className="font-medium sticky left-0 z-10 bg-card"
                             >
                               <div className="flex items-center gap-2">
                                 {property.name}
