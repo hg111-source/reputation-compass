@@ -1139,11 +1139,9 @@ export default function Kasa() {
                         
                         return (
                           <TableRow 
-                            key={property.id} 
-                            className={isHotel ? 'bg-muted/30' : ''}
+                            key={property.id}
                           >
                             <TableCell className="font-medium sticky left-0 z-10 bg-background"
-                              style={isHotel ? { backgroundColor: 'hsl(var(--muted) / 0.3)' } : undefined}
                             >
                               <div className="flex items-center gap-2">
                                 {property.name}
