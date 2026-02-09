@@ -525,6 +525,7 @@ export default function Properties() {
             
             {viewMode === 'table' ? (
               <Card className="overflow-hidden shadow-kasa">
+              <div className="max-h-[70vh] overflow-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -533,7 +534,7 @@ export default function Properties() {
                       currentSort={sortKey}
                       currentDirection={sortDirection}
                     onSort={handleSort}
-                    className="font-semibold text-left"
+                    className="font-semibold text-left sticky left-0 z-20 bg-background"
                   >
                     Hotel Name
                   </SortableTableHead>
@@ -682,6 +683,7 @@ export default function Properties() {
                 ))}
               </TableBody>
             </Table>
+              </div>
           </Card>
             ) : (
               /* Card View */

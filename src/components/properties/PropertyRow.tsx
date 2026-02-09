@@ -166,7 +166,7 @@ export function PropertyRow({
   return (
     <TableRow className="group">
       {/* Hotel Name */}
-      <TableCell className="font-medium">
+      <TableCell className="font-medium sticky left-0 z-10 bg-background">
         <div className="flex items-center gap-1.5">
           <a
             href={getHotelLink()}
