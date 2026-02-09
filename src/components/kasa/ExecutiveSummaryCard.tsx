@@ -51,7 +51,7 @@ interface ExecutiveSummaryCardProps {
 }
 
 export function ExecutiveSummaryCard({ kasaThemes, compThemes, portfolioMetrics, otaBenchmarks, topPerformers, needsAttention, isLoading }: ExecutiveSummaryCardProps) {
-  const { summary, generating, error, canGenerate, generate } = useExecutiveSummary(
+  const { summary, generating, error, canGenerate, generate, generatedAt, loadingSaved } = useExecutiveSummary(
     kasaThemes, compThemes, portfolioMetrics, otaBenchmarks, topPerformers, needsAttention, isLoading
   );
 
@@ -93,7 +93,7 @@ export function ExecutiveSummaryCard({ kasaThemes, compThemes, portfolioMetrics,
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        {!summary && !generating && !error && (
+        {!summary && !generating && !error && !loadingSaved && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Get a comprehensive AI briefing synthesizing all your portfolio data:
@@ -115,19 +115,26 @@ export function ExecutiveSummaryCard({ kasaThemes, compThemes, portfolioMetrics,
           </div>
         )}
 
-        {generating && !summary && (
+        {(generating || loadingSaved) && !summary && (
           <div className="flex flex-col items-center gap-3 py-6">
             <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
             <div className="text-center">
-              <p className="text-sm font-medium">Analyzing portfolio data…</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Synthesizing scores, benchmarks, and guest themes</p>
+              <p className="text-sm font-medium">{loadingSaved ? 'Loading saved briefing…' : 'Analyzing portfolio data…'}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{loadingSaved ? '' : 'Synthesizing scores, benchmarks, and guest themes'}</p>
             </div>
           </div>
         )}
 
         {summary && (
-          <div className="rounded-lg border bg-background/80 p-4">
-            <SummaryRenderer content={summary} />
+          <div className="space-y-2">
+            <div className="rounded-lg border bg-background/80 p-4">
+              <SummaryRenderer content={summary} />
+            </div>
+            {generatedAt && (
+              <p className="text-[10px] text-muted-foreground text-right">
+                Generated {new Date(generatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
           </div>
         )}
       </CardContent>
