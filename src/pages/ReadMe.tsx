@@ -136,8 +136,8 @@ export default function ReadMe() {
             </div>
             <div>
               <p className="font-semibold text-foreground">6. Authentication / Access</p>
-              <p className="mt-1">Email login, user-scoped groups, and multi-tenant data isolation.</p>
-              <Badge variant="outline" className="font-normal text-xs mt-2">✓ Optional capability implemented for real-world usability</Badge>
+              <p className="mt-1">Email login with shared-read data model. All authenticated users can <strong className="text-foreground">view</strong> all properties, snapshots, and analysis data. Write operations (create, edit, delete) remain restricted to the data owner.</p>
+              <Badge variant="outline" className="font-normal text-xs mt-2">✓ Shared-read, owner-write model</Badge>
             </div>
           </div>
         </Section>
@@ -243,7 +243,7 @@ export default function ReadMe() {
               ['groups / group_properties', 'User-defined groupings with optional public sharing'],
             ]}
           />
-          <p><strong className="text-foreground">Multi-tenancy:</strong> All user tables enforce <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground">auth.uid() = user_id</code> via Row Level Security. Groups support read-only sharing through an <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground">is_public</code> flag.</p>
+          <p><strong className="text-foreground">Access model:</strong> All authenticated users can <strong className="text-foreground">read</strong> all data. Write operations (insert, update, delete) are restricted to the owner via <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground">auth.uid() = user_id</code> RLS policies. Groups support read-only sharing through an <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground">is_public</code> flag.</p>
         </Section>
 
         {/* External Data Sources */}
@@ -367,7 +367,8 @@ export default function ReadMe() {
               ['🟢 P0', <strong className="text-foreground">Date-range trend filtering</strong>, <strong className="text-foreground">High</strong>, 'Low'],
               ['🟢 P0', <strong className="text-foreground">Bulk property deletion</strong>, <strong className="text-foreground">High</strong>, 'Low'],
               ['🟢 P0', <strong className="text-foreground">AI briefing text in CSV export</strong>, <strong className="text-foreground">High</strong>, 'Low'],
-              ['🟢 P0', 'Group-level CSV export', 'Medium', 'Low'],
+              ['🟢 P0', <strong className="text-foreground">Group-level CSV export</strong>, 'Medium', 'Low'],
+              ['🟢 P0', <strong className="text-foreground">Role-based permissions & edit controls</strong>, <strong className="text-foreground">High</strong>, 'Medium'],
               ['🟡 P1', <strong className="text-foreground">Room-weighted portfolio scoring</strong>, <strong className="text-foreground">High</strong>, 'Medium'],
               ['🟡 P1', <strong className="text-foreground">Re-enable TripAdvisor & Booking.com review text</strong>, <strong className="text-foreground">High</strong>, 'Medium'],
               ['🟡 P1', <strong className="text-foreground">Sentiment trends over time</strong>, <strong className="text-foreground">High</strong>, 'Medium'],
