@@ -1027,7 +1027,7 @@ export default function Kasa() {
                           onSort={handleSort}
                           className="text-center"
                         >
-                          OTA Avg
+                          <span title="Weighted by review count across platforms">OTA Avg ⚖️</span>
                         </SortableTableHead>
                         <TableHead className="text-center">
                           <div className="flex items-center justify-start gap-1">
