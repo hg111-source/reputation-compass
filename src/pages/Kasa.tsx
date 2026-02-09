@@ -941,7 +941,7 @@ export default function Kasa() {
                   </div>
                 ) : (
                   <Table>
-                    <caption className="caption-bottom text-xs text-muted-foreground italic py-2">
+                    <caption className="caption-top text-xs text-muted-foreground italic py-2 text-right">
                       Kasa's displayed rating may vary from OTA averages because it possibly incorporates additional data sources such as Airbnb, recency weighting, normalization across platforms, and timing of review ingestion.
                     </caption>
                     <TableHeader>
