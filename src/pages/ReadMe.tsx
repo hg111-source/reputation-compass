@@ -186,10 +186,10 @@ export default function ReadMe() {
           </ul>
           <div className="mt-4">
             <p className="font-semibold text-foreground mb-1.5">UI / UX Intent</p>
-            <p>The interface was designed to feel immediately familiar to hospitality operators — not engineers. Visual hierarchy, color coding, and layout density were all calibrated for fast scanning and confident decision-making. The design language draws directly from <strong className="text-foreground">Kasa's own brand identity</strong> (navy, teal, cream palette) so the tool feels like a natural extension of how Kasa already presents itself, not a generic third-party dashboard.</p>
+            <p>The interface was designed to feel immediately familiar to hospitality operators. Visual hierarchy, color coding, and layout density were all calibrated for fast scanning and confident decision-making. The design language draws directly from <strong className="text-foreground">Kasa's own brand identity</strong> (navy, teal, cream palette) so the tool feels like a natural extension of how Kasa already presents itself, not a generic third-party dashboard.</p>
           </div>
-          <div className="mt-3 rounded-lg bg-muted/30 border border-border/40 p-3 text-xs">
-            <p className="font-medium text-foreground mb-1">Final Framing</p>
+          <div className="mt-4">
+            <p className="font-semibold text-foreground mb-1.5">Overall</p>
             <p>The core delivers everything the prompt asked for — a working, end-to-end reputation dashboard. The extensions beyond that aren't scope creep; they're a glimpse at where this tool naturally wants to go. Each one was built to plug in cleanly and show how AI-native tooling can move from "nice report" to <strong className="text-foreground">"here's what to do about it"</strong> — which is ultimately what makes a tool like this worth building for a company like Kasa.</p>
           </div>
         </Section>
