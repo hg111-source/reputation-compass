@@ -885,10 +885,50 @@ export default function Kasa() {
                     )}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 space-y-2">
                   <p className="text-xs text-muted-foreground">
                     Avg of {displayStats.propertyCount || kasaProperties.length} property scores
                   </p>
+                  {(() => {
+                    const otaPlatforms: { key: ReviewSource; logo: string; label: string }[] = [
+                      { key: 'google', logo: googleLogo, label: 'G' },
+                      { key: 'tripadvisor', logo: tripadvisorLogo, label: 'TA' },
+                      { key: 'booking', logo: bookingLogo, label: 'B' },
+                      { key: 'expedia', logo: expediaLogo, label: 'E' },
+                    ];
+                    const otaAverages = otaPlatforms.map(p => {
+                      let totalPoints = 0, totalReviews = 0;
+                      for (const prop of kasaProperties) {
+                        const data = otaScores[prop.id]?.[p.key];
+                        if (data && data.score > 0 && data.count > 0) {
+                          totalPoints += data.score * data.count;
+                          totalReviews += data.count;
+                        }
+                      }
+                      return { ...p, avg: totalReviews > 0 ? totalPoints / totalReviews : null, count: totalReviews };
+                    });
+                    return (
+                      <div className="flex items-center gap-3 pt-1 border-t border-border/50">
+                        {otaAverages.map(ota => (
+                          <TooltipProvider key={ota.key}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1">
+                                  <img src={ota.logo} alt={ota.label} className="h-3.5 w-3.5 object-contain" />
+                                  <span className={cn('text-xs font-semibold', ota.avg ? getScoreColor(ota.avg) : 'text-muted-foreground')}>
+                                    {ota.avg ? formatScore(ota.avg) : '—'}
+                                  </span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="text-xs">
+                                {ota.avg ? `${formatScore(ota.avg)} avg · ${ota.count.toLocaleString()} reviews` : 'No data'}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
               <Card>
