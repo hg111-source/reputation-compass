@@ -357,37 +357,32 @@ export default function ReadMe() {
 
         {/* Future */}
         <Section icon={Rocket} title="Future Improvements">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <p className="font-semibold text-foreground mb-2">Short-Term</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Date-range trend filtering</li>
-                <li>AI briefing text in CSV export</li>
-                <li>Group-level CSV export</li>
-                <li>Bulk property deletion</li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold text-foreground mb-2">Medium-Term</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Re-enable TripAdvisor &amp; Booking.com review text</li>
-                <li>Platform-specific calibration curves</li>
-                <li>Automated competitor discovery</li>
-                <li>Sentiment trends over time</li>
-                <li>Room-weighted portfolio scoring to reflect operational scale and revenue exposure</li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold text-foreground mb-2">Long-Term</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Real-time score-drop alerts</li>
-                <li>Revenue correlation (ADR / RevPAR)</li>
-                <li>Multi-language sentiment analysis</li>
-                <li>White-label multi-org support</li>
-                <li>Property Owner Insight Layer with asset-level briefings and competitive context</li>
-                <li>Revenue-aware reputation analytics combining sentiment, unit scale, and financial metrics</li>
-              </ul>
-            </div>
+          <p className="mb-3">Prioritized by <strong className="text-foreground">impact</strong> (operational value to Kasa) vs. <strong className="text-foreground">effort</strong> (engineering complexity).</p>
+          <MiniTable
+            headers={['Priority', 'Improvement', 'Impact', 'Effort']}
+            rows={[
+              ['🟢 P0', 'Date-range trend filtering', 'High', 'Low'],
+              ['🟢 P0', 'Bulk property deletion', 'High', 'Low'],
+              ['🟢 P0', 'AI briefing text in CSV export', 'High', 'Low'],
+              ['🟢 P0', 'Group-level CSV export', 'Medium', 'Low'],
+              ['🟡 P1', 'Re-enable TripAdvisor & Booking.com review text', 'High', 'Medium'],
+              ['🟡 P1', 'Sentiment trends over time', 'High', 'Medium'],
+              ['🟡 P1', 'Real-time score-drop alerts', 'High', 'Medium'],
+              ['🟡 P1', 'Automated competitor discovery', 'Medium', 'Medium'],
+              ['🟡 P1', 'Room-weighted portfolio scoring', 'High', 'Medium'],
+              ['🔵 P2', 'Platform-specific calibration curves', 'Medium', 'Medium'],
+              ['🔵 P2', 'Revenue correlation (ADR / RevPAR)', 'High', 'High'],
+              ['🔵 P2', 'Property Owner Insight Layer', 'High', 'High'],
+              ['🔵 P2', 'Revenue-aware reputation analytics', 'High', 'High'],
+              ['⚪ P3', 'Multi-language sentiment analysis', 'Medium', 'High'],
+              ['⚪ P3', 'White-label multi-org support', 'Low', 'High'],
+            ]}
+          />
+          <div className="flex flex-wrap gap-3 mt-3 text-xs">
+            <span><span className="font-semibold">🟢 P0</span> Quick wins</span>
+            <span><span className="font-semibold">🟡 P1</span> High-value, moderate build</span>
+            <span><span className="font-semibold">🔵 P2</span> Strategic, requires data/infra</span>
+            <span><span className="font-semibold">⚪ P3</span> Long-term vision</span>
           </div>
         </Section>
 
