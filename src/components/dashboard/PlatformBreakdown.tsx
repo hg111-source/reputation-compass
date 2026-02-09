@@ -107,11 +107,6 @@ export function PlatformBreakdown({ properties, scores }: PlatformBreakdownProps
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {platformMetrics
             .filter(metric => metric.totalReviews > 0 && metric.platform !== 'kasa')
-            .filter(() => {
-              // If all properties are Kasa properties, hide individual platform cards and show only Overall
-              const allKasa = properties.every(p => p.kasa_url || p.kasa_aggregated_score);
-              return !allKasa;
-            })
             .map(metric => (
             <div
               key={metric.platform}
