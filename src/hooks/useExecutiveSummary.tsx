@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AggregatedTheme {
   theme: string;
@@ -139,14 +140,36 @@ export function useExecutiveSummary(
   isLoading: boolean,
 ) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const cached = queryClient.getQueryData<string>(QUERY_KEY) ?? null;
+  // Load saved summary from DB
+  const { data: savedSummary, isLoading: loadingSaved } = useQuery({
+    queryKey: ['executive-summary-saved', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('executive_summaries')
+        .select('summary, generated_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: Infinity,
+  });
+
+  // In-memory override (for freshly generated before DB round-trip)
+  const inMemory = queryClient.getQueryData<string>(QUERY_KEY) ?? null;
+  const summary = inMemory ?? savedSummary?.summary ?? null;
+  const generatedAt = savedSummary?.generated_at ?? null;
+
   const canGenerate = !isLoading && (!!kasaThemes || !!compThemes || !!portfolioMetrics);
 
   const generate = async () => {
-    if (!canGenerate) return;
+    if (!canGenerate || !user?.id) return;
     setGenerating(true);
     setError(null);
 
@@ -160,7 +183,21 @@ export function useExecutiveSummary(
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
 
-      queryClient.setQueryData(QUERY_KEY, data.summary);
+      const summaryText = data.summary as string;
+
+      // Cache in memory immediately
+      queryClient.setQueryData(QUERY_KEY, summaryText);
+
+      // Persist to DB (upsert by user_id unique index)
+      await supabase
+        .from('executive_summaries')
+        .upsert(
+          { user_id: user.id, summary: summaryText, generated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+
+      // Invalidate saved query to pick up new timestamp
+      queryClient.invalidateQueries({ queryKey: ['executive-summary-saved', user.id] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate summary');
     } finally {
@@ -168,5 +205,5 @@ export function useExecutiveSummary(
     }
   };
 
-  return { summary: cached, generating, error, canGenerate, generate };
+  return { summary, generating, error, canGenerate, generate, generatedAt, loadingSaved };
 }

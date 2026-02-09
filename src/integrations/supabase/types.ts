@@ -58,6 +58,27 @@ export type Database = {
           },
         ]
       }
+      executive_summaries: {
+        Row: {
+          generated_at: string
+          id: string
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          generated_at?: string
+          id?: string
+          summary: string
+          user_id: string
+        }
+        Update: {
+          generated_at?: string
+          id?: string
+          summary?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       group_properties: {
         Row: {
           created_at: string
