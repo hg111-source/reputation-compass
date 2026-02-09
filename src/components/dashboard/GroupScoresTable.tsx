@@ -15,8 +15,12 @@ import { REVIEW_SOURCES, calculateWeightedScore, formatScore, getScoreColor } fr
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { RefreshCw, Trash2, MapPin, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import googleLogo from '@/assets/logos/google.svg';
+import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
+import bookingLogo from '@/assets/logos/booking.png';
+import expediaLogo from '@/assets/logos/expedia.png';
 
-type SortKey = 'name' | 'location' | 'weightedScore' | 'totalReviews' | null;
+type SortKey = 'name' | 'location' | 'weightedScore' | 'totalReviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | null;
 
 interface GroupScoresTableProps {
   properties: Property[];
@@ -104,6 +108,12 @@ export function GroupScoresTable({
         case 'totalReviews':
           cmp = a.totalReviews - b.totalReviews;
           break;
+        case 'google':
+        case 'tripadvisor':
+        case 'booking':
+        case 'expedia':
+          cmp = (a.scores[sortKey]?.score ?? -1) - (b.scores[sortKey]?.score ?? -1);
+          break;
       }
       return sortDirection === 'desc' ? -cmp : cmp;
     });
@@ -138,6 +148,18 @@ export function GroupScoresTable({
             <SortableTableHead sortKey="location" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="py-4 font-semibold text-left">Location</SortableTableHead>
             <SortableTableHead sortKey="weightedScore" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[110px] py-4 text-center font-semibold">Weighted Avg</SortableTableHead>
             <SortableTableHead sortKey="totalReviews" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[110px] py-4 text-center font-semibold">Total Reviews</SortableTableHead>
+            <SortableTableHead sortKey="google" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[90px] py-4 text-center font-semibold">
+              <img src={googleLogo} alt="Google" className="h-4 w-4 inline mr-1" />Google
+            </SortableTableHead>
+            <SortableTableHead sortKey="tripadvisor" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[90px] py-4 text-center font-semibold">
+              <img src={tripadvisorLogo} alt="TA" className="h-4 w-4 inline mr-1" />TA
+            </SortableTableHead>
+            <SortableTableHead sortKey="booking" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[90px] py-4 text-center font-semibold">
+              <img src={bookingLogo} alt="Booking" className="h-4 w-4 inline mr-1" />Booking
+            </SortableTableHead>
+            <SortableTableHead sortKey="expedia" currentSort={sortKey} currentDirection={sortDirection} onSort={handleSort} className="w-[90px] py-4 text-center font-semibold">
+              <img src={expediaLogo} alt="Expedia" className="h-4 w-4 inline mr-1" />Expedia
+            </SortableTableHead>
             <TableHead className="w-[80px] py-4"></TableHead>
           </TableRow>
         </TableHeader>
@@ -173,6 +195,27 @@ export function GroupScoresTable({
               <TableCell className="py-4 text-center font-medium">
                 {property.totalReviews > 0 ? property.totalReviews.toLocaleString() : '—'}
               </TableCell>
+              {(['google', 'tripadvisor', 'booking', 'expedia'] as ReviewSource[]).map(platform => {
+                const data = property.scores[platform];
+                return (
+                  <TableCell key={platform} className="py-4 text-center">
+                    <div className="flex flex-col items-center gap-0.5">
+                      {data && data.score > 0 ? (
+                        <>
+                          <span className={cn('font-semibold', getScoreColor(data.score))}>
+                            {formatScore(data.score)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {data.count.toLocaleString()}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </TableCell>
+                );
+              })}
               <TableCell className="py-4">
                 <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                   <Button
