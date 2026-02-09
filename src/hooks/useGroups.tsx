@@ -22,11 +22,11 @@
    });
  
   const createGroup = useMutation({
-    mutationFn: async ({ name, isPublic = false }: { name: string; isPublic?: boolean }) => {
+    mutationFn: async ({ name, isPublic = false, description }: { name: string; isPublic?: boolean; description?: string }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
         .from('groups')
-        .insert({ name, user_id: user.id, is_public: isPublic })
+        .insert({ name, user_id: user.id, is_public: isPublic, description: description || null })
         .select()
         .single();
       if (error) throw error;
