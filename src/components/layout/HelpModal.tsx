@@ -11,16 +11,16 @@ import { HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
-function CompetitorsHelp() {
+function CompsHelp() {
   return (
     <div className="space-y-5 text-sm text-muted-foreground">
       <section>
         <h3 className="font-semibold text-foreground mb-1">What Is This Page?</h3>
         <p>
-          The Competitors page is your central hub for tracking how competing
-          properties are rated across Google, TripAdvisor, Booking.com, and
-          Expedia. Properties here are <span className="font-medium text-foreground">not</span> your
-          Kasa listings — those live on the dedicated Kasa tab.
+          Comps is your central hub for tracking competitor hotel ratings across
+          Google, TripAdvisor, Booking.com, and Expedia. Properties listed here are
+          <span className="font-medium text-foreground"> not </span>
+          Kasa listings — those live on the Kasa tab.
         </p>
       </section>
 
@@ -31,15 +31,14 @@ function CompetitorsHelp() {
         <ul className="space-y-2 list-disc list-inside">
           <li>
             <span className="font-medium text-foreground">Bulk Upload</span> — go to
-            the <span className="font-medium text-foreground">Upload</span> page (sidebar)
-            and import a CSV with property names, cities, and states. The system
-            will automatically resolve Google Place IDs and OTA URLs.
+            the <span className="font-medium text-foreground">Upload</span> page in the
+            sidebar and import a CSV or Excel file with property names, cities, and
+            states. Google Place IDs and OTA URLs are resolved automatically.
           </li>
           <li>
             <span className="font-medium text-foreground">Add Manually</span> — click
-            the <span className="font-medium text-foreground">Add Property</span> button
-            in the top-right. Start typing a hotel name to auto-complete from Google,
-            or enter details by hand. Scores are fetched automatically after adding.
+            <span className="font-medium text-foreground"> Add Property</span> in the
+            toolbar. Start typing to autocomplete from Google, or enter details by hand.
           </li>
         </ul>
       </section>
@@ -51,7 +50,7 @@ function CompetitorsHelp() {
         <ul className="space-y-2 list-disc list-inside">
           <li>
             <span className="font-medium text-foreground">Single Cell</span> — click
-            the refresh icon on any individual platform score to re-fetch just that rating.
+            the refresh icon on any platform score to re-fetch that rating.
           </li>
           <li>
             <span className="font-medium text-foreground">Single Row</span> — use the
@@ -59,12 +58,8 @@ function CompetitorsHelp() {
           </li>
           <li>
             <span className="font-medium text-foreground">Refresh All</span> — the
-            button at the top re-fetches every property across all platforms in one
-            batch, with a live progress dialog.
-          </li>
-          <li>
-            <span className="font-medium text-foreground">Resolve Pending</span> —
-            re-attempts URL resolution for any property/platform that hasn't been matched yet.
+            toolbar button re-fetches every property across all platforms with a live
+            progress dialog.
           </li>
         </ul>
       </section>
@@ -72,34 +67,33 @@ function CompetitorsHelp() {
       <Separator />
 
       <section>
-        <h3 className="font-semibold text-foreground mb-1">Sorting &amp; Filtering</h3>
+        <h3 className="font-semibold text-foreground mb-1">Sorting, Filtering &amp; Views</h3>
         <p>
-          Click any column header to sort ascending or descending. Use the
+          Click any column header to sort. Use the
           <span className="font-medium text-foreground"> Group </span>
-          dropdown to filter properties by group. Switch between
+          dropdown to filter by group. Toggle between
           <span className="font-medium text-foreground"> Table </span> and
-          <span className="font-medium text-foreground"> Card </span> views with
-          the toggle in the toolbar.
+          <span className="font-medium text-foreground"> Card </span> views in the toolbar.
         </p>
       </section>
 
       <Separator />
 
       <section>
-        <h3 className="font-semibold text-foreground mb-1">Insights &amp; History</h3>
+        <h3 className="font-semibold text-foreground mb-1">AI Insights &amp; History</h3>
         <ul className="space-y-2 list-disc list-inside">
           <li>
             <span className="font-medium text-foreground">AI Insights</span> — click
-            the brain icon on any property row to generate an AI-powered summary of
-            guest sentiment. Cached results show an amber icon.
+            the brain icon on any row to generate an AI-powered sentiment summary.
+            Cached results show an amber icon.
           </li>
           <li>
             <span className="font-medium text-foreground">Score History</span> — click
-            the chart icon on a property row to see how scores have trended over time.
+            the chart icon to see how scores have trended over time.
           </li>
           <li>
-            <span className="font-medium text-foreground">Bulk Insights</span> — use
-            the bulk action to generate AI analysis for all properties at once.
+            <span className="font-medium text-foreground">Bulk Insights</span> — generate
+            AI analysis for all properties at once.
           </li>
         </ul>
       </section>
@@ -127,19 +121,19 @@ function KasaHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">What Is This Page?</h3>
         <p>
-          The Kasa page manages your portfolio of Kasa-branded properties. It displays
-          aggregated guest scores, review counts, and city/state information for all
-          properties sourced from the Kasa platform.
+          The Kasa page manages your portfolio of Kasa-branded properties. It shows
+          aggregated guest scores, review counts, property type, and location for
+          every property sourced from kasa.com.
         </p>
       </section>
 
       <Separator />
 
       <section>
-        <h3 className="font-semibold text-foreground mb-1">Filtering &amp; Sorting</h3>
+        <h3 className="font-semibold text-foreground mb-1">Sorting, Filtering &amp; Views</h3>
         <p>
-          Use the <span className="font-medium text-foreground">location filter</span> above the
-          table to narrow properties by city or state. Click column headers to sort by name,
+          Use the <span className="font-medium text-foreground">location filter</span> to
+          narrow properties by city or state. Click column headers to sort by name,
           location, score, or review count. Toggle between
           <span className="font-medium text-foreground"> Table </span> and
           <span className="font-medium text-foreground"> Card </span> views.
@@ -149,21 +143,11 @@ function KasaHelp() {
       <Separator />
 
       <section>
-        <h3 className="font-semibold text-foreground mb-1">Property Types</h3>
-        <p>
-          Properties are distinguished by type (e.g., hotel, apartment). The type column
-          helps you filter and compare performance across different property categories.
-        </p>
-      </section>
-
-      <Separator />
-
-      <section>
         <h3 className="font-semibold text-foreground mb-1">AI Insights</h3>
         <p>
-          Click the brain icon on any Kasa property row to generate an AI-powered review
-          analysis. Previously generated insights are cached and indicated with an amber icon —
-          click again to view the cached result without re-generating.
+          Click the brain icon on any Kasa property to generate an AI-powered review
+          analysis. Previously generated insights are cached (amber icon) — click
+          again to view them without re-generating.
         </p>
       </section>
 
@@ -172,37 +156,22 @@ function KasaHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">Refreshing Data</h3>
         <p>
-          Click the <span className="font-medium text-foreground">Refresh Data</span> button
-          in the top-right to re-scrape all Kasa properties from kasa.com. This safely
-          updates scores and review counts — existing data is preserved if a property
-          fails to scrape. A progress bar tracks the operation. Additional buttons appear
-          automatically when there are unknown locations or missing scores to fix.
+          Click <span className="font-medium text-foreground">Refresh Data</span> to
+          re-scrape all Kasa properties from kasa.com. Scores and review counts are
+          updated safely — existing data is preserved if a property fails to scrape.
+          A progress bar tracks the operation.
         </p>
       </section>
 
       <Separator />
 
       <section>
-        <h3 className="font-semibold text-foreground mb-1">📌 How Scores Work</h3>
+        <h3 className="font-semibold text-foreground mb-1">How Scores Work</h3>
         <p>
-          The aggregated score shown for each Kasa property is pulled directly from
-          <span className="font-medium text-foreground"> kasa.com</span>. Kasa pre-aggregates
-          guest ratings across multiple OTA platforms (Google, TripAdvisor, Booking.com,
-          Expedia) into a single weighted score — so what you see here is already a
-          cross-platform composite.
-        </p>
-      </section>
-
-      <Separator />
-
-      <section>
-        <h3 className="font-semibold text-foreground mb-1">🔮 Future Improvements</h3>
-        <p>
-          <span className="font-medium text-foreground">Per-OTA Scores &amp; Reviews</span> —
-          fetch individual scores and reviews from Google, TripAdvisor, Booking.com, and
-          Expedia for each Kasa property. This would enable per-platform score breakdowns
-          and sentiment analysis, similar to what the Competitors page offers today.
-          Right now, the score shown is a single aggregate pulled from kasa.com.
+          Each Kasa property's score is pulled directly from kasa.com. Kasa
+          pre-aggregates guest ratings across multiple OTA platforms (Google,
+          TripAdvisor, Booking.com, Expedia) into a single weighted composite — so
+          the score shown here is already a cross-platform average.
         </p>
       </section>
     </div>
@@ -215,8 +184,8 @@ function GroupsHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">What Is This Page?</h3>
         <p>
-          Groups let you organize properties into segments — by region, brand, score tier,
-          or any custom criteria. Each group tracks a weighted average score over time so
+          Groups let you organize properties into segments — by region, brand, score
+          tier, or any custom criteria. Each group tracks a weighted average score so
           you can monitor portfolio-level trends.
         </p>
       </section>
@@ -226,11 +195,12 @@ function GroupsHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">Layout</h3>
         <p>
-          Groups are organized into sections: <span className="font-medium text-foreground">Portfolio</span> (including
-          "Other" and portfolio-wide groups) at the top, followed by
-          <span className="font-medium text-foreground"> By Score</span> and
-          <span className="font-medium text-foreground"> By State</span> sections.
-          Switch between Card and Table views using the toggle.
+          Groups are organized into sections:
+          <span className="font-medium text-foreground"> Portfolio</span> (including
+          "Other" and portfolio-wide groups),
+          <span className="font-medium text-foreground"> By Score</span>, and
+          <span className="font-medium text-foreground"> By State</span>.
+          Toggle between Card and Table views.
         </p>
       </section>
 
@@ -242,12 +212,11 @@ function GroupsHelp() {
           <li>
             <span className="font-medium text-foreground">Manual</span> — click
             <span className="font-medium text-foreground"> Create Group</span>, name it,
-            and assign properties from your portfolio.
+            and assign properties.
           </li>
           <li>
-            <span className="font-medium text-foreground">Auto-Group</span> — use the AI
-            auto-group feature to automatically cluster properties by city, state, or
-            score tier. This saves time when organizing large portfolios.
+            <span className="font-medium text-foreground">Auto-Group</span> — use AI
+            to automatically cluster properties by city, state, or score tier.
           </li>
         </ul>
       </section>
@@ -257,10 +226,9 @@ function GroupsHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">Visibility</h3>
         <p>
-          Groups can be set to <span className="font-medium text-foreground">Public</span> or
+          Groups can be <span className="font-medium text-foreground">Public</span> or
           <span className="font-medium text-foreground"> Private</span>. Toggle visibility
-          directly from the table view. Public groups are included in portfolio-wide
-          aggregations.
+          from the table view. Public groups are included in portfolio-wide aggregations.
         </p>
       </section>
 
@@ -269,8 +237,8 @@ function GroupsHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">Navigating to Dashboard</h3>
         <p>
-          Click any group card to navigate directly to the Dashboard filtered for that
-          group, where you can see detailed scores, platform breakdowns, and trend charts.
+          Click any group card to jump to the Dashboard filtered for that group,
+          showing detailed scores, platform breakdowns, and trend charts.
         </p>
       </section>
     </div>
@@ -283,9 +251,9 @@ function DashboardHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">What Is This Page?</h3>
         <p>
-          The Dashboard provides a portfolio-level overview of property performance. It
-          defaults to showing all properties but can be filtered to a specific group using
-          the group selector next to the title.
+          The Dashboard gives you a portfolio-level overview of property performance.
+          It defaults to showing all properties but can be filtered to a specific
+          group using the dropdown next to the title.
         </p>
       </section>
 
@@ -295,12 +263,12 @@ function DashboardHelp() {
         <h3 className="font-semibold text-foreground mb-1">Key Metrics</h3>
         <ul className="space-y-2 list-disc list-inside">
           <li>
-            <span className="font-medium text-foreground">Portfolio Weighted Average</span> —
-            the review-count-weighted average across all properties and platforms, on a 0–10 scale.
+            <span className="font-medium text-foreground">Weighted Average</span> —
+            review-count-weighted average across all properties and platforms (0–10).
           </li>
           <li>
             <span className="font-medium text-foreground">Total Reviews</span> — combined
-            review count across all platforms and properties.
+            review count across every platform.
           </li>
           <li>
             <span className="font-medium text-foreground">Properties</span> — total count
@@ -314,8 +282,8 @@ function DashboardHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">Platform Breakdown</h3>
         <p>
-          See how properties perform on each platform (Google, TripAdvisor, Booking.com,
-          Expedia) with average scores and review distributions.
+          See how properties perform on each platform (Google, TripAdvisor,
+          Booking.com, Expedia) with average scores and review distributions.
         </p>
       </section>
 
@@ -324,9 +292,9 @@ function DashboardHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">Group Filtering</h3>
         <p>
-          Use the group selector dropdown to filter the dashboard to a specific group.
-          The dropdown shows property counts per group. You can also deep-link from the
-          Groups page by clicking a group card.
+          Use the group selector to filter to a specific group. The dropdown shows
+          property counts per group. You can also deep-link from the Groups page by
+          clicking a group card.
         </p>
       </section>
 
@@ -349,15 +317,15 @@ function DashboardHelp() {
   );
 }
 
-function InsightsHelp() {
+function KasaSightsHelp() {
   return (
     <div className="space-y-5 text-sm text-muted-foreground">
       <section>
         <h3 className="font-semibold text-foreground mb-1">What Is This Page?</h3>
         <p>
-          KasaSights provides portfolio-wide guest sentiment analysis comparing your
-          Kasa properties against the Competitor set. It follows a structured narrative
-          designed for executive scannability.
+          KasaSights provides portfolio-wide guest sentiment analysis, comparing your
+          Kasa properties against the Comps set. It's structured for executive
+          scannability.
         </p>
       </section>
 
@@ -368,8 +336,8 @@ function InsightsHelp() {
         <ol className="space-y-2 list-decimal list-inside">
           <li>
             <span className="font-medium text-foreground">Executive Briefing</span> — an
-            AI-generated strategic summary of portfolio health, channel performance, and
-            guest themes.
+            AI-generated strategic summary of portfolio health, channel performance,
+            and guest themes.
           </li>
           <li>
             <span className="font-medium text-foreground">Portfolio Scorecard</span> — a
@@ -382,15 +350,15 @@ function InsightsHelp() {
           <li>
             <span className="font-medium text-foreground">Theme Comparison</span> — a
             diverging bar chart comparing guest sentiment themes (e.g., cleanliness,
-            location) between Kasa and competitors as a share of conversation.
+            location) between Kasa and Comps. Blue bars = Kasa, gray bars = Comps.
           </li>
           <li>
-            <span className="font-medium text-foreground">Geographic Map</span> — a visual
-            map of property locations and scores by state.
+            <span className="font-medium text-foreground">Geographic Map</span> — a
+            visual map of property locations and scores by state.
           </li>
           <li>
             <span className="font-medium text-foreground">Score Distribution</span> —
-            collapsed by default; shows how properties are distributed across score tiers.
+            shows how properties are distributed across score tiers.
           </li>
         </ol>
       </section>
@@ -400,8 +368,8 @@ function InsightsHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">Generating the Briefing</h3>
         <p>
-          Click the <span className="font-medium text-foreground">Generate Briefing</span> button
-          to create or refresh the AI executive summary. The briefing is cached — it
+          Click <span className="font-medium text-foreground">Generate Briefing</span> to
+          create or refresh the AI executive summary. The briefing is cached — it
           persists during tab navigation but refreshes on full page reload.
         </p>
       </section>
@@ -411,9 +379,9 @@ function InsightsHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">Reading the Theme Chart</h3>
         <p>
-          Bars extending left represent Competitor strengths; bars extending right represent
-          Kasa strengths. Badges (Kasa+, Comp+, Even) indicate the leader for each theme.
-          Hover for raw mention counts.
+          Bars extending left represent Comps mention share; bars extending right
+          represent Kasa mention share. Badges (Kasa+, Comp+, Even) indicate the
+          leader for each theme. Hover for raw mention counts.
         </p>
       </section>
     </div>
@@ -426,21 +394,25 @@ function UploadHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">What Is This Page?</h3>
         <p>
-          The Upload page allows you to bulk-import competitor properties via CSV file.
-          This is the fastest way to add many properties at once instead of entering them
-          one by one on the Competitors page.
+          Upload lets you bulk-import competitor properties via CSV or Excel file.
+          This is the fastest way to add many properties at once instead of entering
+          them one by one on the Comps page.
         </p>
       </section>
 
       <Separator />
 
       <section>
-        <h3 className="font-semibold text-foreground mb-1">CSV Format</h3>
+        <h3 className="font-semibold text-foreground mb-1">File Format</h3>
         <p>
-          Your CSV file should include columns for <span className="font-medium text-foreground">name</span>,
-          <span className="font-medium text-foreground"> city</span>, and
-          <span className="font-medium text-foreground"> state</span> at minimum. After upload,
-          the system automatically resolves Google Place IDs and OTA platform URLs for each property.
+          Your file should include columns for
+          <span className="font-medium text-foreground"> Name</span>,
+          <span className="font-medium text-foreground"> City</span>, and
+          <span className="font-medium text-foreground"> State</span> at minimum.
+          Both <span className="font-medium text-foreground">.csv</span> and
+          <span className="font-medium text-foreground"> .xlsx</span> formats are
+          supported. After upload, Google Place IDs and OTA platform URLs are resolved
+          automatically.
         </p>
       </section>
 
@@ -449,61 +421,16 @@ function UploadHelp() {
       <section>
         <h3 className="font-semibold text-foreground mb-1">After Upload</h3>
         <p>
-          Once properties are imported, navigate to the <span className="font-medium text-foreground">Competitors</span> page
-          to see them in your table. Use the <span className="font-medium text-foreground">Refresh All</span> button
-          to fetch scores across all platforms, or let the auto-heal system pick up
-          any missing scores automatically.
+          Navigate to the <span className="font-medium text-foreground">Comps</span> page
+          to see your imported properties. Use
+          <span className="font-medium text-foreground"> Refresh All</span> to fetch
+          scores across all platforms, or let the auto-heal system pick up missing
+          scores automatically.
         </p>
       </section>
     </div>
   );
 }
-
-const pageConfig: Record<string, { title: string; description: string; label: string; Component: () => JSX.Element }> = {
-  '/properties': {
-    title: 'How to Use Competitors',
-    description: 'Everything you need to know about tracking competitor properties.',
-    label: 'How to Use',
-    Component: CompetitorsHelp,
-  },
-  '/kasa': {
-    title: 'How to Use Kasa',
-    description: 'Managing your Kasa property portfolio.',
-    label: 'How to Use',
-    Component: KasaHelp,
-  },
-  '/groups': {
-    title: 'How to Use Groups',
-    description: 'Organizing properties into segments for analysis.',
-    label: 'How to Use',
-    Component: GroupsHelp,
-  },
-  '/dashboard': {
-    title: 'How to Use Dashboard',
-    description: 'Portfolio-level performance overview.',
-    label: 'How to Use',
-    Component: DashboardHelp,
-  },
-  '/insights': {
-    title: 'How to Use KasaSights',
-    description: 'Portfolio-wide sentiment analysis and strategic insights.',
-    label: 'How to Use',
-    Component: InsightsHelp,
-  },
-  '/upload': {
-    title: 'How to Use Upload',
-    description: 'Bulk-importing properties via CSV.',
-    label: 'How to Use',
-    Component: UploadHelp,
-  },
-};
-
-const defaultConfig = {
-  title: 'How This Dashboard Works',
-  description: 'A quick reference for the reputation tracking system.',
-  label: 'Help',
-  Component: DefaultHelp,
-};
 
 function DefaultHelp() {
   return (
@@ -550,6 +477,52 @@ function DefaultHelp() {
     </div>
   );
 }
+
+const pageConfig: Record<string, { title: string; description: string; label: string; Component: () => JSX.Element }> = {
+  '/properties': {
+    title: 'How to Use Comps',
+    description: 'Track and compare competitor property ratings across OTA platforms.',
+    label: 'How to Use',
+    Component: CompsHelp,
+  },
+  '/kasa': {
+    title: 'How to Use Kasa',
+    description: 'Manage and monitor your Kasa property portfolio.',
+    label: 'How to Use',
+    Component: KasaHelp,
+  },
+  '/groups': {
+    title: 'How to Use Groups',
+    description: 'Organize properties into segments for portfolio analysis.',
+    label: 'How to Use',
+    Component: GroupsHelp,
+  },
+  '/dashboard': {
+    title: 'How to Use Dashboard',
+    description: 'Portfolio-level performance overview with group filtering.',
+    label: 'How to Use',
+    Component: DashboardHelp,
+  },
+  '/insights': {
+    title: 'How to Use KasaSights',
+    description: 'Portfolio-wide sentiment analysis comparing Kasa vs Comps.',
+    label: 'How to Use',
+    Component: KasaSightsHelp,
+  },
+  '/upload': {
+    title: 'How to Use Upload',
+    description: 'Bulk-import competitor properties via CSV or Excel.',
+    label: 'How to Use',
+    Component: UploadHelp,
+  },
+};
+
+const defaultConfig = {
+  title: 'How This Dashboard Works',
+  description: 'A quick reference for the reputation tracking system.',
+  label: 'Help',
+  Component: DefaultHelp,
+};
 
 export function HelpModal() {
   const location = useLocation();
