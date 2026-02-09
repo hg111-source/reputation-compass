@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Layers, Database, Globe, Calculator, Brain, AlertTriangle, Zap, Rocket, Target, Crosshair, FileText, MessageSquare, BookOpen, CheckCircle2, Lightbulb, Shield, Compass } from 'lucide-react';
+import { Layers, Database, Globe, Calculator, Brain, AlertTriangle, Zap, Rocket, Target, Crosshair, FileText, MessageSquare, BookOpen, CheckCircle2, Lightbulb, Shield, Compass, Github, ExternalLink } from 'lucide-react';
 
 function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
@@ -67,9 +67,21 @@ export default function ReadMe() {
   return (
     <DashboardLayout>
       <div className="max-w-4xl space-y-6">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">Read Me</h1>
-          <p className="mt-2 text-muted-foreground">AI-native reputation intelligence — context, architecture, and methodology</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">Read Me</h1>
+            <p className="mt-2 text-muted-foreground">AI-native reputation intelligence — context, architecture, and methodology</p>
+          </div>
+          <a
+            href="https://github.com/jmdigitalstudio/bravo-charts"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent/10 hover:text-accent"
+          >
+            <Github className="h-4 w-4" />
+            Source Code
+            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+          </a>
         </div>
 
         {/* Context */}
