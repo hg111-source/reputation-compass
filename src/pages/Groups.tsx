@@ -684,11 +684,13 @@ function GroupCard({
   const { avgScore, totalProperties, totalReviews, isLoading, properties, scores } = useGroupMetrics(group.id);
   const { updateGroup } = useGroups();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(group.name);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [copyName, setCopyName] = useState(`${group.name} (Copy)`);
+  const [isRefiltering, setIsRefiltering] = useState(false);
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't navigate if clicking on interactive elements
@@ -730,6 +732,41 @@ function GroupCard({
   const handleExport = () => {
     exportGroupToCSV(group.name, properties, scores as Record<string, Record<ReviewSource, { score: number; count: number; updated: string }>>);
     toast({ title: 'Export complete', description: 'Group exported to CSV.' });
+  };
+
+  const handleRefilter = async () => {
+    if (!group.description) return;
+    setIsRefiltering(true);
+    try {
+      const response = await supabase.functions.invoke('smart-group-filter', {
+        body: { prompt: group.description },
+      });
+
+      if (response.error) throw response.error;
+
+      // Clear existing properties
+      await supabase.from('group_properties').delete().eq('group_id', group.id);
+
+      // Add new matches
+      const matchedIds = response.data?.propertyIds || [];
+      if (matchedIds.length > 0) {
+        await supabase.from('group_properties').insert(
+          matchedIds.map((pid: string) => ({ group_id: group.id, property_id: pid }))
+        );
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['group-properties'] });
+      queryClient.invalidateQueries({ queryKey: ['group-metrics'] });
+      toast({
+        title: 'Group re-filtered',
+        description: `Found ${matchedIds.length} properties matching "${group.description}"`,
+      });
+    } catch (error) {
+      console.error('Re-filter error:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to re-filter group.' });
+    } finally {
+      setIsRefiltering(false);
+    }
   };
 
   const handleCopy = () => {
@@ -804,6 +841,16 @@ function GroupCard({
                     <Pencil className="mr-2 h-4 w-4" />
                     Rename
                   </DropdownMenuItem>
+                  {group.description && (
+                    <DropdownMenuItem onClick={handleRefilter} disabled={isRefiltering}>
+                      {isRefiltering ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
+                      Re-filter Properties
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={handleTogglePublic}>
                     {group.is_public ? (
                       <>
