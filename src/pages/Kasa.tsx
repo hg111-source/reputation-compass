@@ -943,7 +943,7 @@ export default function Kasa() {
                     <p className="text-sm mt-1">Click "Import from Kasa.com" to get started.</p>
                   </div>
                 ) : (
-                  <div className="max-h-[70vh] overflow-auto rounded-md border">
+                  <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
