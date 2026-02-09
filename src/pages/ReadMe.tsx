@@ -186,7 +186,7 @@ export default function ReadMe() {
           </ul>
           <div className="mt-3 rounded-lg bg-muted/30 border border-border/40 p-3 text-xs">
             <p className="font-medium text-foreground mb-1">Final Framing</p>
-            <p>The core submission delivers exactly what was requested. The additional extensions are intentionally modular, non-blocking, and strategically aligned to Kasa's operating model — so the demo proves not only technical execution, but also <strong className="text-foreground">operator-level thinking</strong> about where this capability leads.</p>
+            <p>The core delivers everything the prompt asked for — a working, end-to-end reputation dashboard. The extensions beyond that aren't scope creep; they're a glimpse at where this tool naturally wants to go. Each one was built to plug in cleanly and show how AI-native tooling can move from "nice report" to <strong className="text-foreground">"here's what to do about it"</strong> — which is ultimately what makes a tool like this worth building for a company like Kasa.</p>
           </div>
         </Section>
 
