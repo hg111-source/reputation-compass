@@ -194,8 +194,8 @@ function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 
         const compBarPct = (t.compMentions / maxVal) * 100;
         const kasaSharePct = Math.round((t.kasaMentions / totalKasa) * 100);
         const compSharePct = Math.round((t.compMentions / totalComp) * 100);
-        const kasaColor = type === 'positive' ? 'bg-teal-500' : 'bg-rose-400';
-        const compColor = type === 'positive' ? 'bg-blue-500' : 'bg-orange-400';
+        const kasaColor = type === 'positive' ? 'bg-teal-500' : 'bg-teal-300';
+        const compColor = type === 'positive' ? 'bg-blue-500' : 'bg-blue-300';
 
         return (
           <div
@@ -353,9 +353,9 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading, onRefre
         </p>
         <div className="flex items-center gap-4 text-xs mt-2">
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-500" /> Kasa (strength)</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-rose-400" /> Kasa (pain point)</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-300" /> Kasa (pain point)</span>
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500" /> Comps (strength)</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-orange-400" /> Comps (pain point)</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-300" /> Comps (pain point)</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
