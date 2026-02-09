@@ -129,6 +129,15 @@ export default function Insights() {
 
 
   const handleExportInsights = () => {
+    const hasData = portfolioMetrics || otaBenchmarks.length > 0 || kasaThemes || compThemes;
+    if (!hasData) {
+      toast({ title: 'No data to export', description: 'Please wait for data to finish loading.', variant: 'destructive' });
+      return;
+    }
+    console.log('[Export] portfolioMetrics:', portfolioMetrics);
+    console.log('[Export] otaBenchmarks:', otaBenchmarks);
+    console.log('[Export] kasaThemes:', kasaThemes);
+    console.log('[Export] compThemes:', compThemes);
     exportInsightsToCSV(portfolioMetrics, otaBenchmarks, kasaThemes, compThemes);
     toast({ title: 'Export complete', description: 'KasaSights data exported to CSV.' });
   };
