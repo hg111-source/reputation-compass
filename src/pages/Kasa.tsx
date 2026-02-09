@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, Sparkles, Brain, RefreshCw } from 'lucide-react';
+import { Search, Loader2, Star, ExternalLink, MapPin, Building2, Home, Info, TrendingUp, Sparkles, Brain, RefreshCw, Scale } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { ReviewInsightsDialog } from '@/components/properties/ReviewInsightsDialog';
@@ -1027,7 +1027,10 @@ export default function Kasa() {
                           onSort={handleSort}
                           className="text-center"
                         >
-                          <span title="Weighted by review count across platforms">OTA Avg ⚖️</span>
+                          <span title="Weighted by review count across platforms" className="flex flex-col items-center gap-0.5">
+                            <Scale className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>OTA Avg</span>
+                          </span>
                         </SortableTableHead>
                         <TableHead className="text-center">
                           <div className="flex items-center justify-start gap-1">
