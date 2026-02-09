@@ -130,7 +130,7 @@ export function GroupScoresTable({
 
   return (
     <Card className="shadow-kasa">
-      <div className="max-h-[70vh] overflow-auto rounded-md">
+      <div className="rounded-md overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">

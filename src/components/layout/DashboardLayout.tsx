@@ -33,7 +33,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar">
         <div className="flex h-full flex-col">
@@ -123,7 +123,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="ml-64 flex-1">
+      <main className="ml-64 flex-1 h-screen overflow-auto">
         <div className="flex justify-end px-10 pt-6 pb-0">
           <HelpModal />
         </div>
