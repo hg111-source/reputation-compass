@@ -12,6 +12,7 @@ import {
   calculateWeightedAverage,
   useBatchSaveKasaSnapshots 
 } from '@/hooks/useKasaSnapshots';
+import { useLatestPropertyScores } from '@/hooks/useSnapshots';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -36,14 +37,18 @@ import { ScoreLegend } from '@/components/properties/ScoreLegend';
 import { ReviewInsightsDialog } from '@/components/properties/ReviewInsightsDialog';
 import { BulkInsightsDialog } from '@/components/properties/BulkInsightsDialog';
 
-import { getScoreColor } from '@/lib/scoring';
+import { getScoreColor, formatScore, REVIEW_SOURCES, calculatePropertyMetrics } from '@/lib/scoring';
 import { Property, ReviewSource } from '@/lib/types';
 import { SortableTableHead, SortDirection } from '@/components/properties/SortableTableHead';
 import { TableHead } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import googleLogo from '@/assets/logos/google.svg';
+import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
+import bookingLogo from '@/assets/logos/booking.png';
+import expediaLogo from '@/assets/logos/expedia.png';
 
-type SortKey = 'name' | 'location' | 'type' | 'score' | 'reviews' | null;
+type SortKey = 'name' | 'location' | 'type' | 'score' | 'reviews' | 'google' | 'tripadvisor' | 'booking' | 'expedia' | 'otaAvg' | null;
 
 // Property type mapping based on official Kasa.com classifications
 const PROPERTY_TYPES: Record<string, 'Apartment' | 'Hotel'> = {
@@ -177,6 +182,9 @@ export default function Kasa() {
   }, [properties]);
 
   const kasaPropertyIds = useMemo(() => kasaProperties.map(p => p.id), [kasaProperties]);
+
+  // Fetch OTA scores (Google, TripAdvisor, Booking, Expedia) for Kasa properties
+  const { data: otaScores = {} } = useLatestPropertyScores(kasaPropertyIds);
   
   // Track which properties have cached AI analysis
   const { data: propertiesWithReviewsMap = {} } = useQuery<Record<string, boolean>>({
@@ -321,6 +329,19 @@ export default function Kasa() {
           aVal = aSnap?.review_count ?? a.kasa_review_count ?? -1;
           bVal = bSnap?.review_count ?? b.kasa_review_count ?? -1;
           break;
+        case 'google':
+        case 'tripadvisor':
+        case 'booking':
+        case 'expedia':
+          aVal = otaScores[a.id]?.[sortKey]?.score ?? -1;
+          bVal = otaScores[b.id]?.[sortKey]?.score ?? -1;
+          break;
+        case 'otaAvg':
+          const aMetrics = calculatePropertyMetrics(otaScores[a.id]);
+          const bMetrics = calculatePropertyMetrics(otaScores[b.id]);
+          aVal = aMetrics.avgScore ?? -1;
+          bVal = bMetrics.avgScore ?? -1;
+          break;
       }
 
       if (typeof aVal === 'string' && typeof bVal === 'string') {
@@ -328,7 +349,7 @@ export default function Kasa() {
       }
       return sortDirection === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
     });
-  }, [kasaProperties, kasaSnapshots, sortKey, sortDirection, locationFilter]);
+  }, [kasaProperties, kasaSnapshots, otaScores, sortKey, sortDirection, locationFilter]);
 
   // Fix unknown locations by re-crawling those properties
   const handleFixUnknownLocations = async () => {
@@ -958,7 +979,56 @@ export default function Kasa() {
                         >
                           Kasa.com
                         </SortableTableHead>
-                        
+                        {/* OTA Platform columns */}
+                        <SortableTableHead
+                          sortKey="google"
+                          currentSort={sortKey}
+                          currentDirection={sortDirection}
+                          onSort={handleSort}
+                          className="text-center"
+                        >
+                          <img src={googleLogo} alt="Google" className="h-4 w-4 inline mr-1" />
+                          Google
+                        </SortableTableHead>
+                        <SortableTableHead
+                          sortKey="tripadvisor"
+                          currentSort={sortKey}
+                          currentDirection={sortDirection}
+                          onSort={handleSort}
+                          className="text-center"
+                        >
+                          <img src={tripadvisorLogo} alt="TripAdvisor" className="h-4 w-4 inline mr-1" />
+                          TA
+                        </SortableTableHead>
+                        <SortableTableHead
+                          sortKey="booking"
+                          currentSort={sortKey}
+                          currentDirection={sortDirection}
+                          onSort={handleSort}
+                          className="text-center"
+                        >
+                          <img src={bookingLogo} alt="Booking" className="h-4 w-4 inline mr-1" />
+                          Booking
+                        </SortableTableHead>
+                        <SortableTableHead
+                          sortKey="expedia"
+                          currentSort={sortKey}
+                          currentDirection={sortDirection}
+                          onSort={handleSort}
+                          className="text-center"
+                        >
+                          <img src={expediaLogo} alt="Expedia" className="h-4 w-4 inline mr-1" />
+                          Expedia
+                        </SortableTableHead>
+                        <SortableTableHead
+                          sortKey="otaAvg"
+                          currentSort={sortKey}
+                          currentDirection={sortDirection}
+                          onSort={handleSort}
+                          className="text-center"
+                        >
+                          OTA Avg
+                        </SortableTableHead>
                         <TableHead className="text-center">
                           <div className="flex items-center justify-start gap-1">
                             <span className="text-xs font-semibold text-muted-foreground">Insights</span>
@@ -1038,8 +1108,52 @@ export default function Kasa() {
                                 ) : (
                                   <span className="text-muted-foreground">—</span>
                                 )}
-                              </div>
+                            </div>
                             </TableCell>
+                            {/* OTA Platform Cells */}
+                            {REVIEW_SOURCES.map(platform => {
+                              const data = otaScores[property.id]?.[platform];
+                              return (
+                                <TableCell key={platform} className="text-center">
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    {data && data.score != null && data.score > 0 ? (
+                                      <>
+                                        <span className={cn('font-semibold', getScoreColor(data.score))}>
+                                          {formatScore(data.score)}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {data.count.toLocaleString()}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <span className="text-muted-foreground">—</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              );
+                            })}
+                            {/* OTA Weighted Average */}
+                            {(() => {
+                              const metrics = calculatePropertyMetrics(otaScores[property.id]);
+                              return (
+                                <TableCell className="text-center">
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    {metrics.avgScore !== null ? (
+                                      <>
+                                        <span className={cn('font-semibold', getScoreColor(metrics.avgScore))}>
+                                          {formatScore(metrics.avgScore)}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {metrics.totalReviews.toLocaleString()}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <span className="text-muted-foreground">—</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              );
+                            })()}
                             <TableCell>
                               <Button
                                 variant="outline"
