@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, ArrowLeftRight, Eye, EyeOff, Building2, MessageSquareQuote, TrendingUp, Minus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ThumbsUp, ThumbsDown, ArrowLeftRight, Eye, EyeOff, Building2, MessageSquareQuote, TrendingUp, Minus, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AggregatedTheme {
@@ -22,6 +23,7 @@ interface ThemeComparisonCardProps {
   kasaThemes: PortfolioThemesResult | null | undefined;
   compThemes: PortfolioThemesResult | null | undefined;
   isLoading: boolean;
+  onRefresh?: () => void;
 }
 
 // ── Theme consolidation ──
@@ -179,7 +181,7 @@ function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 
   return (
     <div>
       {/* Table header */}
-      <div className="grid grid-cols-[120px_1fr_120px] gap-1 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold border-b">
+      <div className="grid grid-cols-[160px_1fr_120px] gap-1 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold border-b">
         <span>Theme</span>
         <div className="flex justify-between px-1">
           <span>← Kasa</span>
@@ -199,7 +201,7 @@ function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 
           <div
             key={t.canonical}
             className={cn(
-              'grid grid-cols-[120px_1fr_120px] gap-1 px-3 py-2 items-center',
+              'grid grid-cols-[160px_1fr_120px] gap-1 px-3 py-2 items-center',
               i % 2 === 0 ? 'bg-muted/30' : ''
             )}
           >
@@ -296,7 +298,7 @@ function FullThemeList({ themes, label, type }: { themes: AggregatedTheme[]; lab
 }
 
 
-export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: ThemeComparisonCardProps) {
+export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading, onRefresh }: ThemeComparisonCardProps) {
   const [showAllThemes, setShowAllThemes] = useState(false);
 
   const consolidated = useMemo(() => {
@@ -326,6 +328,17 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading }: Theme
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={onRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+              </Button>
+            )}
             <button
               onClick={() => setShowAllThemes(!showAllThemes)}
               className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md border bg-background hover:bg-muted"

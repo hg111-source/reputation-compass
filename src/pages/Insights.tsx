@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProperties } from '@/hooks/useProperties';
@@ -9,15 +9,8 @@ import { ThemeComparisonCard } from '@/components/kasa/ThemeComparisonCard';
 import { ExecutiveSummaryCard } from '@/components/kasa/ExecutiveSummaryCard';
 import { usePortfolioThemes } from '@/hooks/usePortfolioThemes';
 import { PropertyOwnerInsights } from '@/components/kasa/PropertyOwnerInsights';
-import { usePortfolioBenchmark, calculatePercentileInDistribution } from '@/hooks/usePortfolioBenchmark';
-
-// Kasa's actual portfolio OTA averages
-const KASA_OTA_SCORES: Record<string, number> = {
-  google: 9.28,
-  tripadvisor: 9.22,
-  booking: 8.32,
-  expedia: 8.69,
-};
+import { usePortfolioBenchmark, useKasaOTAAverages, calculatePercentileInDistribution } from '@/hooks/usePortfolioBenchmark';
+import { useQueryClient } from '@tanstack/react-query';
 
 const PLATFORM_NAMES: Record<string, string> = {
   google: 'Google',
@@ -28,6 +21,7 @@ const PLATFORM_NAMES: Record<string, string> = {
 
 export default function Insights() {
   const { user, loading } = useAuth();
+  const queryClient = useQueryClient();
   const { properties } = useProperties();
 
   const kasaProperties = useMemo(() => {
@@ -46,6 +40,7 @@ export default function Insights() {
   const { data: kasaThemes, isLoading: kasaThemesLoading } = usePortfolioThemes(kasaPropertyIds, 'kasa');
   const { data: compThemes, isLoading: compThemesLoading } = usePortfolioThemes(compPropertyIds, 'comps');
   const { data: benchmark } = usePortfolioBenchmark();
+  const { data: kasaOTA } = useKasaOTAAverages();
 
   const themesLoading = kasaThemesLoading || compThemesLoading;
 
@@ -78,18 +73,23 @@ export default function Insights() {
     };
   }, [kasaProperties, kasaSnapshots]);
 
-  // OTA benchmarks
+  // OTA benchmarks using dynamic weighted averages
   const otaBenchmarks = useMemo(() => {
-    if (!benchmark?.distributions) return [];
+    if (!benchmark?.distributions || !kasaOTA) return [];
     return (['google', 'tripadvisor', 'booking', 'expedia'] as const).map(platform => {
       const dist = benchmark.distributions[platform];
-      const kasaScore = KASA_OTA_SCORES[platform];
-      const percentile = dist?.scores?.length
+      const kasaScore = kasaOTA[platform]?.score ?? 0;
+      const percentile = dist?.scores?.length && kasaScore > 0
         ? calculatePercentileInDistribution(kasaScore, dist.scores)
         : null;
       return { platform: PLATFORM_NAMES[platform], kasaScore, percentile };
     });
-  }, [benchmark]);
+  }, [benchmark, kasaOTA]);
+
+  // Refresh themes handler
+  const handleRefreshThemes = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['portfolio-themes'] });
+  }, [queryClient]);
 
   // Top performers & needs attention for executive summary
   const { topPerformers, needsAttention } = useMemo(() => {
@@ -153,6 +153,7 @@ export default function Insights() {
           kasaThemes={kasaThemes}
           compThemes={compThemes}
           isLoading={themesLoading}
+          onRefresh={handleRefreshThemes}
         />
 
         {/* 5. Geographic Map */}
