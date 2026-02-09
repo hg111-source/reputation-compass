@@ -40,9 +40,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-20 items-center gap-3 px-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-              <Building2 className="h-5 w-5 text-white" />
-            </div>
+            <img src="/favicon.png" alt="Kasa" className="h-10 w-10 rounded-xl" />
             <span className="text-lg font-semibold text-white">Reputation</span>
           </div>
 
