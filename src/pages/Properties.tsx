@@ -34,9 +34,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Plus, Building2, RefreshCw, Download, LayoutGrid, TableIcon, Home, Bug, Brain } from 'lucide-react';
+import { Plus, Building2, RefreshCw, Download, LayoutGrid, TableIcon, Home, Bug, Brain, Star } from 'lucide-react';
 import googleLogo from '@/assets/logos/google.svg';
 import tripadvisorLogo from '@/assets/logos/tripadvisor.png';
 import bookingLogo from '@/assets/logos/booking.png';
@@ -188,6 +188,26 @@ export default function Properties() {
   const nonKasaProperties = useMemo(() => {
     return properties.filter(p => !p.kasa_url && !p.kasa_aggregated_score);
   }, [properties]);
+
+  // Portfolio summary stats for comp set
+  const compStats = useMemo(() => {
+    let totalWeighted = 0, totalReviews = 0, scoredCount = 0;
+    nonKasaProperties.forEach(p => {
+      const { avgScore, totalReviews: tr } = calculatePropertyMetrics(scores[p.id] || {});
+      if (avgScore !== null) {
+        totalWeighted += avgScore * tr;
+        totalReviews += tr;
+        scoredCount++;
+      } else {
+        totalReviews += tr;
+      }
+    });
+    return {
+      total: nonKasaProperties.length,
+      avgScore: totalReviews > 0 ? totalWeighted / totalReviews : null,
+      totalReviews,
+    };
+  }, [nonKasaProperties, scores]);
 
   // Filter properties by selected group
   const filteredProperties = useMemo(() => {
@@ -456,6 +476,37 @@ export default function Properties() {
             </Dialog>
           </div>
         </div>
+
+        {/* Stats Row */}
+        {!isLoading && nonKasaProperties.length > 0 && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Total Properties</CardDescription>
+                <CardTitle className="text-3xl">{compStats.total}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Portfolio Average</CardDescription>
+                <CardTitle className="text-3xl flex items-center gap-2">
+                  {compStats.avgScore !== null ? (
+                    <>
+                      <Star className="h-6 w-6 fill-primary text-primary" />
+                      {compStats.avgScore.toFixed(2)}/10
+                    </>
+                  ) : '—'}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Total Reviews</CardDescription>
+                <CardTitle className="text-3xl">{compStats.totalReviews.toLocaleString()}</CardTitle>
+              </CardHeader>
+            </Card>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex items-center gap-3 text-muted-foreground">
