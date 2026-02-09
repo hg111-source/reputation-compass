@@ -585,7 +585,7 @@ export default function Properties() {
                       currentSort={sortKey}
                       currentDirection={sortDirection}
                     onSort={handleSort}
-                    className="font-semibold text-left sticky left-0 z-20 bg-background"
+                    className="font-semibold text-left sticky left-0 z-20 bg-muted/50"
                   >
                     Hotel Name
                   </SortableTableHead>
