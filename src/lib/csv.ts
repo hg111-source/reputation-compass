@@ -296,3 +296,103 @@ export function exportPropertiesToCSV(
   link.download = `properties_export_${new Date().toISOString().split('T')[0]}.csv`;
   link.click();
 }
+
+export function exportKasaPropertiesToCSV(
+  properties: Property[],
+  snapshots: Record<string, { score_raw: number | null; review_count: number }>,
+  otaScores?: Record<string, Record<ReviewSource, { score: number; count: number }>>
+): void {
+  const rows = properties.map(property => {
+    const snapshot = snapshots[property.id];
+    const score5 = snapshot?.score_raw ?? property.kasa_aggregated_score;
+    const score10 = score5 ? Number(score5) * 2 : null;
+    const reviewCount = snapshot?.review_count ?? property.kasa_review_count ?? 0;
+    
+    const row: Record<string, string | number> = {
+      'Property Name': property.name,
+      City: property.city,
+      State: property.state,
+      'Kasa Score (0-10)': score10 !== null ? formatScore(score10) : '—',
+      'Review Count': reviewCount,
+    };
+
+    // Add OTA scores if available
+    if (otaScores) {
+      const propOta = otaScores[property.id] || {};
+      for (const source of REVIEW_SOURCES) {
+        const s = propOta[source];
+        row[`${SOURCE_LABELS[source]} Score`] = s ? formatScore(s.score) : '—';
+        row[`${SOURCE_LABELS[source]} Reviews`] = s?.count || 0;
+      }
+    }
+    
+    return row;
+  });
+  
+  const csv = Papa.unparse(rows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `kasa_properties_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
+}
+
+export function exportInsightsToCSV(
+  portfolioMetrics: { avgScore: number; totalProperties: number; totalReviews: number } | null,
+  otaBenchmarks: Array<{ platform: string; kasaScore: number; percentile: number | null }>,
+  kasaThemes: { positiveThemes: Array<{ theme: string; totalMentions: number }>; negativeThemes: Array<{ theme: string; totalMentions: number }> } | null | undefined,
+  compThemes: { positiveThemes: Array<{ theme: string; totalMentions: number }>; negativeThemes: Array<{ theme: string; totalMentions: number }> } | null | undefined,
+): void {
+  const allRows: Record<string, string | number>[] = [];
+
+  // Portfolio Summary
+  allRows.push({ Section: '--- PORTFOLIO SUMMARY ---' });
+  if (portfolioMetrics) {
+    allRows.push({ Metric: 'Average Score', Value: formatScore(portfolioMetrics.avgScore) });
+    allRows.push({ Metric: 'Total Properties', Value: portfolioMetrics.totalProperties });
+    allRows.push({ Metric: 'Total Reviews', Value: portfolioMetrics.totalReviews });
+  }
+
+  // OTA Benchmarks
+  allRows.push({ Section: '' });
+  allRows.push({ Section: '--- OTA BENCHMARKS ---' });
+  otaBenchmarks.forEach(b => {
+    allRows.push({
+      Platform: b.platform,
+      'Kasa Score': formatScore(b.kasaScore),
+      'Percentile vs Comps': b.percentile !== null ? `${b.percentile}%` : '—',
+    });
+  });
+
+  // Theme Comparison
+  allRows.push({ Section: '' });
+  allRows.push({ Section: '--- THEME COMPARISON ---' });
+
+  const allThemeNames = new Set<string>();
+  const kasaPos: Record<string, number> = {};
+  const kasaNeg: Record<string, number> = {};
+  const compPos: Record<string, number> = {};
+  const compNeg: Record<string, number> = {};
+
+  kasaThemes?.positiveThemes?.forEach(t => { allThemeNames.add(t.theme); kasaPos[t.theme] = t.totalMentions; });
+  kasaThemes?.negativeThemes?.forEach(t => { allThemeNames.add(t.theme); kasaNeg[t.theme] = t.totalMentions; });
+  compThemes?.positiveThemes?.forEach(t => { allThemeNames.add(t.theme); compPos[t.theme] = t.totalMentions; });
+  compThemes?.negativeThemes?.forEach(t => { allThemeNames.add(t.theme); compNeg[t.theme] = t.totalMentions; });
+
+  allThemeNames.forEach(theme => {
+    allRows.push({
+      Theme: theme,
+      'Kasa Positive Mentions': kasaPos[theme] || 0,
+      'Kasa Negative Mentions': kasaNeg[theme] || 0,
+      'Comps Positive Mentions': compPos[theme] || 0,
+      'Comps Negative Mentions': compNeg[theme] || 0,
+    });
+  });
+
+  const csv = Papa.unparse(allRows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `kasasights_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
+}
