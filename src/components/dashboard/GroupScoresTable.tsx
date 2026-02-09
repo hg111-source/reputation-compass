@@ -176,7 +176,7 @@ export function GroupScoresTable({
               onClick={(e) => handleRowClick(property, e)}
             >
               <TableCell className={cn("py-4 font-medium sticky left-0 z-10", isKasa ? "bg-blue-100/70 dark:bg-blue-950/40" : "bg-background")}>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-accent">
                   {property.name}
                   <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
