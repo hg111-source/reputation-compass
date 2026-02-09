@@ -181,7 +181,7 @@ function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 
   return (
     <div>
       {/* Table header */}
-      <div className="grid grid-cols-[160px_1fr_120px] gap-1 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold border-b">
+      <div className="grid grid-cols-[200px_1fr_120px] gap-1 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold border-b">
         <span>Theme</span>
         <div className="flex justify-between px-1">
           <span>← Kasa</span>
@@ -194,14 +194,14 @@ function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 
         const compBarPct = (t.compMentions / maxVal) * 100;
         const kasaSharePct = Math.round((t.kasaMentions / totalKasa) * 100);
         const compSharePct = Math.round((t.compMentions / totalComp) * 100);
-        const kasaColor = type === 'positive' ? 'bg-teal-500' : 'bg-teal-300';
-        const compColor = type === 'positive' ? 'bg-blue-500' : 'bg-blue-300';
+        const kasaColor = 'bg-blue-500';
+        const compColor = 'bg-gray-400';
 
         return (
           <div
             key={t.canonical}
             className={cn(
-              'grid grid-cols-[160px_1fr_120px] gap-1 px-3 py-2 items-center',
+              'grid grid-cols-[200px_1fr_120px] gap-1 px-3 py-2 items-center',
               i % 2 === 0 ? 'bg-muted/30' : ''
             )}
           >
@@ -212,9 +212,9 @@ function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 
               {/* Kasa side */}
               <div className="flex-1 flex justify-end items-center gap-1.5">
                 <span
-                  className={cn(
+                   className={cn(
                     'text-[11px] tabular-nums font-semibold cursor-default',
-                    t.kasaMentions >= t.compMentions ? 'text-teal-600 dark:text-teal-400' : 'text-muted-foreground'
+                    t.kasaMentions >= t.compMentions ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
                   )}
                   title={`${t.kasaMentions} mentions`}
                 >
@@ -231,9 +231,9 @@ function ComparisonTable({ themes, type }: { themes: ConsolidatedTheme[]; type: 
                   <div className={cn('h-full rounded-r-full', compColor)} style={{ width: `${compBarPct}%` }} />
                 </div>
                 <span
-                  className={cn(
+                   className={cn(
                     'text-[11px] tabular-nums font-semibold cursor-default',
-                    t.compMentions > t.kasaMentions ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
+                    t.compMentions > t.kasaMentions ? 'text-gray-600 dark:text-gray-400' : 'text-muted-foreground'
                   )}
                   title={`${t.compMentions} mentions`}
                 >
@@ -352,9 +352,8 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading, onRefre
           <strong>How to read:</strong> Each % shows how much of that portfolio's review conversation is about that theme. Longer bar = more discussed. Hover any % to see the raw mention count.
         </p>
         <div className="flex items-center gap-4 text-xs mt-2">
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-500" /> Kasa</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500" /> Comps</span>
-          <span className="text-muted-foreground">• Lighter shade = pain points</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500" /> Kasa</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-400" /> Comps</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
