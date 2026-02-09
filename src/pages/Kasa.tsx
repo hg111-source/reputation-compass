@@ -886,8 +886,18 @@ export default function Kasa() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0 space-y-2">
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
                     Avg of {displayStats.propertyCount || kasaProperties.length} property scores
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs" side="bottom">
+                          Weighted average across all OTA platforms, where each review counts proportionally. Higher-volume platforms have more influence on the final score.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </p>
                   {(() => {
                     const otaPlatforms: { key: ReviewSource; logo: string; label: string }[] = [
