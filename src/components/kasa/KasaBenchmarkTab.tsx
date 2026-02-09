@@ -304,7 +304,7 @@ export function KasaScoreDistribution({ properties, snapshots }: KasaBenchmarkTa
   if (properties.length === 0) return null;
 
   return (
-    <Collapsible>
+    <Collapsible defaultOpen>
       <Card>
         <CardHeader className="cursor-pointer">
           <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
