@@ -73,7 +73,7 @@ export default function ReadMe() {
             <p className="mt-2 text-muted-foreground">AI-native reputation intelligence — context, architecture, and methodology</p>
           </div>
           <a
-            href="https://github.com/jmdigitalstudio/bravo-charts"
+            href="https://github.com/hg111-source/reputation-compass"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent/10 hover:text-accent"
