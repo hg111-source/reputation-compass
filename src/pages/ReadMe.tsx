@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Layers, Database, Globe, Calculator, Brain, AlertTriangle, Zap, Rocket, Target, Crosshair, FileText, MessageSquare } from 'lucide-react';
+import { Layers, Database, Globe, Calculator, Brain, AlertTriangle, Zap, Rocket, Target, Crosshair, FileText, MessageSquare, BookOpen, CheckCircle2, Lightbulb, Shield, Compass } from 'lucide-react';
 
 function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
@@ -68,8 +68,120 @@ export default function ReadMe() {
     <DashboardLayout>
       <div className="max-w-4xl space-y-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">System Architecture &amp; Methodology</h1>
-          <p className="mt-2 text-muted-foreground">Reputation intelligence platform — design, data, and decision framework</p>
+          <h1 className="text-4xl font-bold tracking-tight">Bravo Charts</h1>
+          <p className="mt-2 text-muted-foreground">AI-native reputation intelligence — context, architecture, and methodology</p>
+        </div>
+
+        {/* Context */}
+        <Section icon={BookOpen} title="Context">
+          <p>A key part of this role is ensuring Kasa is at the forefront of AI transformation. The Chief of Staff should be increasingly <strong className="text-foreground">AI-native</strong> and continuously learning to apply modern AI tooling to real operational problems.</p>
+          <p>This exercise explores how a lightweight, AI-assisted reputation dashboard can aggregate and interpret online hotel review data across major platforms — while also illustrating how such a tool could evolve toward <strong className="text-foreground">production-grade decision support</strong>.</p>
+        </Section>
+
+        {/* Goal */}
+        <Section icon={Compass} title="Goal">
+          <p>Build a lightweight web-based dashboard that aggregates, analyzes, and visualizes online hotel review data across major OTA and review platforms.</p>
+          <p className="mt-2">The system monitors hotel performance across the <strong className="text-foreground">"Big 4" channels</strong>:</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {['Google', 'TripAdvisor', 'Expedia', 'Booking.com'].map(c => (
+              <Badge key={c} variant="secondary" className="font-normal">{c}</Badge>
+            ))}
+          </div>
+          <p className="mt-3">and allows a user to:</p>
+          <ul className="list-disc pl-5 space-y-1 mt-1">
+            <li>Log in</li>
+            <li>Manage lists of properties</li>
+            <li>View review scores by property</li>
+            <li>See a consolidated weighted review score by group</li>
+          </ul>
+          <Badge variant="outline" className="mt-2 font-normal">✓ Core goal implemented as a fully functional web application</Badge>
+        </Section>
+
+        {/* Core Functionality */}
+        <Section icon={CheckCircle2} title="Core Functionality">
+          <div className="space-y-5">
+            <div>
+              <p className="font-semibold text-foreground">1. Hotel Input</p>
+              <p className="mt-1">Accepts user-uploaded hotel lists including name, city/location, and optional website or OTA URLs. Normalization challenges across platforms were handled through alias resolution and URL matching logic.</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge variant="outline" className="font-normal text-xs">✓ Scalable architecture</Badge>
+                <Badge variant="outline" className="font-normal text-xs">→ Demo constrained to ~100 hotels (API limits)</Badge>
+              </div>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">2. Review Data Collection</p>
+              <p className="mt-1">For each hotel, retrieves average review score and total review count across Google, TripAdvisor, Expedia, and Booking.com. Data access combines official APIs, third-party APIs, and resilient scraping approaches chosen for durability over time.</p>
+              <Badge variant="outline" className="font-normal text-xs mt-2">✓ Architecture designed for long-term reliability</Badge>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">3. Scoring &amp; Aggregation</p>
+              <p className="mt-1">All platform scores converted to a common 0–10 scale. Composite scores calculated using review-count weighting. All assumptions and transformations explicitly documented.</p>
+              <div className="mt-2 rounded-lg bg-muted/30 border border-border/40 p-3 text-xs">
+                <p className="font-medium text-foreground mb-1">Extension Opportunity</p>
+                <p>Architecture allows future room-weighted or revenue-aware scoring, enabling prioritization based on economic impact, not sentiment alone. Kasa operates assets, so reputation insight is most valuable when aligned to portfolio value.</p>
+              </div>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">4. Grouping &amp; Persistence</p>
+              <p className="mt-1">Supports saving hotels into named groups, re-running collection for updated snapshots, clean table/card visualizations, and basic historical trend visibility.</p>
+              <div className="mt-2 rounded-lg bg-muted/30 border border-border/40 p-3 text-xs">
+                <p className="font-medium text-foreground mb-1">Extension Opportunity</p>
+                <p>Snapshot architecture enables score-drop alerts, trend diagnostics, and correlation with operational or revenue metrics. Reputation is most useful dynamically, not statically.</p>
+              </div>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">5. Data Export</p>
+              <p className="mt-1">Users can export raw review data and aggregated results in CSV/Excel-compatible format.</p>
+              <Badge variant="outline" className="font-normal text-xs mt-2">✓ Implemented per prompt</Badge>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">6. Authentication / Access</p>
+              <p className="mt-1">Email login, user-scoped groups, and multi-tenant data isolation.</p>
+              <Badge variant="outline" className="font-normal text-xs mt-2">✓ Optional capability implemented for real-world usability</Badge>
+            </div>
+          </div>
+        </Section>
+
+        {/* Stretch Enhancements */}
+        <Section icon={Lightbulb} title="Stretch Enhancements">
+          <div className="space-y-4">
+            <div>
+              <p className="font-semibold text-foreground">Level 1 — AI Review Theme Analysis</p>
+              <p className="mt-1">Summarizes key positive and negative themes at hotel and portfolio level via LLM-powered analysis with caching.</p>
+              <Badge variant="outline" className="font-normal text-xs mt-2">✓ Implemented as modular AI layer</Badge>
+              <p className="mt-1.5 text-xs italic">Moves the tool from reporting → decision support, which is where AI delivers the most operational value.</p>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Level 2 — Time-Range Filtering</p>
+              <p className="mt-1">Acknowledged as complex due to review-level timestamp requirements. Architecture prepared via snapshot time-series design.</p>
+              <Badge variant="outline" className="font-normal text-xs mt-2">→ Not fully implemented</Badge>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Level 3 — Airbnb Integration</p>
+              <p className="mt-1">Recognized as non-trivial due to incomplete coverage and entity-matching complexity. Architecture structured to support additional channels without redesign.</p>
+              <Badge variant="outline" className="font-normal text-xs mt-2">→ Treated as future extension</Badge>
+            </div>
+          </div>
+        </Section>
+
+        {/* Design Philosophy */}
+        <Section icon={Shield} title="Design Philosophy">
+          <p>This implementation prioritizes:</p>
+          <ul className="list-disc pl-5 space-y-1.5 mt-2">
+            <li><strong className="text-foreground">Strict alignment</strong> with the original prompt</li>
+            <li>A <strong className="text-foreground">fully working</strong> lightweight system</li>
+            <li><strong className="text-foreground">Modular extensions</strong> demonstrating how AI could evolve the tool into a scalable, AI-native reputation intelligence layer supporting faster portfolio-level decision making at Kasa</li>
+          </ul>
+          <div className="mt-3 rounded-lg bg-muted/30 border border-border/40 p-3 text-xs">
+            <p className="font-medium text-foreground mb-1">Final Framing</p>
+            <p>The core submission delivers exactly what was requested. The additional extensions are intentionally modular, non-blocking, and strategically aligned to Kasa's operating model — so the demo proves not only technical execution, but also <strong className="text-foreground">operator-level thinking</strong> about where this capability leads.</p>
+          </div>
+        </Section>
+
+        <div className="border-t border-border/50 pt-2" />
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">System Architecture &amp; Methodology</h2>
+          <p className="mt-1 text-muted-foreground text-sm">Technical design, data model, and scoring framework</p>
         </div>
 
         {/* Purpose */}
