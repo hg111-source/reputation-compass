@@ -200,7 +200,7 @@ export function GroupScoresTable({
                 return (
                   <TableCell key={platform} className="py-4 text-center">
                     <div className="flex flex-col items-center gap-0.5">
-                      {data && data.score > 0 ? (
+                      {data && data.score != null && data.score > 0 ? (
                         <>
                           <span className={cn('font-semibold', getScoreColor(data.score))}>
                             {formatScore(data.score)}
