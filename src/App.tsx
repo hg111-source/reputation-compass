@@ -11,6 +11,7 @@ import Groups from "./pages/Groups";
 import Upload from "./pages/Upload";
 import Kasa from "./pages/Kasa";
 import Insights from "./pages/Insights";
+import ReadMe from "./pages/ReadMe";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/kasa" element={<Kasa />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/upload" element={<Upload />} />
+          <Route path="/readme" element={<ReadMe />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
