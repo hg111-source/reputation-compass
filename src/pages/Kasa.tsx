@@ -952,7 +952,7 @@ export default function Kasa() {
                           currentSort={sortKey}
                           currentDirection={sortDirection}
                           onSort={handleSort}
-                          className="text-left"
+                          className="text-left sticky left-0 z-20 bg-background"
                         >
                           Property Name
                         </SortableTableHead>
@@ -1067,7 +1067,9 @@ export default function Kasa() {
                             key={property.id} 
                             className={isHotel ? 'bg-muted/30' : ''}
                           >
-                            <TableCell className="font-medium">
+                            <TableCell className="font-medium sticky left-0 z-10 bg-background"
+                              style={isHotel ? { backgroundColor: 'hsl(var(--muted) / 0.3)' } : undefined}
+                            >
                               <div className="flex items-center gap-2">
                                 {property.name}
                                 {property.kasa_url && (
