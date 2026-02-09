@@ -26,6 +26,7 @@ const PLATFORM_NAMES: Record<string, string> = {
 export default function Insights() {
   const { user, loading } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { properties } = useProperties();
 
   const kasaProperties = useMemo(() => {
@@ -125,7 +126,7 @@ export default function Insights() {
     return <Navigate to="/auth" replace />;
   }
 
-  const { toast } = useToast();
+
 
   const handleExportInsights = () => {
     exportInsightsToCSV(portfolioMetrics, otaBenchmarks, kasaThemes, compThemes);
