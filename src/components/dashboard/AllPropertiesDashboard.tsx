@@ -69,22 +69,22 @@ export function AllPropertiesDashboard({ groupSelector }: AllPropertiesDashboard
     // Kasa stats from cached snapshots
     const kasaStats = calculateWeightedAverage(kasaSnapshots);
 
-    // OTA stats for non-Kasa properties
+    // OTA stats for all properties (including Kasa properties that have OTA data)
     let otaWeightedSum = 0;
     let otaTotalReviews = 0;
     let otaPropertiesWithData = 0;
+    const kasaPropertySet = new Set(kasaPropertyIds);
 
     for (const property of properties) {
-      // Skip Kasa properties — already counted above
-      if (property.kasa_url || property.kasa_aggregated_score) continue;
-
       const propertyScores = scores[property.id];
       const { avgScore, totalReviews } = calculatePropertyMetrics(propertyScores);
 
       if (avgScore !== null && totalReviews > 0) {
         otaWeightedSum += avgScore * totalReviews;
         otaTotalReviews += totalReviews;
-        otaPropertiesWithData++;
+        if (!kasaPropertySet.has(property.id)) {
+          otaPropertiesWithData++;
+        }
       }
     }
 

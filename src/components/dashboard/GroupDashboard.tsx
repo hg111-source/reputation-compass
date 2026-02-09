@@ -115,19 +115,20 @@ export function GroupDashboard({ group, groupSelector }: GroupDashboardProps) {
 
     for (const property of properties) {
       const propertyScores = scores[property.id];
-      let { avgScore, totalReviews } = calculatePropertyMetrics(propertyScores);
-
-      // Fallback to Kasa fields if no OTA snapshot data (kasa_aggregated_score is on 5-point scale)
-      if (avgScore === null && property.kasa_aggregated_score) {
-        avgScore = (property.kasa_aggregated_score / 5) * 10;
-        totalReviews = property.kasa_review_count ?? 0;
-      }
+      const { avgScore, totalReviews } = calculatePropertyMetrics(propertyScores);
 
       if (avgScore !== null && totalReviews > 0) {
-        // Each hotel's weighted avg × its total reviews
         groupWeightedSum += avgScore * totalReviews;
         groupTotalReviews += totalReviews;
         propertiesWithData++;
+      }
+
+      // Also fold in Kasa internal scores (same as PlatformBreakdown)
+      if (property.kasa_aggregated_score && property.kasa_review_count && property.kasa_review_count > 0) {
+        const normalizedScore = (property.kasa_aggregated_score / 5) * 10;
+        groupWeightedSum += normalizedScore * property.kasa_review_count;
+        groupTotalReviews += property.kasa_review_count;
+        if (avgScore === null) propertiesWithData++;
       }
     }
 
