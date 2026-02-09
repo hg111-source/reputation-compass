@@ -352,8 +352,10 @@ export function ThemeComparisonCard({ kasaThemes, compThemes, isLoading, onRefre
           <strong>How to read:</strong> Each % shows how much of that portfolio's review conversation is about that theme. Longer bar = more discussed. Hover any % to see the raw mention count.
         </p>
         <div className="flex items-center gap-4 text-xs mt-2">
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-500" /> Kasa</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500" /> Comps</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-500" /> Kasa (strength)</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-rose-400" /> Kasa (pain point)</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500" /> Comps (strength)</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-orange-400" /> Comps (pain point)</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
