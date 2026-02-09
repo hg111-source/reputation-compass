@@ -981,8 +981,18 @@ export default function Kasa() {
                           onSort={handleSort}
                           className="text-center"
                         >
-                          Kasa.com
+                          Kasa Score
                         </SortableTableHead>
+                        <SortableTableHead
+                          sortKey="otaAvg"
+                          currentSort={sortKey}
+                          currentDirection={sortDirection}
+                          onSort={handleSort}
+                          className="text-center"
+                        >
+                          Avg Score
+                        </SortableTableHead>
+                        <TableHead className="text-center">Total Reviews</TableHead>
                         {/* OTA Platform columns */}
                         <SortableTableHead
                           sortKey="google"
@@ -1023,18 +1033,6 @@ export default function Kasa() {
                         >
                           <img src={expediaLogo} alt="Expedia" className="h-4 w-4 inline mr-1" />
                           Expedia
-                        </SortableTableHead>
-                        <SortableTableHead
-                          sortKey="otaAvg"
-                          currentSort={sortKey}
-                          currentDirection={sortDirection}
-                          onSort={handleSort}
-                          className="text-center"
-                        >
-                          <span title="Weighted by review count across platforms" className="flex flex-col items-center gap-0.5">
-                            <span className="text-xs text-muted-foreground">Σ</span>
-                            <span>OTA Avg</span>
-                          </span>
                         </SortableTableHead>
                         <TableHead className="text-center">
                           <div className="flex items-center justify-start gap-1">
@@ -1119,6 +1117,34 @@ export default function Kasa() {
                                 )}
                             </div>
                             </TableCell>
+                            {/* Avg Score (OTA weighted avg) */}
+                            {(() => {
+                              const metrics = calculatePropertyMetrics(otaScores[property.id]);
+                              return (
+                                <TableCell className="text-center">
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    {metrics.avgScore !== null ? (
+                                      <span className={cn('font-semibold', getScoreColor(metrics.avgScore))}>
+                                        {formatScore(metrics.avgScore)}
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted-foreground">—</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              );
+                            })()}
+                            {/* Total Reviews */}
+                            {(() => {
+                              const metrics = calculatePropertyMetrics(otaScores[property.id]);
+                              return (
+                                <TableCell className="text-center">
+                                  <span className="text-sm text-muted-foreground">
+                                    {metrics.totalReviews > 0 ? metrics.totalReviews.toLocaleString() : '—'}
+                                  </span>
+                                </TableCell>
+                              );
+                            })()}
                             {/* OTA Platform Cells */}
                             {REVIEW_SOURCES.map(platform => {
                               const data = otaScores[property.id]?.[platform];
@@ -1141,28 +1167,6 @@ export default function Kasa() {
                                 </TableCell>
                               );
                             })}
-                            {/* OTA Weighted Average */}
-                            {(() => {
-                              const metrics = calculatePropertyMetrics(otaScores[property.id]);
-                              return (
-                                <TableCell className="text-center">
-                                  <div className="flex flex-col items-center gap-0.5">
-                                    {metrics.avgScore !== null ? (
-                                      <>
-                                        <span className={cn('font-semibold', getScoreColor(metrics.avgScore))}>
-                                          {formatScore(metrics.avgScore)}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                          {metrics.totalReviews.toLocaleString()}
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <span className="text-muted-foreground">—</span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              );
-                            })()}
                             <TableCell>
                               <Button
                                 variant="outline"
