@@ -934,9 +934,6 @@ export default function Kasa() {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground italic mb-3">
-                  Kasa's displayed rating may vary from OTA averages because it possibly incorporates additional data sources such as Airbnb, recency weighting, normalization across platforms, and timing of review ingestion.
-                </p>
                 {kasaProperties.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <p>No Kasa properties imported yet.</p>
@@ -944,6 +941,9 @@ export default function Kasa() {
                   </div>
                 ) : (
                   <Table>
+                    <caption className="caption-bottom text-xs text-muted-foreground italic py-2">
+                      Kasa's displayed rating may vary from OTA averages because it possibly incorporates additional data sources such as Airbnb, recency weighting, normalization across platforms, and timing of review ingestion.
+                    </caption>
                     <TableHeader>
                       <TableRow>
                         <SortableTableHead
