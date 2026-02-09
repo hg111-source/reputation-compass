@@ -934,6 +934,9 @@ export default function Kasa() {
                 </div>
               </CardHeader>
               <CardContent>
+                <p className="text-xs text-muted-foreground italic mb-3">
+                  A small variance between the brand-displayed score and a raw OTA weighted average is expected. It's typically driven by recency weighting, channel normalization, rounding logic, and timing of review ingestion rather than a true performance discrepancy.
+                </p>
                 {kasaProperties.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <p>No Kasa properties imported yet.</p>
