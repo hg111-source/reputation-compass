@@ -113,7 +113,7 @@ export function KasaOTAPlatformCard() {
       <CardHeader>
         <CardTitle>Kasa Portfolio Avg Score & Percentile by Channel</CardTitle>
         <CardDescription>
-          Weighted OTA averages benchmarked against {benchmark?.totalProperties || 0} competitor properties
+          Weighted OTA averages benchmarked against competitor properties
         </CardDescription>
       </CardHeader>
       <CardContent>
